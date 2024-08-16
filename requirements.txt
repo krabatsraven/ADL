@@ -1,0 +1,15 @@
+# build on python 3.11, developers do not guarantee 3.12 at the moment
+
+# pytorch:
+# --------
+
+# cuda version:
+# --index-url https://download.pytorch.org/whl/cu124
+
+# cpu version
+--index-url https://download.pytorch.org/whl/cpu
+
+# torch packages:
+torch; python_version >="3.8"
+torchvision; python_version >="3.8"
+torchaudio; python_version >= "3.8"
