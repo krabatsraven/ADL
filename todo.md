@@ -6,8 +6,9 @@
       -  one layer with in and out
   - [ ] forward:
     - [x] just the forward pass
-    - [ ] voting: according to paper max, but shouldn't it be argmax?
+    - [ ] question: voting: according to paper max, but shouldn't it be argmax?
   - [ ] backward:
+  - 
     - order:
       1. normal backward (__super\__())
       2. high lvl
@@ -18,7 +19,8 @@
       - [x] how to add layers?
         - new layer in list
         - [x] where?
-            - prob at the end 
+            - prob at the end
+      - [ ] question: new layer initialised with one node $\hat =$ nn.linear(in=x, out=1)?
     - [ ] _merge_layers()
       - [ ] implement at first: just remove voting rights, keep nodes 
       - [ ] check in code does: merging might just delete the voting rights of the hidden layer or the hidden layer total?
@@ -29,10 +31,10 @@
             - new layer[-1] = random
             - the layer after needs a new column:
             - layer l changes from: (in_l, out_l) -> (in_l, out_l + 1) and layer l + 1 from (in_{l+1}, out) -> (in_{l+1} + 1, out)
-    - new node is initialised with the xavier initialization
-      - [ ] _merge_nodes()
+          - new node is initialised with the xavier initialization
+            - [ ] _merge_nodes()
 - [ ] test for adl class:
-  - [ ] forward()
+  - [x] forward()
   - [ ] high_level_learning
   - [ ] low_lvl_learning
   - [ ] _add_node()

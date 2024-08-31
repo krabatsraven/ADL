@@ -16,8 +16,10 @@ class AutoDeepLearner(nn.Module):
         self.input_size: int = nr_of_features
         self.output_size: int = nr_of_classes
 
-        # list of all dynamic layers, starting with a single layer in the shape (in, out)
+        # assumes that at least a single concept is to be learned in an data stream
+        # list of all dynamic layers, starting with a single layer in the shape (in, 1)
         self.layers: nn.ModuleList = nn.ModuleList([nn.Linear(nr_of_features, 1)])
+        # list of all linear layers for the voting part, starts with a single layer in the shape (1, out)
         self.voting_linear_layers: nn.ModuleDict = nn.ModuleDict({'0': nn.Linear(1, nr_of_classes)})
 
         self.voting_weights: Dict[int, float] = {0: 1.0}
@@ -35,7 +37,6 @@ class AutoDeepLearner(nn.Module):
                                      for i, beta in self.voting_weights.items()]
 
         # calculated voted/weighted class probability
-        # todo: check that dims are correct/ that sum is along correct axis
         total_weighted_class_probability = torch.stack(voted_class_probabilities, dim=0).sum(dim=0)
 
         # classification by majority rule
@@ -48,9 +49,12 @@ class AutoDeepLearner(nn.Module):
 
         # new layers are initialised with one node
         # todo: that means out=1?
-        new_layer = nn.Linear(previous_layer_output_size, 1)
+        nr_of_out_nodes = 1
+        new_layer = nn.Linear(previous_layer_output_size, nr_of_out_nodes)
         self.layers.append(new_layer)
-        self.voting_linear_layers[str(len(self.layers) - 1)] = nn.Linear(1, self.output_size)
+        
+        idx_of_new_layer = len(self.layers) - 1
+        self.voting_linear_layers[str(idx_of_new_layer)] = nn.Linear(nr_of_out_nodes, self.output_size)
 
         # todo: train new layer
 
