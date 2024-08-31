@@ -37,12 +37,25 @@ class AutoDeepLearner(nn.Module):
         # calculated voted/weighted class probability
         # todo: check that dims are correct/ that sum is along correct axis
         total_weighted_class_probability = torch.stack(voted_class_probabilities, dim=0).sum(dim=0)
-        
+
         # classification by majority rule
         # todo: according to paper max, but shouldn't it be argmax?
         return torch.max(total_weighted_class_probability)
 
     def __add_layer(self) -> None:
+        # todo: this is wip, might all be stupid, needs adding
+        previous_layer_output_size = self.layers[-1].weights.size()[0]
+
+        # new layers are initialised with one node
+        # todo: that means out=1?
+        new_layer = nn.Linear(previous_layer_output_size, 1)
+        self.layers.append(new_layer)
+        self.voting_linear_layers[str(len(self.layers) - 1)] = nn.Linear(1, self.output_size)
+
+        # todo: train new layer
+
+        # todo: change voting weights
+
         raise NotImplementedError
 
     def __add_node(self) -> None:

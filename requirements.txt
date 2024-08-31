@@ -10,6 +10,10 @@
 --index-url https://download.pytorch.org/whl/cpu
 
 # torch packages:
-torch; python_version >="3.8"
-torchvision; python_version >="3.8"
-torchaudio; python_version >= "3.8"
+torch
+torchvision
+torchaudio
+
+
+# pytest for development:
+pytest
