@@ -64,6 +64,15 @@ class AutoDeepLearner(nn.Module):
         self.voting_linear_layers[str(idx_of_new_layer)] = nn.Linear(nr_of_out_nodes, self.output_size)
         self.voting_weights[idx_of_new_layer] = 0
 
-    def _add_node(self) -> None:
-        # todo: change Ws^l
+    def _add_node(self, layer_index: int) -> None:
+        """
+        adds a new node to the layer l_{layer_index}
+
+        :param layer_index: the index of the layer in the list of layers: self.layers
+        """
+        # todo: find layer
+        # todo: generate layer with the same weights and one additional one
+        # todo: the new weight is set by Xavier Initialisation
+        # todo: change the shape Ws^l
+        # (the linear layer that takes the outputs of the hidden layer for the voting function)
         raise NotImplementedError
