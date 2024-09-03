@@ -33,8 +33,8 @@ class TestAutoDeepLearnerAddNode:
             nr_of_out_vectors_before, nr_of_in_vectors_before = model.layers[layer_idx].weight.size()
             model._add_node(layer_idx)
 
-            assert model.layers[layer_idx].weight.size() == (nr_of_out_vectors_before + 1,
-                                                             nr_of_in_vectors_before), (msg)
+            assert model.layers[layer_idx].weight.size()[0] == nr_of_out_vectors_before + 1, (msg)
+            assert model.layers[layer_idx].weight.size()[1] == nr_of_in_vectors_before, (msg)
 
         model, layers_to_add_to = model_setup()
 
@@ -58,7 +58,7 @@ class TestAutoDeepLearnerAddNode:
             nr_of_out_vectors_before, nr_of_in_vectors_before = model.layers[layer_idx].weight.size()
             model._add_node(layer_idx)
 
-            if len(model.layers) > layer_idx:
+            if len(model.layers) - 1 > layer_idx:
                 assert model.layers[layer_idx + 1].weight.size()[1] == nr_of_out_vectors_before + 1, (msg)
 
         model, layers_to_add_to = model_setup()
@@ -88,8 +88,10 @@ class TestAutoDeepLearnerAddNode:
 
             model._add_node(layer_idx)
 
-            assert model.layers[layer_idx].weight[:-1] == weights_before_add, ("add node should not change the weights "
-                                                                               "of the old nodes")
+            assert torch.all(model.layers[layer_idx].weight[:-1] == weights_before_add), (f"add node should not "
+                                                                                          f"change the weights of the"
+                                                                                          f" old nodes "
+                                                                                          f"{model.layers[layer_idx].weight[:-1] == weights_before_add}")
 
     def test_add_node_changes_voting_layer(self):
         """
@@ -101,7 +103,7 @@ class TestAutoDeepLearnerAddNode:
         for layer_idx in layers_to_add_to:
             model._add_node(layer_idx)
             nr_of_vectors_from_layer, _ = model.layers[layer_idx].weight.size()
-            nr_of_vectors_into_voting_layer, _ = model.voting_linear_layers[str(layer_idx)].weight.size()
+            _, nr_of_vectors_into_voting_layer = model.voting_linear_layers[str(layer_idx)].weight.size()
 
             assert nr_of_vectors_from_layer == nr_of_vectors_into_voting_layer, ("add node should also change the "
                                                                                  "shape of the linear layer "
@@ -114,9 +116,11 @@ class TestAutoDeepLearnerAddNode:
         """
 
         model, layers_to_add_to = model_setup()
+        # todo: change forward_test to accept a model to test
         forward_tests = TestAutoDeepLearnerForward()
 
         for layer_idx in layers_to_add_to:
             model._add_node(layer_idx)
+
         forward_tests.test_forward_form_single_item_batch()
         forward_tests.test_forward_form_multiple_item_batch()

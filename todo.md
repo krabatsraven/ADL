@@ -18,9 +18,13 @@
     - [ ] question: new layer initialised with one node $\hat =$ nn.linear(in=x, out=1)?
   - [ ] _add_node()
       - adds nodes to a layer
-      - [ ] how to add nodes?
+      - [x] how to add nodes?
       - new layer[:-1] = weights
-      - new layer[-1] = random
+      - [ ] new layer[-1] = xavier initialization
+        - [ ] q: xavier normal (N(0,std^2)) or uniform (U(−a,a))?
+        - [ ] q: gain = 1?
+        - $std = gain \times \sqrt{\frac{2} {fan_in + fan_out}}$
+        - $a = gain \times \sqrt{\frac{6} {fan_in + fan_out}}$
       - the layer after needs a new column:
       - layer l changes from: (in_l, out_l) -> (in_l, out_l + 1) and layer l + 1 from (in_{l+1}, out) -> (in_{l+1} + 1, out)
       - new node is initialised with the xavier initialization
@@ -35,7 +39,7 @@
   - [x] forward()
   - [ ] high_level_learning
   - [ ] low_lvl_learning
-  - [ ] _add_node()
+  - [x] _add_node()
   - [x] _add_layer()
   - [ ] _merge_layers()
   - [ ] _merge_nodes()  

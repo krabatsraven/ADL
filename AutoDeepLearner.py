@@ -53,7 +53,7 @@ class AutoDeepLearner(nn.Module):
         """
 
         previous_layer_output_size, previous_layer_input_size = self.layers[-1].weight.size()
-        
+
         # new layers are initialised with one node
         # todo: that means out=1?
         nr_of_out_nodes = 1
@@ -70,9 +70,47 @@ class AutoDeepLearner(nn.Module):
 
         :param layer_index: the index of the layer in the list of layers: self.layers
         """
-        # todo: find layer
-        # todo: generate layer with the same weights and one additional one
-        # todo: the new weight is set by Xavier Initialisation
-        # todo: change the shape Ws^l
+
+        # find layer
+        layer_to_add_to = self.layers[layer_index]
+
+        # generate layer
+        out_before, in_before = layer_to_add_to.weight.size()
+        new_layer = nn.Linear(in_before, out_before + 1)
+
+        # the new weight is set by Xavier Initialisation
+        nn.init.xavier_uniform_(new_layer.weight)
+
+        # with the same weights and one additional one
+        new_layer.weight = nn.parameter.Parameter(torch.cat((layer_to_add_to.weight, new_layer.weight[0:1])))
+        new_layer.bias = nn.parameter.Parameter(torch.cat((layer_to_add_to.bias, new_layer.bias[0:1])))
+
+        # change layer
+        self.layers[layer_index] = new_layer
+
+        # change following node
+        if layer_index < len(self.layers) - 1:
+            old_following_layer = self.layers[layer_index + 1]
+            anount_out_vectors, amount_in_vectors = old_following_layer.weight.size()
+            new_following_layer = nn.Linear(amount_in_vectors + 1, anount_out_vectors)
+            # todo: the new column also xavier initialised?
+            nn.init.xavier_uniform_(new_following_layer.weight)
+            new_following_layer.weight = nn.parameter.Parameter(
+                torch.cat((old_following_layer.weight, new_following_layer.weight[:, 0:1]), dim=1))
+            self.layers[layer_index + 1] = new_following_layer
+
+        # change the shape Ws^l
         # (the linear layer that takes the outputs of the hidden layer for the voting function)
-        raise NotImplementedError
+        old_voting_layer = self.voting_linear_layers[str(layer_index)]
+        new_voting_layer = nn.Linear(out_before + 1, self.output_size)
+
+        # todo: weight of voting layer also xavier init?
+        nn.init.xavier_uniform_(new_voting_layer.weight)
+
+        new_voting_layer.weight = nn.parameter.Parameter(
+            torch.cat((old_voting_layer.weight, new_voting_layer.weight[:, 0:1]), dim=1))
+        # has the same amount of outputs -> has the same amount of biases
+        new_voting_layer.bias = old_voting_layer.bias
+
+        # change voting layer
+        self.voting_linear_layers[str(layer_index)] = new_voting_layer
