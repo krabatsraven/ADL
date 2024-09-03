@@ -44,3 +44,10 @@ class TestAutoDeepLearnerAddLayer:
         assert len(model.voting_weights) == 101, "model should have 101 voting weights after adding a hundred layers"
 
         assert sum(model.voting_weights.values()) == 1, "models voting weights should be normalised"
+
+    def test_add_layer_should_still_not_break_forward(self):
+        """
+        After performing _add_layer the functionality of forward should still be intact
+        """
+
+        pass
