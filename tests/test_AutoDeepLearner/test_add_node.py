@@ -118,5 +118,5 @@ class TestAutoDeepLearnerAddNode:
 
         for layer_idx in layers_to_add_to:
             model._add_node(layer_idx)
-            forward_tests.test_forward_form_single_item_batch()
-            forward_tests.test_forward_form_multiple_item_batch()
+        forward_tests.test_forward_form_single_item_batch()
+        forward_tests.test_forward_form_multiple_item_batch()
