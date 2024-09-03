@@ -12,7 +12,7 @@ class TestAutoDeepLearnerAddLayer:
 
         for i in range(100):
             nr_of_layers_before_adding = len(model.layers)
-            model.__add_layer()
+            model._add_layer()
             assert len(model.layers) == nr_of_layers_before_adding + 1, (
                 "__add_layer should result in model having a single layer more than before")
 
@@ -24,7 +24,7 @@ class TestAutoDeepLearnerAddLayer:
 
         for i in range(100):
             nr_of_layers_before_adding = len(model.layers)
-            model.__add_layer()
+            model._add_layer()
             assert len(model.voting_linear_layers) == nr_of_layers_before_adding + 1, (
                 "__add_layer should result in model having a single layer more that votes than before")
 
@@ -37,7 +37,7 @@ class TestAutoDeepLearnerAddLayer:
 
         for i in range(100):
             nr_of_layers_before_adding = len(model.layers)
-            model.__add_layer()
+            model._add_layer()
             assert len(model.voting_weights) == nr_of_layers_before_adding + 1, (
                 "__add_layer should result in model having a single voting weight more that votes than before")
 

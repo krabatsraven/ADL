@@ -19,9 +19,13 @@ class AutoDeepLearner(nn.Module):
         # assumes that at least a single concept is to be learned in an data stream
         # list of all dynamic layers, starting with a single layer in the shape (in, 1)
         self.layers: nn.ModuleList = nn.ModuleList([nn.Linear(nr_of_features, 1)])
+
         # list of all linear layers for the voting part, starts with a single layer in the shape (1, out)
+        # contains only the indices of self.layers that are eligible to vote
         self.voting_linear_layers: nn.ModuleDict = nn.ModuleDict({'0': nn.Linear(1, nr_of_classes)})
 
+        # all voting weights should always be normalised,
+        # and only contain the indices of self.layers that eligible to vote
         self.voting_weights: Dict[int, float] = {0: 1.0}
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -43,25 +47,23 @@ class AutoDeepLearner(nn.Module):
         # todo: according to paper max, but shouldn't it be argmax?
         return torch.max(total_weighted_class_probability)
 
-    def __add_layer(self) -> None:
-        # todo: this is wip, might all be stupid, needs adding
-        previous_layer_output_size = self.layers[-1].weights.size()[0]
+    def _add_layer(self) -> None:
+        """
+        adds a new untrained layer
+        """
 
+        previous_layer_output_size, previous_layer_input_size = self.layers[-1].weight.size()
+        
         # new layers are initialised with one node
         # todo: that means out=1?
         nr_of_out_nodes = 1
         new_layer = nn.Linear(previous_layer_output_size, nr_of_out_nodes)
         self.layers.append(new_layer)
-        
+
         idx_of_new_layer = len(self.layers) - 1
         self.voting_linear_layers[str(idx_of_new_layer)] = nn.Linear(nr_of_out_nodes, self.output_size)
+        self.voting_weights[idx_of_new_layer] = 0
 
-        # todo: train new layer
-
-        # todo: change voting weights
-
-        raise NotImplementedError
-
-    def __add_node(self) -> None:
+    def _add_node(self) -> None:
         # todo: change Ws^l
         raise NotImplementedError
