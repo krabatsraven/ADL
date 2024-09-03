@@ -24,7 +24,6 @@
       - the layer after needs a new column:
       - layer l changes from: (in_l, out_l) -> (in_l, out_l + 1) and layer l + 1 from (in_{l+1}, out) -> (in_{l+1} + 1, out)
       - new node is initialised with the xavier initialization
-        - question: here or in the optimizer?
   - [ ] _merge_layers()
     - merges two layers
     - [ ] implement at first: just remove voting rights, keep nodes
@@ -56,23 +55,21 @@
     - [ ] hidden_layer_pruning:
       - find correlated layers
       - merge them
-    - model._merge_layer()
-    - ?
     - [ ] drift_detection:
       - [ ] drift detection with capimoa
       - [ ] add new layer:
-    1. model.__add_layer()
-    2. train new layer:
-    1. set weight of new layer temporarily to 1, all else to 0
-    2. train with buffered/current data
-    3. adjust weights?
-    - q: old weights are used?
-    - q: weight of new layer?
+        1. model.__add_layer()
+        2. train new layer:
+           1. set weight of new layer temporarily to 1, all else to 0
+           2. train with buffered/current data
+           3. adjust weights?
+      - q: old voting weights are used?
+      - q: voting weight of new layer?
   - [ ] low_lvl_learning
     1. hidden node growing
     2. hidden node pruning
 
-- loss function
+- loss function: probably SGD in single pass fashion
 
 - Training loop
 
@@ -85,3 +82,5 @@
   - idee: optimizer muss möglicherweise sowieso teilweise neu geschrieben werden? vllt kann man dann dem optimizer auch einen iter geben der sich ändert. Internetrecherche hat auch keine Löusng außer neue Instanz ergeben.
 - cross-entropy-loss funktion in pytorch führt automatisch soft max aus
 
+- Questions out of Curiosity:
+  - linear layer between hidden layer and voting to transform vector?
