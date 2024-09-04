@@ -1,4 +1,5 @@
 - [x] Kirstenml zum repo hinzufügen
+- question [ ]: sanity checks?
 - [ ] adl class:
   - [x] structure:
     - defines the layers of the adl
@@ -7,6 +8,7 @@
       -  one layer with in and out
   - [ ] forward:
     - defines the forward pass through the network
+    - compare eq 4.1 (1) in the paper
     - [x] just the forward pass
     - [ ] question: voting: according to paper max, but shouldn't it be argmax?
   - [ ] _add_layer() 
@@ -15,9 +17,10 @@
       - new layer in list
       - [x] where?
         - prob at the end
-    - [ ] question: new layer initialised with one node $\hat =$ nn.linear(in=x, out=1)?
+    - [ ] question: new layer initialised with one node $\hat =$ ```nn.linear(in=x, out=1)```?
   - [ ] _add_node()
-      - adds nodes to a layer
+      - adds nodes to a layer at the bottom of the matrix
+      - gets the index of the layer to add in
       - [x] how to add nodes?
       - new ```layer[:-1] = weights```
       - [ ] ```new_layer[-1]```: xavier initialization
@@ -31,9 +34,11 @@
   - [ ] _merge_layers()
     - merges two layers
     - [ ] implement at first: just remove voting rights, keep nodes
-    - [ ] check in code does: merging might just delete the voting rights of the hidden layer or the hidden layer total?
-  - [ ] _merge_nodes()
+    - [ ] check in code does: merging might just delete the voting rights of the hidden layer or the hidden layer completely?
+  - [ ] _delete_node()
     - prunes nodes?
+    - gets: the index of the node to be pruned, as well as the index of the layer to prune in
+    - 
 
 - [ ] test for adl class:
   - [x] forward()
