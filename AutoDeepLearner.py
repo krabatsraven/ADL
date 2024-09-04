@@ -29,7 +29,11 @@ class AutoDeepLearner(nn.Module):
         self.voting_weights: Dict[int, float] = {0: 1.0}
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # section 4.1 equation 1:
+        """
+        section 4.1 equation 1:
+        :param x: data to be classified
+        :return: classification tensor of ? probability of classes
+        """
 
         # calculate all h^{l} = \sigma(W^{l} h^{(l-1)} + b^{l}), h^{(0)} = x
         hidden_layers: List[torch.Tensor] = [x := nn.Sigmoid()(layer(x)) for layer in self.layers]
