@@ -42,12 +42,10 @@
 
 - [ ] test for adl class:
   - [x] forward()
-  - [ ] high_level_learning
-  - [ ] low_lvl_learning
   - [x] _add_node()
   - [x] _add_layer()
   - [ ] _merge_layers()
-  - [ ] _merge_nodes()  
+  - [x] _merge_nodes()  
 
 - [ ] optimizer:
   - [ ] backward:
@@ -83,6 +81,8 @@
 - Training loop
 
 - [ ] tests for optimizer
+  - [ ] high_level_learning
+  - [ ] low_lvl_learning 
 
 - [ ] tests for loss?
 
