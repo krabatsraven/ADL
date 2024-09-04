@@ -141,8 +141,6 @@ class TestAutoDeepLearnerAddNode:
 
         forward_tests = TestAutoDeepLearnerForward()
         forward_tests.test_forward_form_single_item_batch(model, feature_count, msg="After performing _add_node: ")
-        forward_tests.test_forward_form_multiple_item_batch(model, feature_count, batch_size=1000,
-                                                            msg="After performing _add_node ")
 
     def test_add_node_should_still_not_break_forward_multiple(self, model, feature_count, layers_to_add_to):
         """
