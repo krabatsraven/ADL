@@ -35,7 +35,7 @@
     - merges two layers
     - [ ] implement at first: just remove voting rights, keep nodes
     - [ ] check in code does: merging might just delete the voting rights of the hidden layer or the hidden layer completely?
-  - [ ] _delete_node()
+  - [x] _delete_node()
     - prunes nodes?
     - gets: the index of the node to be pruned, as well as the index of the layer to prune in
     - ![delete_sketch](images/_delete_node_sketch.jpg)

@@ -116,10 +116,19 @@ class AutoDeepLearner(nn.Module):
         new_voting_layer.weight = nn.parameter.Parameter(
             torch.cat((old_voting_layer.weight, new_voting_layer.weight[:, 0:1]), dim=1))
         # has the same amount of outputs -> has the same amount of biases
-        new_voting_layer.bias = old_voting_layer.bias
+        new_voting_layer.bias = nn.parameter.Parameter(old_voting_layer.bias)
 
         # change voting layer
         self.voting_linear_layers[str(layer_index)] = new_voting_layer
+
+    @staticmethod
+    def __create_new_layer_with_deleted_node_index(old_following_layer: nn.Module, node_index: int) -> nn.Linear:
+        old_following_out, old_following_in = old_following_layer.weight.size()
+        # create new nn.linear(in=old_in - 1, out=old_out)
+        new_following_layer = nn.Linear(old_following_in - 1, old_following_out)
+        # set weights of new layer to the one of the original missing the node_index row (zero indexed)
+        new_following_layer.weight = nn.parameter.Parameter(torch.cat((old_following_layer.weight[:, :node_index], old_following_layer.weight[:, node_index + 1:]), dim=1))
+        return new_following_layer
 
     def _delete_node(self, layer_index: int, node_index: int) -> None:
         """
@@ -134,20 +143,21 @@ class AutoDeepLearner(nn.Module):
         """
 
         # todo: check whether layer exists (sanity check)
-        # todo: find layer
         old_layer = self.layers[layer_index]
         # todo: check whether layer has node to delete (sanity check)
-        # todo: create new nn.linear(in=old_in, out=old_out - 1)
-        # todo: set weights of new layer to the one of the original missing the node_index row (zero indexed)
-        # todo: set bias of new layer to the one of the original missing the node_index row (zero indexed)
-        # todo: change list of layers
 
-        # todo: change the next layer after layer_index
-        # todo: find layer with index
-        # todo: create new nn.linear(in=old_in - 1, out=old_out)
-        # todo: set weights of new layer to the one of the original missing the node_index row (zero indexed)
-        # todo: set bias of new layer to the one of the original missing the node_index row (zero indexed)
-        # todo: change list of layers
+        # create new nn.linear(in=old_in, out=old_out - 1)
+        old_out, old_in = old_layer.weight.size()
+        new_layer = nn.Linear(old_in, old_out - 1)
+        # set weights of new layer to the one of the original missing the node_index row (zero indexed)
+        new_layer.weight = nn.parameter.Parameter(torch.cat((old_layer.weight[:node_index], old_layer.weight[node_index + 1:]), dim=0))
+        # set bias of new layer to the one of the original missing the node_index row (zero indexed)
+        new_layer.bias = nn.parameter.Parameter(torch.cat((old_layer.bias[:node_index], old_layer.bias[node_index + 1:]), dim=0))
+        self.layers[layer_index] = new_layer
 
-        # todo: change voting layer the same as the layer next_layer + 1
-        raise NotImplementedError
+        # change the next layer after layer_index
+        if layer_index < len(self.layers) - 1:
+            self.layers[layer_index + 1] = self.__create_new_layer_with_deleted_node_index(self.layers[layer_index + 1], node_index)
+
+        # change voting layer the same as the layer next_layer + 1
+        self.voting_linear_layers[str(layer_index)] = self.__create_new_layer_with_deleted_node_index(self.voting_linear_layers[str(layer_index)], node_index)
