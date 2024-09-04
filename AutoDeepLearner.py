@@ -16,7 +16,7 @@ class AutoDeepLearner(nn.Module):
         self.input_size: int = nr_of_features
         self.output_size: int = nr_of_classes
 
-        # assumes that at least a single concept is to be learned in an data stream
+        # assumes that at least a single concept is to be learned in a data stream
         # list of all dynamic layers, starting with a single layer in the shape (in, 1)
         self.layers: nn.ModuleList = nn.ModuleList([nn.Linear(nr_of_features, 1)])
 
@@ -53,7 +53,7 @@ class AutoDeepLearner(nn.Module):
 
     def _add_layer(self) -> None:
         """
-        adds a new untrained layer
+        adds a new untrained layer at the end of the first network
         """
 
         previous_layer_output_size, previous_layer_input_size = self.layers[-1].weight.size()
@@ -70,10 +70,12 @@ class AutoDeepLearner(nn.Module):
 
     def _add_node(self, layer_index: int) -> None:
         """
-        adds a new node to the layer l_{layer_index}
+        adds a new node to the layer l_{layer_index} to the bottom of the layer/ to the bottom of the matrix
 
-        :param layer_index: the index of the layer in the list of layers: self.layers
+        :param layer_index: the index of the layer in the list of layers
         """
+
+        # todo: check whether layer exists (sanity check)
 
         # find layer
         layer_to_add_to = self.layers[layer_index]
@@ -92,7 +94,7 @@ class AutoDeepLearner(nn.Module):
         # change layer
         self.layers[layer_index] = new_layer
 
-        # change following node
+        # change following layer
         if layer_index < len(self.layers) - 1:
             old_following_layer = self.layers[layer_index + 1]
             anount_out_vectors, amount_in_vectors = old_following_layer.weight.size()
@@ -103,7 +105,7 @@ class AutoDeepLearner(nn.Module):
                 torch.cat((old_following_layer.weight, new_following_layer.weight[:, 0:1]), dim=1))
             self.layers[layer_index + 1] = new_following_layer
 
-        # change the shape Ws^l
+        # change the shape of Ws^l
         # (the linear layer that takes the outputs of the hidden layer for the voting function)
         old_voting_layer = self.voting_linear_layers[str(layer_index)]
         new_voting_layer = nn.Linear(out_before + 1, self.output_size)
@@ -118,3 +120,34 @@ class AutoDeepLearner(nn.Module):
 
         # change voting layer
         self.voting_linear_layers[str(layer_index)] = new_voting_layer
+
+    def _delete_node(self, layer_index: int, node_index: int) -> None:
+        """
+        deletes from layer l_{layer_index} the node with index node_index
+        implementation:
+            it will create a new layer with an out reduced by 1,
+            the weights will be the same as the old ones, but missing the row node_index
+            the following layer, as well as the voting layer, will also be changed, now of the form (old_out) x (old_in - 1)
+
+        :param layer_index: the index of the layer in the list of layers to be changed
+        :param node_index: the index of node to be deleted
+        """
+
+        # todo: check whether layer exists (sanity check)
+        # todo: find layer
+        old_layer = self.layers[layer_index]
+        # todo: check whether layer has node to delete (sanity check)
+        # todo: create new nn.linear(in=old_in, out=old_out - 1)
+        # todo: set weights of new layer to the one of the original missing the node_index row (zero indexed)
+        # todo: set bias of new layer to the one of the original missing the node_index row (zero indexed)
+        # todo: change list of layers
+
+        # todo: change the next layer after layer_index
+        # todo: find layer with index
+        # todo: create new nn.linear(in=old_in - 1, out=old_out)
+        # todo: set weights of new layer to the one of the original missing the node_index row (zero indexed)
+        # todo: set bias of new layer to the one of the original missing the node_index row (zero indexed)
+        # todo: change list of layers
+
+        # todo: change voting layer the same as the layer next_layer + 1
+        raise NotImplementedError
