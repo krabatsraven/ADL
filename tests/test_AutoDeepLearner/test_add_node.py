@@ -1,4 +1,5 @@
 import random
+import pytest
 from typing import List, Tuple
 
 import torch
@@ -7,24 +8,51 @@ from AutoDeepLearner import AutoDeepLearner
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
 
 
-def model_setup() -> Tuple[AutoDeepLearner, List[int]]:
-    # set up class with a few layers
-    feature_count, class_count = torch.randint(10_000, (2,))
-    model = AutoDeepLearner(feature_count, class_count)
-    nr_of_layers = 100
-
-    for i in range(nr_of_layers):
-        model._add_layer()
-
-    # draw a random amount of indices to add a node too
-    layers_to_add_to = [random.randint(0, nr_of_layers) for _ in range(random.randint(0, nr_of_layers))]
-
-    return model, layers_to_add_to
+# def model_setup() -> Tuple[AutoDeepLearner, List[int]]:
+#     # set up class with a few layers
+#     feature_count, class_count = torch.randint(10_000, (2,))
+#     model = AutoDeepLearner(feature_count, class_count)
+#     nr_of_layers = 100
+# 
+#     for i in range(nr_of_layers):
+#         model._add_layer()
+# 
+#     # draw a random amount of indices to add a node too
+#     layers_to_add_to = [random.randint(0, nr_of_layers) for _ in range(random.randint(0, nr_of_layers))]
+# 
+#     return model, layers_to_add_to
 
 
 class TestAutoDeepLearnerAddNode:
 
-    def test_add_node_adds_node(self):
+    @pytest.fixture(scope="class")
+    def feature_count(self) -> int:
+        return random.randint(0, 10_000)
+
+    @pytest.fixture(scope="class")
+    def class_count(self) -> int:
+        return random.randint(0, 10_000)
+
+    @pytest.fixture(scope="class")
+    def nr_of_layers(self) -> int:
+        return 100
+
+    @pytest.fixture(autouse=True)
+    def model(self, feature_count, class_count, nr_of_layers) -> AutoDeepLearner:
+        model = AutoDeepLearner(feature_count, class_count)
+
+        for i in range(nr_of_layers):
+            model._add_layer()
+
+        yield model
+
+        del model
+
+    @pytest.fixture(scope="class", autouse=True)
+    def layers_to_add_to(self, nr_of_layers: int) -> List[int]:
+        return [random.randint(0, nr_of_layers) for _ in range(random.randint(0, nr_of_layers))]
+
+    def test_add_node_adds_node(self, model, layers_to_add_to):
         """
         add node should add a node to the right layer
         """
@@ -35,8 +63,6 @@ class TestAutoDeepLearnerAddNode:
 
             assert model.layers[layer_idx].weight.size()[0] == nr_of_out_vectors_before + 1, (msg)
             assert model.layers[layer_idx].weight.size()[1] == nr_of_in_vectors_before, (msg)
-
-        model, layers_to_add_to = model_setup()
 
         # testing for random indices:
         for layer_idx in layers_to_add_to:
@@ -49,7 +75,7 @@ class TestAutoDeepLearnerAddNode:
                               "Adding a second node should have also increased the number of out vectors "
                               "by one, and left the numbers of in vectors the same")
 
-    def test_add_node_adds_in_vector_after_added_node(self):
+    def test_add_node_adds_in_vector_after_added_node(self, model, layers_to_add_to):
         """
         add node should add an in vector to the layer following the layer with the added node
         """
@@ -60,8 +86,6 @@ class TestAutoDeepLearnerAddNode:
 
             if len(model.layers) - 1 > layer_idx:
                 assert model.layers[layer_idx + 1].weight.size()[1] == nr_of_out_vectors_before + 1, (msg)
-
-        model, layers_to_add_to = model_setup()
 
         add_test_in_layer(model, layers_to_add_to[0], "add node should add an in vector to the layer following the "
                                                       "layer with the added node, even if done twice in row")
@@ -75,12 +99,10 @@ class TestAutoDeepLearnerAddNode:
             add_test_in_layer(model, layer_idx, "adding a second node to a layer previously added to should add an in "
                                                 "vector to a layer following the layer with the added node")
 
-    def test_add_node_keeps_old_weights(self):
+    def test_add_node_keeps_old_weights(self, model, layers_to_add_to):
         """
         add node should not change the weights of the old nodes
         """
-
-        model, layers_to_add_to = model_setup()
 
         for layer_idx in layers_to_add_to:
             nr_of_out_vectors_before, _ = model.layers[layer_idx].weight.size()
@@ -93,12 +115,11 @@ class TestAutoDeepLearnerAddNode:
                                                                                           f" old nodes "
                                                                                           f"{model.layers[layer_idx].weight[:-1] == weights_before_add}")
 
-    def test_add_node_changes_voting_layer(self):
+    def test_add_node_changes_voting_layer(self, model, layers_to_add_to):
         """
         add node should also change the shape of the linear layer responsible to transform the layer output into the 
         voting output
         """
-        model, layers_to_add_to = model_setup()
 
         for layer_idx in layers_to_add_to:
             model._add_node(layer_idx)
@@ -110,17 +131,28 @@ class TestAutoDeepLearnerAddNode:
                                                                                  "responsible to transform the layer "
                                                                                  "output into the voting output")
 
-    def test_add_node_should_still_not_break_forward(self):
+    def test_add_node_should_still_not_break_forward(self, model, feature_count, layers_to_add_to):
         """
         After performing _add_node the functionality of forward should still be intact
         """
 
-        model, layers_to_add_to = model_setup()
-        # todo: change forward_test to accept a model to test
+        for layer_idx in layers_to_add_to:
+            model._add_node(layer_idx)
+
         forward_tests = TestAutoDeepLearnerForward()
+        forward_tests.test_forward_form_single_item_batch(model, feature_count, msg="After performing _add_node: ")
+        forward_tests.test_forward_form_multiple_item_batch(model, feature_count, batch_size=1000,
+                                                            msg="After performing _add_node ")
+
+    def test_add_node_should_still_not_break_forward_multiple(self, model, feature_count, layers_to_add_to):
+        """
+        After performing _add_node the functionality of forward should still be intact
+        """
 
         for layer_idx in layers_to_add_to:
             model._add_node(layer_idx)
 
-        forward_tests.test_forward_form_single_item_batch()
-        forward_tests.test_forward_form_multiple_item_batch()
+        forward_tests = TestAutoDeepLearnerForward()
+        # setting batch size too big will break the memory
+        forward_tests.test_forward_form_multiple_item_batch(model, feature_count, batch_size=1000,
+                                                            msg="After performing _add_node ")
