@@ -19,14 +19,14 @@
   - [ ] _add_node()
       - adds nodes to a layer
       - [x] how to add nodes?
-      - new layer[:-1] = weights
-      - [ ] new layer[-1] = xavier initialization
-        - [ ] q: xavier normal (N(0,std^2)) or uniform (U(−a,a))?
+      - new ```layer[:-1] = weights```
+      - [ ] ```new_layer[-1]```: xavier initialization
+        - [ ] q: xavier normal ($\mathcal N(0,std^2)$) or uniform ($\mathcal U(−a,a)$)?
         - [ ] q: gain = 1?
         - $std = gain \times \sqrt{\frac{2} {fan_in + fan_out}}$
         - $a = gain \times \sqrt{\frac{6} {fan_in + fan_out}}$
       - the layer after needs a new column:
-      - layer l changes from: (in_l, out_l) -> (in_l, out_l + 1) and layer l + 1 from (in_{l+1}, out) -> (in_{l+1} + 1, out)
+      - layer l changes from: $(in_l, out_l) \to (in_l, out_l + 1)$ and layer $l + 1$ from $(in_{l+1}, out) \to (in_{l+1} + 1, out)$
       - new node is initialised with the xavier initialization
   - [ ] _merge_layers()
     - merges two layers
@@ -47,7 +47,7 @@
 - [ ] optimizer:
   - [ ] backward:
     - algo:
-      1. normal backward (__super\__())
+      1. normal backward (```loss.backward()``` to get gradient, ```optimizer().step()``` to improve and ```optimizer().zero_grad()``` to reset gradients)
       2. adjusting of the weights $\beta$
       2. high lvl
       3. low lvl
@@ -62,7 +62,7 @@
     - [ ] drift_detection:
       - [ ] drift detection with capimoa
       - [ ] add new layer:
-        1. model.__add_layer()
+        1. ```model.__add_layer()```
         2. train new layer:
            1. set weight of new layer temporarily to 1, all else to 0
            2. train with buffered/current data
