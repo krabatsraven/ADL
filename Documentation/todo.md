@@ -38,7 +38,7 @@
   - [ ] _delete_node()
     - prunes nodes?
     - gets: the index of the node to be pruned, as well as the index of the layer to prune in
-    - 
+    - ![delete_sketch](images/_delete_node_sketch.jpg)
 
 - [ ] test for adl class:
   - [x] forward()
