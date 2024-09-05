@@ -31,4 +31,4 @@ class TestAutoDeepLearnerForward:
         prediction = model(torch.rand(batch_size, feature_count))
 
         assert torch.is_tensor(prediction), f'{msg}prediction should be a tensor'
-        # assert prediction.size() == torch.tensor(1.0).size(), f'{msg}prediction should be of the shape of a scalar'
+        assert prediction.size() == torch.tensor(1.0).size(), f'{msg}prediction should be of the shape of a scalar'
