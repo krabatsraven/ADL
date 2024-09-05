@@ -44,7 +44,6 @@ class AutoDeepLearner(nn.Module):
         hidden_layers: List[torch.Tensor] = [x := nn.Sigmoid()(layer(x)) for layer in self.layers]
 
         # calculate all y^i = s.max(W_{s_l}h^{l} + b_{s_l})
-        # todo: check that below is correct
         # that are not currently pruned
         voted_class_probabilities = [torch.mul(nn.Softmax()(self.voting_linear_layers[str(i)](hidden_layers[i])), beta)
                                      for i, beta in self.voting_weights.items()]
