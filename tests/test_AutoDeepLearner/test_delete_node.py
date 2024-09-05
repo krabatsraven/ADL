@@ -61,7 +61,10 @@ class TestAutoDeepLearnerDeleteNode:
 
     @staticmethod
     def delete_two_nodes_in_a_row_with_test(model, previous, test, msg):
-        choices_to_delete = [random.sample(range(layer.weight.size()[0]), 2) + [index] for index, layer in enumerate(model.layers) if layer.weight.size()[0] > 2]
+        choices_to_delete = [
+            [*random.sample(range(layer.weight.size()[0]), 2), index] for index, layer in enumerate(model.layers)
+            if layer.weight.size()[0] > 2
+        ]
 
         for choice_1, choice_2, index in choices_to_delete:
             previous_size = previous(index, model)
@@ -82,14 +85,14 @@ class TestAutoDeepLearnerDeleteNode:
         self.delete_nodes_with_test(
             model=model,
             previous=self.previous_context_layers,
-            test=lambda index, previous_size, choice_1, choice_2: model.layers[index].weight.size()[0] == previous_size - 1,
+            test=lambda index, previous_size, _1, _2: model.layers[index].weight.size()[0] == previous_size - 1,
             msg="_delete node should delete the right node in the right layer"
         )
 
         self.delete_two_nodes_in_a_row_with_test(
             model=model,
             previous=self.previous_context_layers,
-            test=lambda index, previous_size, choice_1, choice_2: model.layers[index].weight.size()[0] == previous_size - 2,
+            test=lambda index, previous_size, _1, _2: model.layers[index].weight.size()[0] == previous_size - 2,
             msg="_delete node should delete the right node in the right layer even if done twice in a row"
         )
 
@@ -102,16 +105,27 @@ class TestAutoDeepLearnerDeleteNode:
         self.delete_nodes_with_test(
             model=model,
             previous=previous,
-            test=lambda index, previous_size, choice_1, choice_2: torch.all(torch.cat((previous_size[:choice_1], previous_size[choice_1 + 1:])) == model.layers[index].weight),
+            test=(lambda index, previous_size, choice_1, choice_2:
+                  torch.all(torch.cat(
+                      (previous_size[:choice_1],
+                       previous_size[choice_1 + 1:])
+                  ) == model.layers[index].weight)
+                  ),
             msg="_delete node should not change the weights except for deleting the row of the deleted node"
         )
 
         self.delete_two_nodes_in_a_row_with_test(
             model=model,
             previous=previous,
-            test=lambda index, previous_size, choice_1, choice_2: torch.all(torch.cat((previous_size[:choice_1], previous_size[choice_1 + 1:choice_2], previous_size[choice_2 + 1:])) == model.layers[index].weight),
-            msg="_delete node should not change the weights except for deleting the row of the deleted node "
-                "even if done twice in a row"
+            test=(lambda index, previous_size, choice_1, choice_2:
+                  torch.all(torch.cat(
+                      (previous_size[:choice_1],
+                       previous_size[choice_1 + 1:choice_2],
+                       previous_size[choice_2 + 1:])
+                  ) == model.layers[index].weight)
+                  ),
+            msg=("_delete node should not change the weights except for deleting the row of the deleted node "
+                 "even if done twice in a row")
         )
 
         # todo: test that bias is correct
@@ -124,14 +138,22 @@ class TestAutoDeepLearnerDeleteNode:
         self.delete_nodes_with_test(
             model=model,
             previous=self.previous_context_layers,
-            test=lambda index, previous_size, choice_1, choice_2: model.layers[index + 1].weight.size()[1] == previous_size - 1 if len(model.layers) > index + 1 else True,
+            test=(lambda index, previous_size, choice_1, choice_2:
+                  model.layers[index + 1].weight.size()[1] == previous_size - 1
+                  if len(model.layers) > index + 1
+                  else True
+                  ),
             msg="_delete node should change the shape of the following layer"
         )
 
         self.delete_two_nodes_in_a_row_with_test(
             model=model,
             previous=self.previous_context_layers,
-            test=lambda index, previous_size, choice_1, choice_2: model.layers[index + 1].weight.size()[1] == previous_size - 2 if len(model.layers) > index + 1 else True,
+            test=(lambda index, previous_size, choice_1, choice_2:
+                  model.layers[index + 1].weight.size()[1] == previous_size - 2
+                  if len(model.layers) > index + 1
+                  else True
+                  ),
             msg="_delete node should change the shape of the following layer even if done twice in a row"
         )
 
@@ -144,18 +166,33 @@ class TestAutoDeepLearnerDeleteNode:
         self.delete_nodes_with_test(
             model=model,
             previous=previous,
-            test=lambda index, previous_size, choice_1, choice_2: torch.all(torch.cat((previous_size[:, :choice_1], previous_size[:, choice_1 + 1:]), dim=1) == model.layers[index + 1].weight) if len(model.layers) > index + 1 else True,
-            msg="_delete node should not change the weights of the following layer "
-                "except for deleting the column of the deleted node"
+            test=(lambda index, previous_size, choice_1, choice_2:
+                  torch.all(torch.cat(
+                      (previous_size[:, :choice_1],
+                       previous_size[:, choice_1 + 1:])
+                      , dim=1) == model.layers[index + 1].weight)
+                  if len(model.layers) > index + 1
+                  else True
+                  ),
+            msg=("_delete node should not change the weights of the following layer "
+                 "except for deleting the column of the deleted node")
         )
 
         self.delete_two_nodes_in_a_row_with_test(
             model=model,
             previous=previous,
-            test=lambda index, previous_size, choice_1, choice_2: torch.all(torch.cat((previous_size[:, :choice_1], previous_size[:, choice_1  + 1:choice_2], previous_size[:, choice_2 + 1:]), dim=1) == model.layers[index + 1].weight) if len(model.layers) > index + 1 else True,
-            msg="_delete node should not change the weights of the following layer"
+            test=(lambda index, previous_size, choice_1, choice_2:
+                  torch.all(torch.cat(
+                      (previous_size[:, :choice_1],
+                       previous_size[:, choice_1  + 1:choice_2],
+                       previous_size[:, choice_2 + 1:])
+                      , dim=1) == model.layers[index + 1].weight)
+                  if len(model.layers) > index + 1
+                  else True
+                  ),
+            msg=("_delete node should not change the weights of the following layer"
                 " except for deleting the column of the deleted node "
-                "even if done twice in a row"
+                "even if done twice in a row")
         )
 
     def test_delete_node_changes_voting_layer(self, model):
@@ -165,14 +202,16 @@ class TestAutoDeepLearnerDeleteNode:
         self.delete_nodes_with_test(
             model=model,
             previous=self.previous_context_layers,
-            test=lambda index, previous_size, choice_1, choice_2: model.voting_linear_layers[str(index)].weight.size()[1] == previous_size - 1,
+            test=(lambda index, previous_size, choice_1, choice_2:
+                  model.voting_linear_layers[str(index)].weight.size()[1] == previous_size - 1),
             msg="_delete node should change the shape of the voting layer"
         )
 
         self.delete_two_nodes_in_a_row_with_test(
             model=model,
             previous=self.previous_context_layers,
-            test=lambda index, previous_size, choice_1, choice_2: model.voting_linear_layers[str(index)].weight.size()[1] == previous_size - 2,
+            test=(lambda index, previous_size, choice_1, choice_2:
+                  model.voting_linear_layers[str(index)].weight.size()[1] == previous_size - 2),
             msg="_delete node should change the shape of the voting layer even if done twice in a row"
         )
 
@@ -186,7 +225,12 @@ class TestAutoDeepLearnerDeleteNode:
         self.delete_nodes_with_test(
             model=model,
             previous=previous,
-            test=lambda index, previous_size, choice_1, choice_2: torch.all(torch.cat((previous_size[:, :choice_1], previous_size[:, choice_1 + 1:]), dim=1) == model.voting_linear_layers[str(index)].weight),
+            test=(lambda index, previous_size, choice_1, choice_2:
+                  torch.all(torch.cat(
+                      (previous_size[:, :choice_1],
+                       previous_size[:, choice_1 + 1:])
+                      , dim=1) == model.voting_linear_layers[str(index)].weight)
+                  ),
             msg="_delete node should not change the weights of the voting layer "
                 "except for deleting the column of the deleted node"
         )
@@ -194,7 +238,13 @@ class TestAutoDeepLearnerDeleteNode:
         self.delete_two_nodes_in_a_row_with_test(
             model=model,
             previous=previous,
-            test=lambda index, previous_size, choice_1, choice_2: torch.all(torch.cat((previous_size[:, :choice_1], previous_size[:, choice_1 + 1:choice_2], previous_size[:, choice_2 + 1:]), dim=1) == model.voting_linear_layers[str(index)].weight),
+            test=(lambda index, previous_size, choice_1, choice_2:
+                  torch.all(torch.cat(
+                      (previous_size[:, :choice_1],
+                       previous_size[:, choice_1 + 1:choice_2],
+                       previous_size[:, choice_2 + 1:]), dim=1
+                  ) == model.voting_linear_layers[str(index)].weight)
+                  ),
             msg="_delete node should not change the weights of the voting layer "
                 "except for deleting the column of the deleted node "
                 "even if done twice in a row"
