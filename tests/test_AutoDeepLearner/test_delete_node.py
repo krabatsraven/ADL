@@ -128,7 +128,37 @@ class TestAutoDeepLearnerDeleteNode:
                  "even if done twice in a row")
         )
 
-        # todo: test that bias is correct
+    def test_delete_node_keeps_the_right_bias(self, model):
+        """
+        _delete node should not change the bias except for deleting the row of the deleted node
+        """
+        previous = lambda index, model: model.layers[index].bias
+
+        self.delete_nodes_with_test(
+            model=model,
+            previous=previous,
+            test=(lambda index, previous_size, choice_1, choice_2:
+                  torch.all(torch.cat(
+                      (previous_size[:choice_1],
+                       previous_size[choice_1 + 1:])
+                  ) == model.layers[index].bias)
+                  ),
+            msg="_delete node should not change the bias except for deleting the row of the deleted node"
+        )
+
+        self.delete_two_nodes_in_a_row_with_test(
+            model=model,
+            previous=previous,
+            test=(lambda index, previous_size, choice_1, choice_2:
+                  torch.all(torch.cat(
+                      (previous_size[:choice_1],
+                       previous_size[choice_1 + 1:choice_2],
+                       previous_size[choice_2 + 1:])
+                  ) == model.layers[index].bias)
+                  ),
+            msg=("_delete node should not change the bias except for deleting the row of the deleted node "
+                 "even if done twice in a row")
+        )
 
     def test_delete_node_changes_following_layer(self, model):
         """
