@@ -31,12 +31,16 @@
       - the layer after needs a new column:
       - layer l changes from: $(in_l, out_l) \to (in_l, out_l + 1)$ and layer $l + 1$ from $(in_{l+1}, out) \to (in_{l+1} + 1, out)$
       - new node is initialised with the xavier initialization
-  - [ ] _merge_layers()
-    - merges two layers
-    - [ ] implement at first: just remove voting rights, keep nodes
+  - [ ] _prune_layer()
+    - [ ] implement at first: just remove voting rights, keep nodes (_prune_layer_by_vote_removal)
+      - removes one layer from voting
+      - [ ] q: after removal of the layer should the voting weight be re-normalized?
+        - atm it is implemented like this but should be researched
+      - [ ] q: they mention that this will speed up learning: ("This strategy also accelerates the model update because the pruned hidden layer is ignored in the
+        learning procedure" (p7) do they just mean that without voting the optimizer will only mess with it when it layers after it are optimized or is there something to be done still?)
     - [ ] check in code does: merging might just delete the voting rights of the hidden layer or the hidden layer completely?
   - [x] _delete_node()
-    - prunes nodes?
+    - creates a copy of the layer with the specific node (and its weights and biases) removed
     - gets: the index of the node to be pruned, as well as the index of the layer to prune in
     - ![delete_sketch](images/_delete_node_sketch.jpg)
 
@@ -55,6 +59,7 @@
       2. high lvl
       3. low lvl
     - [ ] research: maybe backward hook? they hook just before, and just after?
+  - [ ] dynamical_voting_weight_adjusting
   - [ ] high_level_learning:
     - algo:
       1. hidden layer pruning

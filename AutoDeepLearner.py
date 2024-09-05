@@ -30,10 +30,13 @@ class AutoDeepLearner(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        section 4.1 equation 1:
+        defines the forward pass through the network
+        compare section 4.1 equation 1:
         :param x: data to be classified
         :return: classification tensor of ? probability of classes
         """
+
+        # todo: check if x is of right dimension (sanity check)
 
         # calculate all h^{l} = \sigma(W^{l} h^{(l-1)} + b^{l}), h^{(0)} = x
         hidden_layers: List[torch.Tensor] = [x := nn.Sigmoid()(layer(x)) for layer in self.layers]
@@ -59,7 +62,7 @@ class AutoDeepLearner(nn.Module):
         previous_layer_output_size, previous_layer_input_size = self.layers[-1].weight.size()
 
         # new layers are initialised with one node
-        # todo: that means out=1?
+        # todo: waiting for answer question: 1 node = 1 out
         nr_of_out_nodes = 1
         new_layer = nn.Linear(previous_layer_output_size, nr_of_out_nodes)
         self.layers.append(new_layer)
@@ -67,6 +70,17 @@ class AutoDeepLearner(nn.Module):
         idx_of_new_layer = len(self.layers) - 1
         self.voting_linear_layers[str(idx_of_new_layer)] = nn.Linear(nr_of_out_nodes, self.output_size)
         self.voting_weights[idx_of_new_layer] = 0
+
+    def _prune_layer_by_vote_removal(self, layer_index: int) -> None:
+        """
+        removes the layer with the given index from the voting process
+        :param layer_index: index of the layer to be removed, inside the list of layers
+        """
+        # todo: check that layer is in list (sanity check)
+        # todo: remove layer from self.voting_linear_layers, and thereby from voting
+        # todo: remove the weight of the layer from self.voting_weights
+        # todo: and re-normalize the voting weights?
+        pass
 
     def _add_node(self, layer_index: int) -> None:
         """
@@ -121,15 +135,6 @@ class AutoDeepLearner(nn.Module):
         # change voting layer
         self.voting_linear_layers[str(layer_index)] = new_voting_layer
 
-    @staticmethod
-    def __create_new_layer_with_deleted_node_index(old_following_layer: nn.Module, node_index: int) -> nn.Linear:
-        old_following_out, old_following_in = old_following_layer.weight.size()
-        # create new nn.linear(in=old_in - 1, out=old_out)
-        new_following_layer = nn.Linear(old_following_in - 1, old_following_out)
-        # set weights of new layer to the one of the original missing the node_index row (zero indexed)
-        new_following_layer.weight = nn.parameter.Parameter(torch.cat((old_following_layer.weight[:, :node_index], old_following_layer.weight[:, node_index + 1:]), dim=1))
-        return new_following_layer
-
     def _delete_node(self, layer_index: int, node_index: int) -> None:
         """
         deletes from layer l_{layer_index} the node with index node_index
@@ -141,6 +146,14 @@ class AutoDeepLearner(nn.Module):
         :param layer_index: the index of the layer in the list of layers to be changed
         :param node_index: the index of node to be deleted
         """
+
+        def create_new_layer_with_deleted_node_index(old_following_layer: nn.Module, node_index: int) -> nn.Linear:
+            old_following_out, old_following_in = old_following_layer.weight.size()
+            # create new nn.linear(in=old_in - 1, out=old_out)
+            new_following_layer = nn.Linear(old_following_in - 1, old_following_out)
+            # set weights of new layer to the one of the original missing the node_index row (zero indexed)
+            new_following_layer.weight = nn.parameter.Parameter(torch.cat((old_following_layer.weight[:, :node_index], old_following_layer.weight[:, node_index + 1:]), dim=1))
+            return new_following_layer
 
         # todo: check whether layer exists (sanity check)
         old_layer = self.layers[layer_index]
@@ -157,7 +170,7 @@ class AutoDeepLearner(nn.Module):
 
         # change the next layer after layer_index
         if layer_index < len(self.layers) - 1:
-            self.layers[layer_index + 1] = self.__create_new_layer_with_deleted_node_index(self.layers[layer_index + 1], node_index)
+            self.layers[layer_index + 1] = create_new_layer_with_deleted_node_index(self.layers[layer_index + 1], node_index)
 
         # change voting layer the same as the layer next_layer + 1
-        self.voting_linear_layers[str(layer_index)] = self.__create_new_layer_with_deleted_node_index(self.voting_linear_layers[str(layer_index)], node_index)
+        self.voting_linear_layers[str(layer_index)] = create_new_layer_with_deleted_node_index(self.voting_linear_layers[str(layer_index)], node_index)
