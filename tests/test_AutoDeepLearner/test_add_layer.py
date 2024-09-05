@@ -1,3 +1,5 @@
+import math
+
 import pytest
 import random
 
@@ -36,31 +38,41 @@ class TestAutoDeepLearnerAddLayer:
     def test_add_layer_adds_layer(self, model, nr_of_layers):
 
         for i in range(nr_of_layers):
-            add_layer_test(model, model.layers, "__add_layer should result in model having a single layer more than "
-                                                "before")
+            add_layer_test(
+                model,
+                model.layers,
+                "__add_layer should result in model having a single layer more than before"
+            )
 
-        assert len(
-            model.layers) == nr_of_layers + 1, f"model should have {nr_of_layers + 1} layers after adding a {nr_of_layers} layers"
+        assert (len(model.layers) == nr_of_layers + 1,
+                f"model should have {nr_of_layers + 1} layers after adding a {nr_of_layers} layers")
 
     def test_new_layers_vote(self, model, nr_of_layers):
 
         for i in range(nr_of_layers):
-            add_layer_test(model, model.voting_linear_layers, "__add_layer should result in model having a single "
-                                                              "layer more that votes than before")
+            add_layer_test(
+                model,
+                model.voting_linear_layers,
+                "__add_layer should result in model having a single layer more that votes than before"
+            )
 
-        assert len(
-            model.voting_linear_layers) == nr_of_layers + 1, f"model should have {nr_of_layers + 1} voting layers after adding a {nr_of_layers} layers"
+        assert (len(model.voting_linear_layers) == nr_of_layers + 1,
+                f"model should have {nr_of_layers + 1} voting layers after adding a {nr_of_layers} layers")
 
     def test_new_layers_voting_weight(self, model, nr_of_layers):
 
         for i in range(nr_of_layers):
-            add_layer_test(model, model.voting_linear_layers, "__add_layer should result in model having a single "
-                                                              "voting weight more that votes than before")
+            add_layer_test(
+                model,
+                model.voting_linear_layers,
+                "__add_layer should result in model having a single voting weight more that votes than before"
+            )
 
-        assert len(
-            model.voting_weights) == nr_of_layers + 1, f"model should have {nr_of_layers + 1} voting weights after adding a {nr_of_layers} layers"
+        assert (len(model.voting_weights) == nr_of_layers + 1,
+                f"model should have {nr_of_layers + 1} voting weights after adding a {nr_of_layers} layers")
 
-        assert sum(model.voting_weights.values()) == 1, "models voting weights should be normalised"
+        assert (math.sqrt(sum((value ** 2 for value in model.voting_weights.values()))) == 1,
+                "models voting weights should be normalised")
 
     def test_add_layer_should_still_not_break_forward(self, model, feature_count, nr_of_layers):
         """
@@ -71,7 +83,11 @@ class TestAutoDeepLearnerAddLayer:
             model._add_layer()
 
         forward_tests = TestAutoDeepLearnerForward()
-        forward_tests.test_forward_form_single_item_batch(model, feature_count, msg="After performing _add_layer: ")
+        forward_tests.test_forward_form_single_item_batch(
+            model,
+            feature_count,
+            msg="After performing _add_layer: "
+        )
 
     def test_add_layer_should_still_not_break_forward_multiple(self, model, feature_count, nr_of_layers):
         """
@@ -83,5 +99,9 @@ class TestAutoDeepLearnerAddLayer:
 
         forward_tests = TestAutoDeepLearnerForward()
         # setting batch size too big will break the memory
-        forward_tests.test_forward_form_multiple_item_batch(model, feature_count, batch_size=1000,
-                                                            msg="After performing _add_layer: ")
+        forward_tests.test_forward_form_multiple_item_batch(
+            model,
+            feature_count,
+            batch_size=1000,
+            msg="After performing _add_layer: "
+        )
