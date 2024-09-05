@@ -1,6 +1,8 @@
 from typing import List, Dict
 
+import numpy as np
 import torch
+from numpy._typing import NDArray
 from torch import nn
 
 
@@ -77,10 +79,16 @@ class AutoDeepLearner(nn.Module):
         :param layer_index: index of the layer to be removed, inside the list of layers
         """
         # todo: check that layer is in list (sanity check)
-        # todo: remove layer from self.voting_linear_layers, and thereby from voting
-        # todo: remove the weight of the layer from self.voting_weights
-        # todo: and re-normalize the voting weights?
-        pass
+        # remove layer from self.voting_linear_layers, and thereby from voting
+        self.voting_linear_layers.pop(str(layer_index))
+        # remove the weight of the layer from self.voting_weights
+        self.voting_weights.pop(layer_index, None)
+        # and re-normalize the voting weights?
+        voting_weights_keys_vector: NDArray[int] = np.fromiter(self.voting_weights.keys(), dtype=int)
+        voting_weights_values_vector: NDArray[float] = np.fromiter(self.voting_weights.values(), dtype=float)
+        voting_weights_values_vector /= np.linalg.norm(voting_weights_values_vector)
+        for index, key in np.ndenumerate(voting_weights_keys_vector):
+            self.voting_weights[key] = float(voting_weights_values_vector[index])
 
     def _add_node(self, layer_index: int) -> None:
         """

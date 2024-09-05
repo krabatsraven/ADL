@@ -9,6 +9,10 @@ from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
 
 
 class TestPruneLayerByVoteRemoval:
+    @pytest.fixture(scope="class")
+    def float_precision_tolerance(self):
+        return 10 ** -6
+
     @pytest.fixture(scope='class')
     def feature_count(self) -> int:
         return random.randint(0, 10_000)
@@ -48,8 +52,8 @@ class TestPruneLayerByVoteRemoval:
 
         for index in random.sample(range(nr_of_layers), random.randint(1, nr_of_layers)):
             model._prune_layer_by_vote_removal(index)
-            assert str(index) not in model.voting_linear_layers.keys(), ("_prune_layer_by_vote_removal should remove "
-                                                                         "the layer from model.voting_linear_layers")
+            assert (str(index) not in model.voting_linear_layers.keys(),
+                    "_prune_layer_by_vote_removal should remove the layer from model.voting_linear_layers")
 
     def test_prune_layer_by_vote_removal_does_not_remove_layer(self, model, nr_of_layers):
         """
@@ -66,18 +70,39 @@ class TestPruneLayerByVoteRemoval:
         """
         for index in random.sample(range(nr_of_layers), random.randint(1, nr_of_layers)):
             model._prune_layer_by_vote_removal(index)
-            assert index not in model.voting_weights.keys(), ("_prune_layer_by_vote_removal should remove the layer "
-                                                              "from the voting weights")
+            assert (index not in model.voting_weights.keys(),
+                    "_prune_layer_by_vote_removal should remove the layer from the voting weights")
 
 
-    def test_after_prune_layer_by_vote_removal_voting_weights_are_normalized(self, model, nr_of_layers):
+    def test_after_prune_layer_by_vote_removal_voting_weights_are_normalized(self, model, nr_of_layers, float_precision_tolerance):
         """
         _prune_layer_by_vote_removal should leave the voting weights normalized
         """
         for index in random.sample(range(nr_of_layers), random.randint(1, nr_of_layers)):
             model._prune_layer_by_vote_removal(index)
-            assert math.sqrt(sum(map(lambda x: x ** 2, model.voting_weights.values()))) == 1, ("_prune_layer_by_vote_removal should leave the voting "
-                                                              "weights normalized")
+            assert (math.sqrt(sum(map(lambda x: x ** 2, model.voting_weights.values()))) - 1 <= float_precision_tolerance,
+                "_prune_layer_by_vote_removal should leave the voting weights normalized")
+
+    def test_after_prune_layer_by_vote_removal_voting_weights_are_correctly_normalized(self, model, nr_of_layers):
+        """
+        _prune_layer_by_vote_removal should not switch the voting weights
+        """
+        for index in random.sample(range(nr_of_layers), random.randint(1, nr_of_layers)):
+            keys = [key for key in model.voting_weights.keys() if key != index]
+            length_of_weights_without_key = (
+                math.sqrt(
+                    sum([value ** 2 for key, value in model.voting_weights.items() if key != index]))
+            )
+            weights_without_key_normalized = {
+                key: value / length_of_weights_without_key
+                for key, value in model.voting_weights.items()
+                if key != index
+            }
+
+            model._prune_layer_by_vote_removal(index)
+            assert (all([weights_without_key_normalized[key] - model.voting_weights[key] <= 10 ** -6 for key in keys]),
+                "_prune_layer_by_vote_removal should not switch the voting weights")
+
 
     def test_prune_layer_by_vote_removal_does_not_break_forward_single_item(self, model, nr_of_layers, feature_count):
         """

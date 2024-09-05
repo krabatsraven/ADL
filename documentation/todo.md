@@ -32,7 +32,7 @@
       - layer l changes from: $(in_l, out_l) \to (in_l, out_l + 1)$ and layer $l + 1$ from $(in_{l+1}, out) \to (in_{l+1} + 1, out)$
       - new node is initialised with the xavier initialization
   - [ ] _prune_layer()
-    - [ ] implement at first: just remove voting rights, keep nodes (_prune_layer_by_vote_removal)
+    - [x] implement at first: just remove voting rights, keep nodes (_prune_layer_by_vote_removal)
       - removes one layer from voting
       - [ ] q: after removal of the layer should the voting weight be re-normalized?
         - atm it is implemented like this but should be researched
@@ -44,11 +44,11 @@
     - gets: the index of the node to be pruned, as well as the index of the layer to prune in
     - ![delete_sketch](images/_delete_node_sketch.jpg)
 
-- [ ] test for adl class:
+- [x] test for adl class:
   - [x] forward()
   - [x] _add_node()
   - [x] _add_layer()
-  - [ ] _merge_layers()
+  - [x] _prune_layers_by_vote_removal()
   - [x] _merge_nodes()  
 
 - [ ] optimizer:
