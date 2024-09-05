@@ -112,7 +112,11 @@ class TestPruneLayerByVoteRemoval:
             model._prune_layer_by_vote_removal(index)
 
         forward_tests = TestAutoDeepLearnerForward()
-        forward_tests.test_forward_form_single_item_batch(model, feature_count, msg="After performing _add_node: ")
+        forward_tests.test_forward_form_single_item_batch(
+            model,
+            feature_count,
+            msg="After performing _add_node: "
+        )
 
     def test_prune_layer_by_vote_removal_does_not_break_backward_multiple_item(self, model, feature_count, nr_of_layers):
         """
@@ -123,6 +127,9 @@ class TestPruneLayerByVoteRemoval:
 
         forward_tests = TestAutoDeepLearnerForward()
         batch_size = 1000
-        forward_tests.test_forward_form_multiple_item_batch(model, feature_count, batch_size=batch_size,
-                                                            msg=f"After performing _prune_layer_by_vote_removal on "
-                                                                f"batch size {batch_size}: ")
+        forward_tests.test_forward_form_multiple_item_batch(
+            model, feature_count,
+            batch_size=batch_size,
+            msg=f"After performing _prune_layer_by_vote_removal on "
+                                                                f"batch size {batch_size}: "
+        )
