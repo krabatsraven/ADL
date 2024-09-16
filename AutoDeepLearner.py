@@ -32,13 +32,21 @@ class AutoDeepLearner(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        defines the forward pass through the network
-        compare section 4.1 equation 1:
-        :param x: data to be classified
-        :return: classification tensor of ? probability of classes
+        returns the classification from self.output_size many classes stemming from the data input x
+        alternative: defines the forward pass through the network
+        compare section 4.1 equation 1 of the paper
+        :param x: batch of data to be classified with self.input_size many features 
+        :return: classification tensor that contains the index of the class choosen from the multiclass problem
         """
 
-        # todo: check if x is of right dimension (sanity check)
+        # todo: test
+        # check if x is of right dimension (sanity check)
+        if len(x.size()) > 1:
+            assert x.size()[1] == self.input_size, \
+                f"Given batch of data has {x.size()[1]} many features, expected where {self.input_size}"
+        else:
+            assert x.size()[0] == self.input_size,\
+                f"Given batch of data has {x.size()[0]} many features, expected where {self.input_size}"
 
         # calculate all h^{l} = \sigma(W^{l} h^{(l-1)} + b^{l}), h^{(0)} = x
         hidden_layers: List[torch.Tensor] = [x := nn.Sigmoid()(layer(x)) for layer in self.layers]
@@ -52,8 +60,7 @@ class AutoDeepLearner(nn.Module):
         total_weighted_class_probability = torch.stack(voted_class_probabilities, dim=0).sum(dim=0)
 
         # classification by majority rule
-        # todo: according to paper max, but shouldn't it be argmax?
-        return torch.max(total_weighted_class_probability)
+        return torch.argmax(total_weighted_class_probability)
 
     def _add_layer(self) -> None:
         """
@@ -63,7 +70,6 @@ class AutoDeepLearner(nn.Module):
         previous_layer_output_size, previous_layer_input_size = self.layers[-1].weight.size()
 
         # new layers are initialised with one node
-        # todo: waiting for answer question: 1 node = 1 out
         nr_of_out_nodes = 1
         new_layer = nn.Linear(previous_layer_output_size, nr_of_out_nodes)
         self.layers.append(new_layer)
@@ -77,7 +83,19 @@ class AutoDeepLearner(nn.Module):
         removes the layer with the given index from the voting process
         :param layer_index: index of the layer to be removed, inside the list of layers
         """
-        # todo: check that layer is in list (sanity check)
+
+        # todo: test
+        # check whether layer exists and can vote (sanity check)
+        assert (0 <= layer_index < len(self.layers), 
+                f"cannot remove the layer with the index {layer_index}, "
+                f"as it is not in the range [0, amount of layers in model]")
+        assert (str(layer_index) in self.voting_linear_layers.keys(), 
+                f"cannot remove the layer with the index {layer_index}, "
+                f"as it is not a layer that will projected onto a vote")
+        assert (layer_index in self.voting_weights.keys(), 
+                f"cannot remove the layer with the index {layer_index}, "
+                f"as it is not a layer that can vote because it has no voting weight")
+
         # remove layer from self.voting_linear_layers, and thereby from voting
         self.voting_linear_layers.pop(str(layer_index))
         # remove the weight of the layer from self.voting_weights
@@ -96,7 +114,14 @@ class AutoDeepLearner(nn.Module):
         :param layer_index: the index of the layer in the list of layers
         """
 
-        # todo: check whether layer exists (sanity check)
+        # todo: test
+        # check whether layer exists (sanity check)
+        assert (0 <= layer_index < len(self.layers),
+                f"cannot add a node to layer with the index {layer_index}, "
+                f"as it is not in the range [0, amount of layers in model]")
+        assert (str(layer_index) in self.voting_linear_layers.keys(),
+                f"cannot add a node to layer with the index {layer_index}, "
+                f"as it is not a layer that will projected onto a vote")
 
         # find layer
         layer_to_add_to = self.layers[layer_index]
@@ -162,12 +187,26 @@ class AutoDeepLearner(nn.Module):
             new_following_layer.weight = nn.parameter.Parameter(torch.cat((old_following_layer.weight[:, :node_index], old_following_layer.weight[:, node_index + 1:]), dim=1))
             return new_following_layer
 
-        # todo: check whether layer exists (sanity check)
+        # todo: test
+        # check whether layer exists (sanity check)
+        assert (0 <= layer_index < len(self.layers),
+                f"cannot remove a node from the layer with the index {layer_index}, "
+                f"as it is not in the range [0, amount of layers in model]")
+        assert (str(layer_index) in self.voting_linear_layers.keys(),
+                f"cannot remove a node from the layer with the index {layer_index}, "
+                f"as it is not a layer that will projected onto a vote")
+
         old_layer = self.layers[layer_index]
-        # todo: check whether layer has node to delete (sanity check)
 
         # create new nn.linear(in=old_in, out=old_out - 1)
         old_out, old_in = old_layer.weight.size()
+
+        # todo: test
+        # check whether layer has node to delete (sanity check)
+        assert (node_index < old_out,
+                f"cannot remove the node with index {node_index} from the layer with the index {layer_index}, "
+                f"as it has no node with index {node_index}")
+
         new_layer = nn.Linear(old_in, old_out - 1)
         # set weights of new layer to the one of the original missing the node_index row (zero indexed)
         new_layer.weight = nn.parameter.Parameter(torch.cat((old_layer.weight[:node_index], old_layer.weight[node_index + 1:]), dim=0))
