@@ -83,17 +83,16 @@ class AutoDeepLearner(nn.Module):
         :param layer_index: index of the layer to be removed, inside the list of layers
         """
 
-        # todo: test
         # check whether layer exists and can vote (sanity check)
-        assert (0 <= layer_index < len(self.layers), 
-                f"cannot remove the layer with the index {layer_index}, "
-                f"as it is not in the range [0, amount of layers in model]")
-        assert (str(layer_index) in self.voting_linear_layers.keys(), 
-                f"cannot remove the layer with the index {layer_index}, "
-                f"as it is not a layer that will projected onto a vote")
-        assert (layer_index in self.voting_weights.keys(), 
-                f"cannot remove the layer with the index {layer_index}, "
-                f"as it is not a layer that can vote because it has no voting weight")
+        assert 0 <= layer_index < len(self.layers), \
+            (f"cannot remove the layer with the index {layer_index}, "
+             f"as it is not in the range [0, amount of layers in model]")
+        assert str(layer_index) in self.voting_linear_layers.keys(), \
+            (f"cannot remove the layer with the index {layer_index}, "
+             f"as it is not a layer that will projected onto a vote")
+        assert layer_index in self.voting_weights.keys(), \
+            (f"cannot remove the layer with the index {layer_index}, "
+            f"as it is not a layer that can vote because it has no voting weight")
 
         # remove layer from self.voting_linear_layers, and thereby from voting
         self.voting_linear_layers.pop(str(layer_index))

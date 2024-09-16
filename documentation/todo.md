@@ -55,7 +55,7 @@
   - [x] _add_node()
   - [x] _add_layer()
   - [x] _prune_layers_by_vote_removal()
-    - [ ] test sanity check
+    - [x] test sanity check
   - [x] _merge_nodes()
     - [ ] test sanity check
   

@@ -73,7 +73,6 @@ class TestPruneLayerByVoteRemoval:
             assert (index not in model.voting_weights.keys(),
                     "_prune_layer_by_vote_removal should remove the layer from the voting weights")
 
-
     def test_after_prune_layer_by_vote_removal_voting_weights_are_normalized(self, model, nr_of_layers, float_precision_tolerance):
         """
         _prune_layer_by_vote_removal should leave the voting weights normalized
@@ -102,7 +101,6 @@ class TestPruneLayerByVoteRemoval:
             model._prune_layer_by_vote_removal(index)
             assert (all([weights_without_key_normalized[key] - model.voting_weights[key] <= 10 ** -6 for key in keys]),
                 "_prune_layer_by_vote_removal should not switch the voting weights")
-
 
     def test_prune_layer_by_vote_removal_does_not_break_forward_single_item(self, model, nr_of_layers, feature_count):
         """
@@ -133,3 +131,44 @@ class TestPruneLayerByVoteRemoval:
             msg=f"After performing _prune_layer_by_vote_removal on "
                                                                 f"batch size {batch_size}: "
         )
+
+    def test_prune_layer_by_vote_removal_raises_on_negative_index(self, model):
+        layer_index = -1
+        error_str = f"cannot remove the layer with the index {layer_index}, as it is not in the range [0, amount of layers in model]"
+        with pytest.raises(Exception) as exec_info:
+            model._prune_layer_by_vote_removal(layer_index)
+
+        assert str(exec_info.value) == error_str, "negative indices should raise an exception"
+
+    def test_prune_layer_by_vote_removal_raises_on_to_big_index(self, model):
+        layer_index = len(model.layers)
+        error_str = f"cannot remove the layer with the index {layer_index}, as it is not in the range [0, amount of layers in model]"
+        with pytest.raises(Exception) as exec_info:
+            model._prune_layer_by_vote_removal(layer_index)
+
+        assert str(exec_info.value) == error_str, ("indices bigger than or equal to "
+                                                   "the length of the list of layers should raise an exception")
+
+    def test_prune_layer_layer_by_vote_removal_raises_on_no_voting_linear_layer(self, model, nr_of_layers):
+        layer_index = random.randint(0, nr_of_layers - 1)
+        model.voting_linear_layers.pop(str(layer_index))
+        error_str = (f"cannot remove the layer with the index {layer_index}, "
+                     f"as it is not a layer that will projected onto a vote")
+        with pytest.raises(Exception) as exec_info:
+            model._prune_layer_by_vote_removal(layer_index)
+
+        assert str(exec_info.value) == error_str, \
+            "a layer index without a voting linear layer should raise an exception"
+
+    def test_prune_layer_layer_by_vote_removal_raises_on_no_voting_weight(self, model, nr_of_layers):
+        layer_index = random.randint(0, nr_of_layers - 1)
+        model.voting_weights.pop(layer_index)
+        error_str = (f"cannot remove the layer with the index {layer_index}, "
+                     f"as it is not a layer that can vote because it has no voting weight")
+        with pytest.raises(Exception) as exec_info:
+            model._prune_layer_by_vote_removal(layer_index)
+
+        assert str(exec_info.value) == error_str, \
+            "a layer index without a voting weight should raise an exception"
+
+
