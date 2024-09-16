@@ -1,23 +1,25 @@
 - [x] Kirstenml zum repo hinzufügen
 - question [ ]: sanity checks?
 - [ ] adl class:
+  - eventual todo: feature that returns the class from a given array of classes instead of index of class 
+  - [ ] sanity checks: implement them where appropriate
   - [x] structure:
     - defines the layers of the adl
     - [x] one linear layer is one row of nodes?
     - [x] how to handle first pass/ how to initialise?
       -  one layer with in and out
-  - [ ] forward:
+  - [x] forward:
     - defines the forward pass through the network
     - compare eq 4.1 (1) in the paper
     - [x] just the forward pass
-    - [ ] question: voting: according to paper max, but shouldn't it be argmax?
-  - [ ] _add_layer() 
+    - [x] question: voting: according to paper max, but shouldn't it be argmax?
+  - [x] _add_layer() 
     - add an untrained layer 
     - [x] how to add layers?
       - new layer in list
       - [x] where?
         - prob at the end
-    - [ ] question: new layer initialised with one node $\hat =$ ```nn.linear(in=x, out=1)```?
+    - [x] question: new layer initialised with one node $\hat =$ ```nn.linear(in=x, out=1)```?
   - [ ] _add_node()
       - adds nodes to a layer at the bottom of the matrix
       - gets the index of the layer to add in
@@ -31,6 +33,7 @@
       - the layer after needs a new column:
       - layer l changes from: $(in_l, out_l) \to (in_l, out_l + 1)$ and layer $l + 1$ from $(in_{l+1}, out) \to (in_{l+1} + 1, out)$
       - new node is initialised with the xavier initialization
+    - [x] implement sanity check
   - [ ] _prune_layer()
     - [x] implement at first: just remove voting rights, keep nodes (_prune_layer_by_vote_removal)
       - removes one layer from voting
@@ -39,18 +42,23 @@
       - [ ] q: they mention that this will speed up learning: ("This strategy also accelerates the model update because the pruned hidden layer is ignored in the
         learning procedure" (p7) do they just mean that without voting the optimizer will only mess with it when it layers after it are optimized or is there something to be done still?)
     - [ ] check in code does: merging might just delete the voting rights of the hidden layer or the hidden layer completely?
-  - [x] _delete_node()
+    - [x] implement sanity check
+  - [x] _delete_node() 
     - creates a copy of the layer with the specific node (and its weights and biases) removed
     - gets: the index of the node to be pruned, as well as the index of the layer to prune in
     - ![delete_sketch](images/_delete_node_sketch.jpg)
+    - [x] implement sanity check
 
 - [x] test for adl class:
   - [x] forward()
+    - [ ] test sanity check
   - [x] _add_node()
   - [x] _add_layer()
   - [x] _prune_layers_by_vote_removal()
-  - [x] _merge_nodes()  
-
+    - [ ] test sanity check
+  - [x] _merge_nodes()
+    - [ ] test sanity check
+  
 - [ ] optimizer:
   - [ ] backward:
     - algo:
