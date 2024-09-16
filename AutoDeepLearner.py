@@ -112,14 +112,13 @@ class AutoDeepLearner(nn.Module):
         :param layer_index: the index of the layer in the list of layers
         """
 
-        # todo: test
         # check whether layer exists (sanity check)
-        assert (0 <= layer_index < len(self.layers),
-                f"cannot add a node to layer with the index {layer_index}, "
-                f"as it is not in the range [0, amount of layers in model]")
-        assert (str(layer_index) in self.voting_linear_layers.keys(),
-                f"cannot add a node to layer with the index {layer_index}, "
-                f"as it is not a layer that will projected onto a vote")
+        assert 0 <= layer_index < len(self.layers),\
+            (f"cannot add a node to layer with the index {layer_index}, "
+             f"as it is not in the range [0, amount of layers in model]")
+        assert str(layer_index) in self.voting_linear_layers.keys(),\
+            (f"cannot add a node to layer with the index {layer_index}, "
+             f"as it is not a layer that will projected onto a vote")
 
         # find layer
         layer_to_add_to = self.layers[layer_index]
@@ -185,14 +184,13 @@ class AutoDeepLearner(nn.Module):
             new_following_layer.weight = nn.parameter.Parameter(torch.cat((old_following_layer.weight[:, :node_index], old_following_layer.weight[:, node_index + 1:]), dim=1))
             return new_following_layer
 
-        # todo: test
         # check whether layer exists (sanity check)
-        assert (0 <= layer_index < len(self.layers),
-                f"cannot remove a node from the layer with the index {layer_index}, "
-                f"as it is not in the range [0, amount of layers in model]")
-        assert (str(layer_index) in self.voting_linear_layers.keys(),
-                f"cannot remove a node from the layer with the index {layer_index}, "
-                f"as it is not a layer that will projected onto a vote")
+        assert 0 <= layer_index < len(self.layers),\
+            (f"cannot remove a node from the layer with the index {layer_index},"
+             f" as it is not in the range [0, amount of layers in model]")
+        assert str(layer_index) in self.voting_linear_layers.keys(),\
+            (f"cannot remove a node from the layer with the index {layer_index}, "
+             f"as it is not a layer that will projected onto a vote")
 
         old_layer = self.layers[layer_index]
 

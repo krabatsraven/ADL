@@ -173,3 +173,33 @@ class TestAutoDeepLearnerAddNode:
             batch_size=1000,
             msg="After performing _add_node "
         )
+
+    def test_add_node_raises_on_negative_index(self, model):
+        layer_index = -1
+        error_str = (f"cannot add a node to layer with the index {layer_index}, "
+                     f"as it is not in the range [0, amount of layers in model]")
+        with pytest.raises(Exception) as exec_info:
+            model._add_node(layer_index)
+
+        assert str(exec_info.value) == error_str, "negative indices should raise an exception"
+
+    def test_add_node_raises_on_to_big_index(self, model):
+        layer_index = len(model.layers)
+        error_str = (f"cannot add a node to layer with the index {layer_index}, "
+                     f"as it is not in the range [0, amount of layers in model]")
+        with pytest.raises(Exception) as exec_info:
+            model._add_node(layer_index)
+
+        assert str(exec_info.value) == error_str, ("indices bigger than or equal to "
+                                                   "the length of the list of layers should raise an exception")
+
+    def test_add_node_raises_on_no_voting_linear_layer(self, model, nr_of_layers):
+        layer_index = random.randint(0, nr_of_layers - 1)
+        model.voting_linear_layers.pop(str(layer_index))
+        error_str = (f"cannot add a node to layer with the index {layer_index}, "
+                     f"as it is not a layer that will projected onto a vote")
+        with pytest.raises(Exception) as exec_info:
+            model._add_node(layer_index)
+
+        assert str(exec_info.value) == error_str, \
+            "a layer index without a voting linear layer should raise an exception"

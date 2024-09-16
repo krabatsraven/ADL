@@ -53,6 +53,7 @@
   - [x] forward()
     - [x] test sanity check
   - [x] _add_node()
+    - [x] test sanity check 
   - [x] _add_layer()
   - [x] _prune_layers_by_vote_removal()
     - [x] test sanity check
