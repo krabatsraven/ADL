@@ -170,5 +170,3 @@ class TestPruneLayerByVoteRemoval:
 
         assert str(exec_info.value) == error_str, \
             "a layer index without a voting weight should raise an exception"
-
-

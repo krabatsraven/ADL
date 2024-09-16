@@ -197,11 +197,10 @@ class AutoDeepLearner(nn.Module):
         # create new nn.linear(in=old_in, out=old_out - 1)
         old_out, old_in = old_layer.weight.size()
 
-        # todo: test
         # check whether layer has node to delete (sanity check)
-        assert (node_index < old_out,
-                f"cannot remove the node with index {node_index} from the layer with the index {layer_index}, "
-                f"as it has no node with index {node_index}")
+        assert 0 <= node_index < old_out,\
+            (f"cannot remove the node with index {node_index} from the layer with the index {layer_index}, "
+             f"as it has no node with index {node_index}")
 
         new_layer = nn.Linear(old_in, old_out - 1)
         # set weights of new layer to the one of the original missing the node_index row (zero indexed)

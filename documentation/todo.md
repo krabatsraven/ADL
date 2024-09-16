@@ -58,7 +58,7 @@
   - [x] _prune_layers_by_vote_removal()
     - [x] test sanity check
   - [x] _merge_nodes()
-    - [ ] test sanity check
+    - [x] test sanity check
   
 - [ ] optimizer:
   - [ ] backward:

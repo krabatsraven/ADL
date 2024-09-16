@@ -330,3 +330,57 @@ class TestAutoDeepLearnerDeleteNode:
             batch_size=1000,
             msg="Multiple Batch after performing _delete_node: "
         )
+
+    def test_prune_layer_by_vote_removal_raises_on_negative_layer_index(self, model):
+        layer_index = -1
+        node_index = -1
+        error_str = (f"cannot remove a node from the layer with the index {layer_index},"
+                     f" as it is not in the range [0, amount of layers in model]")
+        with pytest.raises(Exception) as exec_info:
+            model._delete_node(layer_index, node_index)
+
+        assert str(exec_info.value) == error_str, "negative indices should raise an exception"
+
+    def test_delete_node_raises_on_too_big_layer_index(self, model):
+        layer_index = len(model.layers)
+        node_index = -1
+        error_str = (f"cannot remove a node from the layer with the index {layer_index},"
+                     f" as it is not in the range [0, amount of layers in model]")
+        with pytest.raises(Exception) as exec_info:
+            model._delete_node(layer_index, node_index)
+
+        assert str(exec_info.value) == error_str, ("indices bigger than or equal to "
+                                                   "the length of the list of layers should raise an exception")
+
+    def test_prune_layer_by_vote_removal_raises_on_negative_node_index(self, model):
+        layer_index = random.randint(0, len(model.layers) - 1)
+        node_index = -1
+        error_str = (f"cannot remove the node with index {node_index} from the layer with the index {layer_index}, "
+                     f"as it has no node with index {node_index}")
+        with pytest.raises(Exception) as exec_info:
+            model._delete_node(layer_index, node_index)
+
+        assert str(exec_info.value) == error_str, "negative indices should raise an exception"
+
+    def test_delete_node_raises_on_too_big_node_index(self, model):
+        layer_index = random.randint(0, len(model.layers) - 1)
+        node_index = model.layers[layer_index].weight.shape[0]
+        error_str = (f"cannot remove the node with index {node_index} from the layer with the index {layer_index}, "
+                     f"as it has no node with index {node_index}")
+        with pytest.raises(Exception) as exec_info:
+            model._delete_node(layer_index, node_index)
+
+        assert str(exec_info.value) == error_str, ("indices bigger than or equal to "
+                                                   "the number of nodes should raise an exception")
+
+    def test_delete_node_raises_on_no_voting_linear_layer(self, model, nr_of_layers):
+        layer_index = random.randint(0, nr_of_layers - 1)
+        node_index = random.randint(0, model.layers[layer_index].weight.shape[0] - 1)
+        model.voting_linear_layers.pop(str(layer_index))
+        error_str = (f"cannot remove a node from the layer with the index {layer_index}, "
+                     f"as it is not a layer that will projected onto a vote")
+        with pytest.raises(Exception) as exec_info:
+            model._delete_node(layer_index, node_index)
+
+        assert str(exec_info.value) == error_str, \
+            "a layer index without a voting linear layer should raise an exception"
