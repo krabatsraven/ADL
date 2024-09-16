@@ -20,6 +20,29 @@ class TestAutoDeepLearnerForward:
     def model(self, feature_count, class_count) -> AutoDeepLearner:
         return AutoDeepLearner(feature_count, class_count)
 
+    def test_forward_raises_exception_on_wrong_nr_of_features_on_one_datapoint(self, model: AutoDeepLearner, feature_count: int) -> None:
+        wrong_feature_count = random.choice(list(range(feature_count)) + list(range(feature_count + 1, 10_000)))
+        x = torch.rand(wrong_feature_count)
+
+        with (
+            pytest.raises(
+                Exception,
+                match=f"Given batch of data has {x.size()[0]} many features, expected where {model.input_size}"
+            )):
+            model.forward(x)
+
+    def test_forward_raises_exception_on_wrong_nr_of_features_in_batches(self, model: AutoDeepLearner, feature_count: int, batch_size: int = 10_000) -> None:
+        batch_size = random.randint(0, batch_size)
+        wrong_feature_count = random.choice(list(range(feature_count)) + list(range(feature_count + 1, 10_000)))
+        x = torch.rand(batch_size, wrong_feature_count)
+
+        with (
+            pytest.raises(
+                Exception,
+                match=f"Given batch of data has {x.size()[1]} many features, expected where {model.input_size}"
+            )):
+            model.forward(x)
+
     def test_forward_form_single_item_batch(self, model: AutoDeepLearner, feature_count: int, msg: str = ''):
         prediction = model(torch.rand(feature_count))
 

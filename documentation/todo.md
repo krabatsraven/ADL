@@ -51,7 +51,7 @@
 
 - [x] test for adl class:
   - [x] forward()
-    - [ ] test sanity check
+    - [x] test sanity check
   - [x] _add_node()
   - [x] _add_layer()
   - [x] _prune_layers_by_vote_removal()

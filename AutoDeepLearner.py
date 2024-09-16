@@ -39,7 +39,6 @@ class AutoDeepLearner(nn.Module):
         :return: classification tensor that contains the index of the class choosen from the multiclass problem
         """
 
-        # todo: test
         # check if x is of right dimension (sanity check)
         if len(x.size()) > 1:
             assert x.size()[1] == self.input_size, \
