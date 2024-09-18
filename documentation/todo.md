@@ -1,8 +1,9 @@
 - [x] Kirstenml zum repo hinzufügen
 - question [ ]: sanity checks?
 - [ ] adl class:
+  - eventual todo: reactivate layer
   - eventual todo: feature that returns the class from a given array of classes instead of index of class 
-  - [ ] sanity checks: implement them where appropriate
+  - [x] sanity checks: implement them where appropriate
   - [x] structure:
     - defines the layers of the adl
     - [x] one linear layer is one row of nodes?
@@ -25,9 +26,10 @@
       - gets the index of the layer to add in
       - [x] how to add nodes?
       - new ```layer[:-1] = weights```
-      - [ ] ```new_layer[-1]```: xavier initialization
+      - [x] ```new_layer[-1]```: xavier initialization
         - [ ] q: xavier normal ($\mathcal N(0,std^2)$) or uniform ($\mathcal U(−a,a)$)?
-        - [ ] q: gain = 1?
+        - [ ] q: old weights overwrite
+        - [x] q: gain = 1?
         - $std = gain \times \sqrt{\frac{2} {fan_in + fan_out}}$
         - $a = gain \times \sqrt{\frac{6} {fan_in + fan_out}}$
       - the layer after needs a new column:
@@ -37,9 +39,9 @@
   - [ ] _prune_layer()
     - [x] implement at first: just remove voting rights, keep nodes (_prune_layer_by_vote_removal)
       - removes one layer from voting
-      - [ ] q: after removal of the layer should the voting weight be re-normalized?
+      - [x] q: after removal of the layer should the voting weight be re-normalized?
         - atm it is implemented like this but should be researched
-      - [ ] q: they mention that this will speed up learning: ("This strategy also accelerates the model update because the pruned hidden layer is ignored in the
+      - [x] q: they mention that this will speed up learning: ("This strategy also accelerates the model update because the pruned hidden layer is ignored in the
         learning procedure" (p7) do they just mean that without voting the optimizer will only mess with it when it layers after it are optimized or is there something to be done still?)
     - [ ] check in code does: merging might just delete the voting rights of the hidden layer or the hidden layer completely?
     - [x] implement sanity check
@@ -61,6 +63,7 @@
     - [x] test sanity check
   
 - [ ] optimizer:
+  - [ ] threshold for winning layer adaption, else every layer
   - [ ] backward:
     - algo:
       1. normal backward (```loss.backward()``` to get gradient, ```optimizer().step()``` to improve and ```optimizer().zero_grad()``` to reset gradients)

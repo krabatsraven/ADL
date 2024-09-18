@@ -142,7 +142,6 @@ class AutoDeepLearner(nn.Module):
             old_following_layer = self.layers[layer_index + 1]
             anount_out_vectors, amount_in_vectors = old_following_layer.weight.size()
             new_following_layer = nn.Linear(amount_in_vectors + 1, anount_out_vectors)
-            # todo: the new column also xavier initialised?
             nn.init.xavier_uniform_(new_following_layer.weight)
             new_following_layer.weight = nn.parameter.Parameter(
                 torch.cat((old_following_layer.weight, new_following_layer.weight[:, 0:1]), dim=1))
@@ -153,7 +152,6 @@ class AutoDeepLearner(nn.Module):
         old_voting_layer = self.voting_linear_layers[str(layer_index)]
         new_voting_layer = nn.Linear(out_before + 1, self.output_size)
 
-        # todo: weight of voting layer also xavier init?
         nn.init.xavier_uniform_(new_voting_layer.weight)
 
         new_voting_layer.weight = nn.parameter.Parameter(
