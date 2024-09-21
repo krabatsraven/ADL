@@ -1,8 +1,11 @@
 - [x] Kirstenml zum repo hinzufügen
-- question [ ]: sanity checks?
+- [x] question: sanity checks?
+  - yes !
+- [ ] orga: migrate to kanban board?
 - [ ] adl class:
   - eventual todo: reactivate layer
   - eventual todo: feature that returns the class from a given array of classes instead of index of class 
+  - eventual todo: compare paper with repos and own implementation
   - [x] sanity checks: implement them where appropriate
   - [x] structure:
     - defines the layers of the adl
@@ -28,14 +31,15 @@
       - new ```layer[:-1] = weights```
       - [x] ```new_layer[-1]```: xavier initialization
         - [ ] q: xavier normal ($\mathcal N(0,std^2)$) or uniform ($\mathcal U(−a,a)$)?
-        - [ ] q: old weights overwrite
+        - [x] q: old weights overwrite
+          - solution atm: initialise whole vector xavier and overwrite old section with old weights
         - [x] q: gain = 1?
         - $std = gain \times \sqrt{\frac{2} {fan_in + fan_out}}$
         - $a = gain \times \sqrt{\frac{6} {fan_in + fan_out}}$
       - the layer after needs a new column:
       - layer l changes from: $(in_l, out_l) \to (in_l, out_l + 1)$ and layer $l + 1$ from $(in_{l+1}, out) \to (in_{l+1} + 1, out)$
       - new node is initialised with the xavier initialization
-    - [x] implement sanity check
+      - [x] implement sanity check
   - [ ] _prune_layer()
     - [x] implement at first: just remove voting rights, keep nodes (_prune_layer_by_vote_removal)
       - removes one layer from voting
@@ -50,7 +54,6 @@
     - gets: the index of the node to be pruned, as well as the index of the layer to prune in
     - ![delete_sketch](images/_delete_node_sketch.jpg)
     - [x] implement sanity check
-
 - [x] test for adl class:
   - [x] forward()
     - [x] test sanity check
@@ -61,10 +64,9 @@
     - [x] test sanity check
   - [x] _merge_nodes()
     - [x] test sanity check
-  
-- [ ] optimizer:
+- [ ] "optimizer":
   - [ ] threshold for winning layer adaption, else every layer
-  - [ ] backward:
+  - [ ] ADL Improvement-Loop:
     - algo:
       1. normal backward (```loss.backward()``` to get gradient, ```optimizer().step()``` to improve and ```optimizer().zero_grad()``` to reset gradients)
       2. adjusting of the weights $\beta$
@@ -92,18 +94,17 @@
   - [ ] low_lvl_learning
     1. hidden node growing
     2. hidden node pruning
-
 - loss function: probably SGD in single pass fashion
-
 - Training loop
-
 - [ ] tests for optimizer
+  - [ ] normal optimization
+  - [ ] weights adaption
   - [ ] high_level_learning
-  - [ ] low_lvl_learning 
-
+  - [ ] low_lvl_learning
 - [ ] tests for loss?
 
-- probleme: optimizer kennt die gewichte der neuen layer noch nicht
+---- notes: -----
+- probleme: Der Optimizer kennt die gewichte der neuen layer noch nicht
   - kirstens lösung: optimizer neu initialisieren
   - idee: optimizer muss möglicherweise sowieso teilweise neu geschrieben werden? vllt kann man dann dem optimizer auch einen iter geben der sich ändert. Internetrecherche hat auch keine Löusng außer neue Instanz ergeben.
 - cross-entropy-loss funktion in pytorch führt automatisch soft max aus
