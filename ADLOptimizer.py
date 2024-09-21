@@ -3,7 +3,7 @@ import torch.optim
 from AutoDeepLearner import AutoDeepLearner
 
 
-def adl_optimizer(network: AutoDeepLearner, optimizer: type(torch.optim.Optimizer), **kwargs):
+def create_adl_optimizer(network: AutoDeepLearner, optimizer: type(torch.optim.Optimizer), **kwargs):
     """
     creates the optimizer object that extents the pytorch optimizer of the provided type and returns it
     this optimizer only adds to the step function, where in actual optimization of the parameters is done by the provided optimizer
