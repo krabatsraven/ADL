@@ -101,6 +101,9 @@
   - [ ] weights adaption
   - [ ] high_level_learning
   - [ ] low_lvl_learning
+  - test each for:
+    - [ ] SGD
+    - [ ] ADAM
 - [ ] tests for loss?
 
 ---- notes: -----

@@ -1,11 +1,10 @@
 import torch
 
+from ADLOptimizer import adl_optimizer
+from AutoDeepLearner import AutoDeepLearner
+
 if __name__ == "__main__":
-    print("hello world")
+    adl_network: AutoDeepLearner = AutoDeepLearner(10, 10)
 
-    x = torch.rand(5, 3)
-    print(x)
-
-    print(f"Shape of tensor: {x.shape}")
-    print(f"Datatype of tensor: {x.dtype}")
-    print(f"Device tensor is stored on: {x.device}")
+    optimizer: torch.optim.Optimizer = adl_optimizer(adl_network, torch.optim.SGD, lr=0.001, momentum=0.9)
+    print(optimizer)
