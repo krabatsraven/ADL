@@ -3,7 +3,7 @@ from typing import List, Dict
 import numpy as np
 import torch
 from numpy._typing import NDArray
-from torch import nn
+from torch import nn, dtype
 
 
 class AutoDeepLearner(nn.Module):
@@ -20,11 +20,11 @@ class AutoDeepLearner(nn.Module):
 
         # assumes that at least a single concept is to be learned in a data stream
         # list of all dynamic layers, starting with a single layer in the shape (in, 1)
-        self.layers: nn.ModuleList = nn.ModuleList([nn.Linear(nr_of_features, 1)])
+        self.layers: nn.ModuleList = nn.ModuleList([nn.Linear(nr_of_features, 1, dtype=torch.float)])
 
         # list of all linear layers for the voting part, starts with a single layer in the shape (1, out)
         # contains only the indices of self.layers that are eligible to vote
-        self.voting_linear_layers: nn.ModuleDict = nn.ModuleDict({'0': nn.Linear(1, nr_of_classes)})
+        self.voting_linear_layers: nn.ModuleDict = nn.ModuleDict({'0': nn.Linear(1, nr_of_classes, dtype=torch.float)})
 
         # all voting weights should always be normalised,
         # and only contain the indices of self.layers that eligible to vote
@@ -58,8 +58,9 @@ class AutoDeepLearner(nn.Module):
         # calculated voted/weighted class probability
         total_weighted_class_probability = torch.stack(voted_class_probabilities, dim=0).sum(dim=0)
 
+        return total_weighted_class_probability
         # classification by majority rule
-        return torch.argmax(total_weighted_class_probability)
+        # return torch.argmax(total_weighted_class_probability)
 
     def _add_layer(self) -> None:
         """
