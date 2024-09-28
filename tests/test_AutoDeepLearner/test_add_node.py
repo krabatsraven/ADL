@@ -142,7 +142,7 @@ class TestAutoDeepLearnerAddNode:
                     ("add node should also change the shape of the linear layer "
                     "responsible to transform the layer output into the voting output"))
 
-    def test_add_node_should_still_not_break_forward(self, model, feature_count, layers_to_add_to):
+    def test_add_node_should_still_not_break_forward(self, model, feature_count, class_count, layers_to_add_to):
         """
         After performing _add_node the functionality of forward should still be intact
         """
@@ -154,10 +154,11 @@ class TestAutoDeepLearnerAddNode:
         forward_tests.test_forward_form_single_item_batch(
             model,
             feature_count,
+            class_count,
             msg="After performing _add_node: "
         )
 
-    def test_add_node_should_still_not_break_forward_multiple(self, model, feature_count, layers_to_add_to):
+    def test_add_node_should_still_not_break_forward_multiple(self, model, feature_count, class_count, layers_to_add_to):
         """
         After performing _add_node the functionality of forward should still be intact
         """
@@ -170,6 +171,7 @@ class TestAutoDeepLearnerAddNode:
         forward_tests.test_forward_form_multiple_item_batch(
             model,
             feature_count,
+            class_count,
             batch_size=1000,
             msg="After performing _add_node "
         )

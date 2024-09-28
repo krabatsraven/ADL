@@ -43,15 +43,15 @@ class TestAutoDeepLearnerForward:
             )):
             model.forward(x)
 
-    def test_forward_form_single_item_batch(self, model: AutoDeepLearner, feature_count: int, msg: str = ''):
+    def test_forward_form_single_item_batch(self, model: AutoDeepLearner, feature_count: int, class_count: int, msg: str = ''):
         prediction = model(torch.rand(feature_count))
 
         assert torch.is_tensor(prediction), f'{msg}prediction should be a tensor'
-        assert prediction.size() == torch.tensor(1.0).size(), f'{msg}prediction should be of the shape of a scalar'
+        assert prediction.size() == torch.ones(class_count).size(), f'{msg}prediction should be of the shape (1, nr of classes)'
 
-    def test_forward_form_multiple_item_batch(self, model: AutoDeepLearner, feature_count: int, batch_size: int = 10_000, msg: str = ''):
+    def test_forward_form_multiple_item_batch(self, model: AutoDeepLearner, feature_count: int, class_count: int, batch_size: int = 10_000, msg: str = ''):
         batch_size = random.randint(0, batch_size)
         prediction = model(torch.rand(batch_size, feature_count))
 
         assert torch.is_tensor(prediction), f'{msg}prediction should be a tensor'
-        assert prediction.size() == torch.tensor(1.0).size(), f'{msg}prediction should be of the shape of a scalar'
+        assert prediction.size() == torch.ones(batch_size, class_count).size(), f'{msg}prediction should be of the shape (nr of batches, nr of classes)'

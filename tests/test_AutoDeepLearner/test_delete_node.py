@@ -280,7 +280,7 @@ class TestAutoDeepLearnerDeleteNode:
                 "even if done twice in a row"
         )
 
-    def test_delete_node_does_not_break_forward_single(self, feature_count, model):
+    def test_delete_node_does_not_break_forward_single(self, feature_count, class_count, model):
         """
         _delete node should not break the functionality of forward with a batch of one
         """
@@ -303,10 +303,11 @@ class TestAutoDeepLearnerDeleteNode:
         forward_tests.test_forward_form_single_item_batch(
             model,
             feature_count,
+            class_count,
             msg="Single Batch after performing _delete_node: "
         )
 
-    def test_delete_node_does_not_break_forward_multiple(self, feature_count, model):
+    def test_delete_node_does_not_break_forward_multiple(self, feature_count, class_count, model):
         """
         _delete node should not break the functionality of forward with a batch bigger than one row
         """
@@ -326,7 +327,9 @@ class TestAutoDeepLearnerDeleteNode:
 
         forward_tests = TestAutoDeepLearnerForward()
         forward_tests.test_forward_form_multiple_item_batch(
-            model, feature_count,
+            model,
+            feature_count,
+            class_count,
             batch_size=1000,
             msg="Multiple Batch after performing _delete_node: "
         )

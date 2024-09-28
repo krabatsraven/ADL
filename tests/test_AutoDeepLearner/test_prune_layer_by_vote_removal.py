@@ -102,7 +102,7 @@ class TestPruneLayerByVoteRemoval:
             assert (all([weights_without_key_normalized[key] - model.voting_weights[key] <= 10 ** -6 for key in keys]),
                 "_prune_layer_by_vote_removal should not switch the voting weights")
 
-    def test_prune_layer_by_vote_removal_does_not_break_forward_single_item(self, model, nr_of_layers, feature_count):
+    def test_prune_layer_by_vote_removal_does_not_break_forward_single_item(self, model, nr_of_layers, class_count, feature_count):
         """
         _prune_layer_by_vote_removal should not affect the functionality of the forward pass on single item batches
         """
@@ -113,10 +113,11 @@ class TestPruneLayerByVoteRemoval:
         forward_tests.test_forward_form_single_item_batch(
             model,
             feature_count,
+            class_count,
             msg="After performing _add_node: "
         )
 
-    def test_prune_layer_by_vote_removal_does_not_break_backward_multiple_item(self, model, feature_count, nr_of_layers):
+    def test_prune_layer_by_vote_removal_does_not_break_backward_multiple_item(self, model, feature_count, class_count, nr_of_layers):
         """
         _prune_layer_by_vote_removal should not affect the functionality of the backward pass on multiple item batches
         """
@@ -126,7 +127,9 @@ class TestPruneLayerByVoteRemoval:
         forward_tests = TestAutoDeepLearnerForward()
         batch_size = 1000
         forward_tests.test_forward_form_multiple_item_batch(
-            model, feature_count,
+            model,
+            feature_count,
+            class_count,
             batch_size=batch_size,
             msg=f"After performing _prune_layer_by_vote_removal on "
                                                                 f"batch size {batch_size}: "
