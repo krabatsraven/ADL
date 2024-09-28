@@ -29,16 +29,13 @@ class TestPruneLayerByVoteRemoval:
         model = AutoDeepLearner(feature_count, class_count)
         model.voting_weights[0] = random.randint(0, 100)
 
-        for i in range(nr_of_layers):
+        for i in range(nr_of_layers - 1):
             model._add_layer()
 
             model.voting_weights[i + 1] = random.randint(0, 100)
 
         # re-normalize the randomized voting weights
-        length_of_weights = math.sqrt(sum(map(lambda x: x ** 2, model.voting_weights.values())))
-
-        for key, value in model.voting_weights.items():
-            model.voting_weights[key] = value / length_of_weights
+        model._normalise_voting_weights()
 
         yield model
 
@@ -172,3 +169,18 @@ class TestPruneLayerByVoteRemoval:
 
         assert str(exec_info.value) == error_str, \
             "a layer index without a voting weight should raise an exception"
+
+    def test_prune_layer_layer_by_vote_removal_raises_on_removal_of_last_non_zero_voting_weight(self, model, nr_of_layers):
+        layer_index = random.randint(0, nr_of_layers - 1)
+        error_str = (f"cannot remove the layer with the index {layer_index}, "
+                     f"as it is the last layer with a non zero voting weight")
+
+        for idx in range(nr_of_layers + 1):
+            if idx != layer_index:
+                model.voting_weights[idx] = 0.0
+
+        with pytest.raises(Exception) as exec_info:
+            model._prune_layer_by_vote_removal(layer_index)
+
+        assert str(exec_info.value) == error_str, \
+            "the last layer with a non zero voting weight should raise an exception if attempted to be removed"
