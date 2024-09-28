@@ -1,26 +1,10 @@
 import random
 import pytest
-from typing import List, Tuple
-
+from typing import List
 import torch
 
 from AutoDeepLearner import AutoDeepLearner
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
-
-
-# def model_setup() -> Tuple[AutoDeepLearner, List[int]]:
-#     # set up class with a few layers
-#     feature_count, class_count = torch.randint(10_000, (2,))
-#     model = AutoDeepLearner(feature_count, class_count)
-#     nr_of_layers = 100
-# 
-#     for i in range(nr_of_layers):
-#         model._add_layer()
-# 
-#     # draw a random amount of indices to add a node too
-#     layers_to_add_to = [random.randint(0, nr_of_layers) for _ in range(random.randint(0, nr_of_layers))]
-# 
-#     return model, layers_to_add_to
 
 
 class TestAutoDeepLearnerAddNode:

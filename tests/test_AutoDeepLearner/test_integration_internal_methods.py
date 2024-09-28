@@ -1,7 +1,6 @@
 import random
 
 import pytest
-import torch
 
 from AutoDeepLearner import AutoDeepLearner
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward

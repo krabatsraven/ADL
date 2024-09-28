@@ -2,7 +2,6 @@ import math
 import random
 
 import pytest
-from PIL.features import modules
 
 from AutoDeepLearner import AutoDeepLearner
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward

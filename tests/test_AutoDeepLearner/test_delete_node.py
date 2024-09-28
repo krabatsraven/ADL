@@ -3,10 +3,6 @@ from typing import List
 
 import pytest
 import torch
-from PIL.features import modules
-from networkx.utils import np_random_state
-from numpy.f2py.crackfortran import previous_context
-from sympy.physics.units import amount
 
 from AutoDeepLearner import AutoDeepLearner
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
