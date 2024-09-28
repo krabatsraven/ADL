@@ -175,7 +175,7 @@ class TestPruneLayerByVoteRemoval:
         error_str = (f"cannot remove the layer with the index {layer_index}, "
                      f"as it is the last layer with a non zero voting weight")
 
-        for idx in range(nr_of_layers + 1):
+        for idx in range(nr_of_layers):
             if idx != layer_index:
                 model.voting_weights[idx] = 0.0
 
