@@ -19,7 +19,6 @@ def create_adl_optimizer(network: AutoDeepLearner, optimizer: type(torch.optim.O
             return f"ADLOptimizer(network={network}, optimizer={optimizer})"
 
         def __init__(self):
-            print(kwargs)
             super().__init__(network.parameters(), **kwargs)
             self.network = network
 
@@ -32,6 +31,17 @@ def create_adl_optimizer(network: AutoDeepLearner, optimizer: type(torch.optim.O
             # todo: low level learning
 
         def _adjust_weights(self):
+            # todo: get true label
+            # todo: if layer predicted correctly increase weight correction factor p^(l) by step size
+            # p^(l) = p^(l) + step_size
+            # todo: if layer predicted erroneous decrease weight correction factor p^(l) by step size
+            # p^(l) = p^(l) - step_size
+            # todo: adjust weight of layer l:
+            # todo: if layer l was correct increase beta:
+            # increase beta^(l) while assuring that 0 <= beta^(l) <= 1 by
+            # beta^(l) = min((1 + p^(l)) * beta^(l), 1)
+            # todo: if layer l was correct decrease beta:
+            # beta^(l) = p^(l) * beta^(l)
             raise NotImplementedError
 
         def _high_lvl_learning(self):

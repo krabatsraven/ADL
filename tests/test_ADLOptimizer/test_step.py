@@ -6,12 +6,15 @@ from torch import nn
 
 from ADLOptimizer import create_adl_optimizer
 from AutoDeepLearner import AutoDeepLearner
+from tests.test_AutoDeepLearner.test_integration_internal_methods import TestAutoDeepLearnerIntegration
 
 optimizer_choices = [torch.optim.SGD, torch.optim.Adam]
+
 
 class TestOptimizerStep:
     @pytest.fixture(scope='class', autouse=True)
     def model(self) -> AutoDeepLearner:
+
         model = AutoDeepLearner(nr_of_features=10, nr_of_classes=7)
 
         for _ in range(1000):
@@ -20,6 +23,9 @@ class TestOptimizerStep:
             match dice:
                 case 1:
                     model._add_layer()
+                    last_added_layer_idx = len(model.layers) - 1
+                    model.voting_weights[last_added_layer_idx] = random.uniform(0, 1)
+                    model._normalise_voting_weights()
                 case 2:
                     layer_choice = random.choice(list(model.voting_weights.keys()))
                     model._add_node(layer_choice)
@@ -61,8 +67,6 @@ class TestOptimizerStep:
         criterion = nn.CrossEntropyLoss()
         prediction = model(input)
 
-        print(prediction)
-        
         loss = criterion(prediction, target)
 
         loss.backward()
@@ -72,6 +76,7 @@ class TestOptimizerStep:
         optimizer.step()
 
         for initial_param, param in zip(initial_params, model.parameters()):
-            assert not torch.equal(initial_param, param), "parameters should have changed after step"
+            assert not torch.equal(initial_param, param), \
+                f"parameters should have changed after step but initial:({initial_param}) == current:({param})"
 
         optimizer.zero_grad()
