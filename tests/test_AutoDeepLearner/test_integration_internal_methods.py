@@ -26,6 +26,15 @@ class TestAutoDeepLearnerIntegration:
             match dice:
                 case 1:
                     model._add_layer()
+
+                    # the add_layer function initialises the voting weight with 0
+                    # not all voting weight can be zero: solution here: randomly assign a value between zero and one
+                    last_added_layer_idx = len(model.layers) - 1
+                    model.voting_weights[last_added_layer_idx] = random.uniform(0, 1)
+
+                    # and normalise the voting weights
+                    model._normalise_voting_weights()
+
                 case 2:
                     layer_choice = random.choice(list(model.voting_weights.keys()))
                     model._add_node(layer_choice)
@@ -49,6 +58,10 @@ class TestAutoDeepLearnerIntegration:
         return model
 
     def test_single_batch_integration(self, model, feature_count, class_count):
+
+        # print(model)
+        print(model.voting_weights)
+        # print(model.voting_linear_layers)
 
         forward_tests = TestAutoDeepLearnerForward()
         forward_tests.test_forward_form_single_item_batch(

@@ -94,12 +94,18 @@ class AutoDeepLearner(nn.Module):
         assert layer_index in self.voting_weights.keys(), \
             (f"cannot remove the layer with the index {layer_index}, "
             f"as it is not a layer that can vote because it has no voting weight")
+        assert any(True for key, value in self.voting_weights.items() if key != layer_index and value != 0), \
+            (f"cannot remove the layer with the index {layer_index}, "
+             f"as it is the last layer with a non zero voting weight")
 
         # remove layer from self.voting_linear_layers, and thereby from voting
         self.voting_linear_layers.pop(str(layer_index))
         # remove the weight of the layer from self.voting_weights
         self.voting_weights.pop(layer_index, None)
         # and re-normalize the voting weights?
+        self._normalise_voting_weights()
+
+    def _normalise_voting_weights(self) -> None:
         voting_weights_keys_vector: NDArray[int] = np.fromiter(self.voting_weights.keys(), dtype=int)
         voting_weights_values_vector: NDArray[float] = np.fromiter(self.voting_weights.values(), dtype=float)
         voting_weights_values_vector /= np.linalg.norm(voting_weights_values_vector)
