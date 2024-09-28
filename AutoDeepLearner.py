@@ -108,7 +108,10 @@ class AutoDeepLearner(nn.Module):
     def _normalise_voting_weights(self) -> None:
         voting_weights_keys_vector: NDArray[int] = np.fromiter(self.voting_weights.keys(), dtype=int)
         voting_weights_values_vector: NDArray[float] = np.fromiter(self.voting_weights.values(), dtype=float)
-        voting_weights_values_vector /= np.linalg.norm(voting_weights_values_vector)
+        norm_of_voting_weights: np.floating = np.linalg.norm(voting_weights_values_vector)
+        assert norm_of_voting_weights != 0, \
+            "The voting weights vector has a length of zero and cannot be normalised"
+        voting_weights_values_vector /= norm_of_voting_weights
         for index, key in np.ndenumerate(voting_weights_keys_vector):
             self.voting_weights[key] = float(voting_weights_values_vector[index])
 
