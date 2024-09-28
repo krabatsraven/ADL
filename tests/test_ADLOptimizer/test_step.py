@@ -2,10 +2,8 @@ import random
 
 import pytest
 import torch.optim
-from numpy.f2py.rules import rout_rules
 from torch import nn
 
-import ADLOptimizer
 from ADLOptimizer import create_adl_optimizer
 from AutoDeepLearner import AutoDeepLearner
 
@@ -62,6 +60,9 @@ class TestOptimizerStep:
 
         criterion = nn.CrossEntropyLoss()
         prediction = model(input)
+
+        print(prediction)
+        
         loss = criterion(prediction, target)
 
         loss.backward()

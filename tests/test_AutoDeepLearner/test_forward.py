@@ -46,8 +46,6 @@ class TestAutoDeepLearnerForward:
     def test_forward_form_single_item_batch(self, model: AutoDeepLearner, feature_count: int, class_count: int, msg: str = ''):
         prediction = model(torch.rand(feature_count, requires_grad=True, dtype=torch.float))
 
-        print(prediction)
-
         assert torch.is_tensor(prediction), f'{msg}prediction should be a tensor'
         assert prediction.size() == torch.ones(class_count).size(), f'{msg}prediction should be of the shape (1, nr of classes)'
         assert prediction.dtype == torch.float, f'{msg}prediction dtype should be float'
@@ -63,4 +61,3 @@ class TestAutoDeepLearnerForward:
         assert prediction.dtype == torch.float, f'{msg}prediction dtype should be float'
         assert torch.all(prediction >= 0), f'{msg}prediction should be bigger than zero as they represent class probabilities'
         assert torch.all(prediction >= 0), f'{msg}prediction should smaller than one as they represent class probabilities'
-
