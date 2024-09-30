@@ -30,8 +30,8 @@ def create_adl_optimizer(network: AutoDeepLearner, optimizer: type(torch.optim.O
             # todo: high level learning
             # todo: low level learning
 
-        def _adjust_weights(self):
-            # todo: get true label
+        def _adjust_weights(self, true_label):
+            # todo: add type hint to true_label argument
             # todo: if layer predicted correctly increase weight correction factor p^(l) by step size
             # p^(l) = p^(l) + step_size
             # todo: if layer predicted erroneous decrease weight correction factor p^(l) by step size

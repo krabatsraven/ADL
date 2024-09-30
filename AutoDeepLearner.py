@@ -1,8 +1,9 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import numpy as np
 import torch
 from numpy._typing import NDArray
+from sympy.codegen.fnodes import reshape
 from torch import nn, dtype
 
 
@@ -30,6 +31,11 @@ class AutoDeepLearner(nn.Module):
         # and only contain the indices of self.layers that eligible to vote
         self.voting_weights: Dict[int, float] = {0: 1.0}
 
+        # for the adjustment of the weights in the optimizer it is necessary to have the results of the single voting layers
+        # for efficiency we store the beta of the voting weight in the same list: [[result_i, beta_i]]
+        # so that we can weight the results in the next step by column-wise multiplication
+        self.layer_results: Optional[torch.Tensor] = None
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         returns the classification from self.output_size many classes stemming from the data input x
@@ -52,15 +58,18 @@ class AutoDeepLearner(nn.Module):
 
         # calculate all y^i = s.max(W_{s_l}h^{l} + b_{s_l})
         # that are not currently pruned
-        voted_class_probabilities = [torch.mul(nn.Softmax()(self.voting_linear_layers[str(i)](hidden_layers[i])), beta)
-                                     for i, beta in self.voting_weights.items()]
+        self.layer_results = torch.stack([nn.Softmax()(self.voting_linear_layers[str(i)](hidden_layers[i]))
+                                          for i in self.voting_weights.keys()])
 
-        # calculated voted/weighted class probability
-        total_weighted_class_probability = torch.stack(voted_class_probabilities, dim=0).sum(dim=0)
+        # add n empty dimensions at the end of betas dimensionality to allow for multiplying with the layer results:
+        # e.g.: beta.size = (layers) -> beta.size = (layers, 1, 1) or beta.size = (layers, 1) if batch size is 1
+        # n is 2 for a batch size greater than 1 else it is 1
+        betas = torch.tensor([beta for beta in self.voting_weights.values()])[(..., ) + (None,) * (len(self.layer_results.size()) - 1)]
+
+        # calculated total voted/weighted class probability
+        total_weighted_class_probability = torch.mul(self.layer_results, betas).sum(dim=0)
 
         return total_weighted_class_probability
-        # classification by majority rule
-        # return torch.argmax(total_weighted_class_probability)
 
     def _add_layer(self) -> None:
         """

@@ -59,10 +59,6 @@ class TestAutoDeepLearnerIntegration:
 
     def test_single_batch_integration(self, model, feature_count, class_count):
 
-        # print(model)
-        print(model.voting_weights)
-        # print(model.voting_linear_layers)
-
         forward_tests = TestAutoDeepLearnerForward()
         forward_tests.test_forward_form_single_item_batch(
             model,
