@@ -179,6 +179,17 @@ class TestPruneLayerByVoteRemoval:
         assert str(exec_info.value) == error_str, \
             "a layer index without a voting weight should raise an exception"
 
+    def test_prune_layer_layer_by_vote_removal_raises_on_no_voting_weight_correction_factor(self, model, nr_of_layers):
+        layer_index = random.randint(0, nr_of_layers - 1)
+        model.weight_correction_factor.pop(layer_index)
+        error_str = (f"cannot remove the layer with the index {layer_index}, "
+                     f"as it is not a layer that has no weight correction factor")
+        with pytest.raises(Exception) as exec_info:
+            model._prune_layer_by_vote_removal(layer_index)
+
+        assert str(exec_info.value) == error_str, \
+            "a layer index without a voting weight correction factor should raise an exception"
+
     def test_prune_layer_layer_by_vote_removal_raises_on_removal_of_last_non_zero_voting_weight(self, model, nr_of_layers):
         layer_index = random.randint(0, nr_of_layers - 1)
         error_str = (f"cannot remove the layer with the index {layer_index}, "
