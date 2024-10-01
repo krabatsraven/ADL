@@ -8,6 +8,7 @@ from torch import nn, dtype
 
 
 class AutoDeepLearner(nn.Module):
+
     def __init__(self,
                  nr_of_features: int,
                  nr_of_classes: int,
