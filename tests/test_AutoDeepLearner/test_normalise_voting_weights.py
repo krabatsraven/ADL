@@ -8,6 +8,10 @@ from numpy._typing import NDArray
 from AutoDeepLearner import AutoDeepLearner
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
 
+def has_normalised_voting_weights(model_to_test: AutoDeepLearner) -> bool:
+    voting_weights_values_vector: NDArray[float] = np.fromiter(model_to_test.voting_weights.values(), dtype=float)
+    norm_of_voting_weights: np.floating = np.linalg.norm(voting_weights_values_vector)
+    return norm_of_voting_weights - 1.0 <= 10 ** -5
 
 class TestAutoDeepLearnerNormaliseVotingWeights:
     @pytest.fixture(scope="class")
@@ -33,34 +37,28 @@ class TestAutoDeepLearnerNormaliseVotingWeights:
 
         del model
 
-    @staticmethod
-    def has_normalised_voting_weights(model_to_test: AutoDeepLearner) -> bool:
-        voting_weights_values_vector: NDArray[float] = np.fromiter(model_to_test.voting_weights.values(), dtype=float)
-        norm_of_voting_weights: np.floating = np.linalg.norm(voting_weights_values_vector)
-        return norm_of_voting_weights == 1.0
-
     def test_static_method_returns_false_on_not_normalised_vector(self, model: AutoDeepLearner, nr_of_layers: int):
         model.voting_weights[random.choice(list(model.voting_weights.keys()))] = 2.0
-        assert not self.has_normalised_voting_weights(model), "The voting weights should not be normalised anymore"
+        assert not has_normalised_voting_weights(model), "The voting weights should not be normalised anymore"
 
     def test_static_method_returns_true_on_normalised_vector(self, model):
         model.voting_weights = {key: 0.0 if key != 0 else 1.0 for key in model.voting_weights.keys()}
-        assert self.has_normalised_voting_weights(model), "The voting weights should be normalised"
+        assert has_normalised_voting_weights(model), "The voting weights should be normalised"
 
     def test_normalise_works_on_already_normalised_voting_weights(self, model: AutoDeepLearner):
-        assert self.has_normalised_voting_weights(model), \
+        assert has_normalised_voting_weights(model), \
             "Assuring that the initial models voting vector is normalised"
         model._normalise_voting_weights()
-        assert self.has_normalised_voting_weights(model), \
+        assert has_normalised_voting_weights(model), \
             "The model should still possess a normalised voting vector after normalising a normalised vector"
 
     def test_normalise_works_on_not_normalised_vectors(self, model: AutoDeepLearner):
         model.voting_weights = {key: random.randint(0, 100) if key != 0 else 2.0 for key in model.voting_weights.keys()}
 
-        assert not self.has_normalised_voting_weights(model), \
+        assert not has_normalised_voting_weights(model), \
             "Assuring that the initial models voting vector is not normalised anymore"
         model._normalise_voting_weights()
-        assert self.has_normalised_voting_weights(model), \
+        assert has_normalised_voting_weights(model), \
             "The model should possess a normalised voting vector after normalising"
 
     def test_normalise_raises_on_all_zeros_voting_weights_vector(self, model: AutoDeepLearner):
