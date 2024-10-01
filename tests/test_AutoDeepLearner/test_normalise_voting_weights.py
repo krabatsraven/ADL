@@ -11,7 +11,7 @@ from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
 def has_normalised_voting_weights(model_to_test: AutoDeepLearner) -> bool:
     voting_weights_values_vector: NDArray[float] = np.fromiter(model_to_test.voting_weights.values(), dtype=float)
     norm_of_voting_weights: np.floating = np.linalg.norm(voting_weights_values_vector)
-    return norm_of_voting_weights - 1.0 <= 10 ** -5
+    return norm_of_voting_weights - 1.0 <= 10 ** -6
 
 class TestAutoDeepLearnerNormaliseVotingWeights:
     @pytest.fixture(scope="class")
