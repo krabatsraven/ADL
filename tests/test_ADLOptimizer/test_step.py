@@ -46,7 +46,9 @@ class TestOptimizerStep:
                     else:
                         continue
 
-        return model
+        yield model
+
+        del model
 
     @pytest.mark.parametrize('optimizer_choice', optimizer_choices)
     def test_is_correct_optimizer(self, model, optimizer_choice):
@@ -58,20 +60,19 @@ class TestOptimizerStep:
 
     @pytest.mark.parametrize('optimizer_choice', optimizer_choices)
     def test_step_changes_parameter(self, model, optimizer_choice):
-        torch.set_grad_enabled(True)
         optimizer = create_adl_optimizer(model, optimizer_choice)
 
         input = torch.rand(10, requires_grad=True, dtype=torch.float)
         target = torch.tensor(random.randint(0, 6))
 
+        initial_params = [param.clone() for param in model.parameters()]
+
         criterion = nn.CrossEntropyLoss()
         prediction = model(input)
 
         loss = criterion(prediction, target)
-
         loss.backward()
 
-        initial_params = [param.clone() for param in model.parameters()]
 
         optimizer.step(target)
 

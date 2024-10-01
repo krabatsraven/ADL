@@ -71,7 +71,7 @@ def create_adl_optimizer(network: AutoDeepLearner, optimizer: type(torch.optim.O
             # beta^(l) = p^(l) * beta^(l)
             decreased_voting_weights = {
                 key: self.network.weight_correction_factor[key] * self.network.voting_weights[key]
-                for key in keys_of_correctly_predicted_layers
+                for key in keys_of_incorrectly_predicted_layers
             }
             self.network.voting_weights.update(decreased_voting_weights)
 
