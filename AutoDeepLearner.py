@@ -32,9 +32,11 @@ class AutoDeepLearner(nn.Module):
         self.voting_weights: Dict[int, float] = {0: 1.0}
 
         # for the adjustment of the weights in the optimizer it is necessary to have the results of the single voting layers
-        # for efficiency we store the beta of the voting weight in the same list: [[result_i, beta_i]]
-        # so that we can weight the results in the next step by column-wise multiplication
         self.layer_results: Optional[torch.Tensor] = None
+
+        # for the adjustment of the weights in the optimizer it is necessary to keep track of a correction_factor for each layer
+        self.initial_weight_correction_factor: float = 0.5
+        self.weight_correction_factor: Dict[int, float] = {0: self.initial_weight_correction_factor}
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
