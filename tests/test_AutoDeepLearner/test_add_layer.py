@@ -64,7 +64,7 @@ class TestAutoDeepLearnerAddLayer:
         for i in range(nr_of_layers):
             add_layer_test(
                 model,
-                model.voting_linear_layers,
+                model.voting_weights,
                 "__add_layer should result in model having a single voting weight more that votes than before"
             )
 
@@ -73,6 +73,25 @@ class TestAutoDeepLearnerAddLayer:
 
         assert (math.sqrt(sum((value ** 2 for value in model.voting_weights.values()))) == 1,
                 "models voting weights should be normalised")
+
+    def test_new_layers_voting_weight_correction_factor(self, model, nr_of_layers):
+        for i in range(nr_of_layers):
+            add_layer_test(
+                model,
+                model.weight_correction_factor,
+                "__add_layer should result in the model having exactly a single voting weight correction factor "
+                "more that votes than before"
+            )
+
+            assert i + 1 in model.weight_correction_factor.keys(),\
+                f"the key {i + 1} should be added after adding the {i + 1}-te layer"
+
+            assert model.weight_correction_factor[i + 1] == model.initial_weight_correction_factor, \
+                f"the {i + 1}-te layer should be initialised with the correct factor"
+
+        assert (len(model.weight_correction_factor) == nr_of_layers + 1,
+                f"model should have {nr_of_layers + 1} voting weight correction factors"
+                f" after adding a {nr_of_layers} layers")
 
     def test_add_layer_should_still_not_break_forward(self, model, feature_count, class_count, nr_of_layers):
         """
