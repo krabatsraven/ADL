@@ -32,6 +32,7 @@ class AutoDeepLearner(nn.Module):
         self.voting_weights: Dict[int, float] = {0: 1.0}
 
         # for the adjustment of the weights in the optimizer it is necessary to have the results of the single voting layers
+        self.layer_result_keys: Optional[NDArray[np.int_]] = None
         self.layer_results: Optional[torch.Tensor] = None
 
         # for the adjustment of the weights in the optimizer it is necessary to keep track of a correction_factor for each layer
@@ -60,8 +61,9 @@ class AutoDeepLearner(nn.Module):
 
         # calculate all y^i = s.max(W_{s_l}h^{l} + b_{s_l})
         # that are not currently pruned
+        self.layer_result_keys = np.array(list(self.voting_weights.keys()))
         self.layer_results = torch.stack([nn.Softmax()(self.voting_linear_layers[str(i)](hidden_layers[i]))
-                                          for i in self.voting_weights.keys()])
+                                          for i in self.layer_result_keys])
 
         # add n empty dimensions at the end of betas dimensionality to allow for multiplying with the layer results:
         # e.g.: beta.size = (layers) -> beta.size = (layers, 1, 1) or beta.size = (layers, 1) if batch size is 1
