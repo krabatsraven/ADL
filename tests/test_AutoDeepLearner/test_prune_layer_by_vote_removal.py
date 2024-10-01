@@ -69,6 +69,15 @@ class TestPruneLayerByVoteRemoval:
             assert (index not in model.voting_weights.keys(),
                     "_prune_layer_by_vote_removal should remove the layer from the voting weights")
 
+    def test_prune_layer_by_vote_removal_removes_vote_correction_factor(self, model, nr_of_layers):
+        """
+        _prune_layer_by_vote_removal should remove the layer from the voting weights
+        """
+        for index in random.sample(range(nr_of_layers), random.randint(1, nr_of_layers)):
+            model._prune_layer_by_vote_removal(index)
+            assert (index not in model.weight_correction_factor.keys(),
+                    "_prune_layer_by_vote_removal should remove the layer from the voting weights correction factor")
+
     def test_after_prune_layer_by_vote_removal_voting_weights_are_normalized(self, model, nr_of_layers, float_precision_tolerance):
         """
         _prune_layer_by_vote_removal should leave the voting weights normalized
