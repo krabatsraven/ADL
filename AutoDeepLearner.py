@@ -88,6 +88,7 @@ class AutoDeepLearner(nn.Module):
         idx_of_new_layer = len(self.layers) - 1
         self.voting_linear_layers[str(idx_of_new_layer)] = nn.Linear(nr_of_out_nodes, self.output_size)
         self.voting_weights[idx_of_new_layer] = 0
+        self.weight_correction_factor[idx_of_new_layer] = self.initial_weight_correction_factor
 
     def _prune_layer_by_vote_removal(self, layer_index: int) -> None:
         """
