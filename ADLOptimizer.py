@@ -27,9 +27,9 @@ def create_adl_optimizer(network: AutoDeepLearner, optimizer: type(torch.optim.O
             # optimizer step of the super.optimizer that optimizes the parameters of the network
             super().step()
 
+            # adjust voting weights
             self._adjust_weights(true_label, step_size=0.01)
 
-            # todo: adjust voting weights
             # todo: high level learning
             # todo: low level learning
 
