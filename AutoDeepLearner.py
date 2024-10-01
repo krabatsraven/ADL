@@ -106,6 +106,9 @@ class AutoDeepLearner(nn.Module):
         assert layer_index in self.voting_weights.keys(), \
             (f"cannot remove the layer with the index {layer_index}, "
             f"as it is not a layer that can vote because it has no voting weight")
+        assert layer_index in self.weight_correction_factor, \
+            (f"cannot remove the layer with the index {layer_index}, "
+             f"as it is not a layer that has no weight correction factor")
         assert any(True for key, value in self.voting_weights.items() if key != layer_index and value != 0), \
             (f"cannot remove the layer with the index {layer_index}, "
              f"as it is the last layer with a non zero voting weight")
@@ -113,7 +116,9 @@ class AutoDeepLearner(nn.Module):
         # remove layer from self.voting_linear_layers, and thereby from voting
         self.voting_linear_layers.pop(str(layer_index))
         # remove the weight of the layer from self.voting_weights
-        self.voting_weights.pop(layer_index, None)
+        self.voting_weights.pop(layer_index)
+        # remove the correction_factor from self.weight_correction_factor
+        self.weight_correction_factor.pop(layer_index)
         # and re-normalize the voting weights?
         self._normalise_voting_weights()
 
