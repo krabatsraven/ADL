@@ -87,7 +87,7 @@ class TestPruneLayerByVoteRemoval:
             assert (math.sqrt(sum(map(lambda x: x ** 2, model.voting_weights.values()))) - 1 <= float_precision_tolerance,
                 "_prune_layer_by_vote_removal should leave the voting weights normalized")
 
-    def test_after_prune_layer_by_vote_removal_voting_weights_are_correctly_normalized(self, model, nr_of_layers):
+    def test_after_prune_layer_by_vote_removal_voting_weights_are_correctly_normalized(self, model, nr_of_layers, float_precision_tolerance):
         """
         _prune_layer_by_vote_removal should not switch the voting weights
         """
@@ -104,7 +104,7 @@ class TestPruneLayerByVoteRemoval:
             }
 
             model._prune_layer_by_vote_removal(index)
-            assert (all([weights_without_key_normalized[key] - model.voting_weights[key] <= 10 ** -6 for key in keys]),
+            assert (all([weights_without_key_normalized[key] - model.voting_weights[key] <= float_precision_tolerance for key in keys]),
                 "_prune_layer_by_vote_removal should not switch the voting weights")
 
     def test_prune_layer_by_vote_removal_does_not_break_forward_single_item(self, model, nr_of_layers, class_count, feature_count):
@@ -137,7 +137,7 @@ class TestPruneLayerByVoteRemoval:
             class_count,
             batch_size=batch_size,
             msg=f"After performing _prune_layer_by_vote_removal on "
-                                                                f"batch size {batch_size}: "
+                f"batch size {batch_size}: "
         )
 
     def test_prune_layer_by_vote_removal_raises_on_negative_index(self, model):
