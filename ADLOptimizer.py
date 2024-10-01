@@ -1,3 +1,4 @@
+import numpy as np
 import torch.optim
 
 from AutoDeepLearner import AutoDeepLearner
@@ -22,27 +23,57 @@ def create_adl_optimizer(network: AutoDeepLearner, optimizer: type(torch.optim.O
             super().__init__(network.parameters(), **kwargs)
             self.network = network
 
-        def step(self):
+        def step(self, true_label):
             # optimizer step of the super.optimizer that optimizes the parameters of the network
             super().step()
+
+            self._adjust_weights(true_label, step_size=0.01)
 
             # todo: adjust voting weights
             # todo: high level learning
             # todo: low level learning
 
-        def _adjust_weights(self, true_label):
-            # todo: add type hint to true_label argument
-            # todo: if layer predicted correctly increase weight correction factor p^(l) by step size
+        def _adjust_weights(self, true_label: torch.Tensor, step_size: float):
+
+            # todo: issue #35: when is prediction correct
+            # find the indices of the results that where correctly predicted
+            correctly_predicted_layers_indices = np.where(torch.argmax(network.layer_results, dim = 1) == true_label)
+            correctly_predicted_layers_mask = np.zeros(self.network.layer_result_keys.shape, dtype=bool)
+            correctly_predicted_layers_mask[correctly_predicted_layers_indices] = True
+
+            # if layer predicted correctly increase weight correction factor p^(l) by step_size "zeta"
             # p^(l) = p^(l) + step_size
-            # todo: if layer predicted erroneous decrease weight correction factor p^(l) by step size
+            keys_of_correctly_predicted_layers = self.network.layer_result_keys[correctly_predicted_layers_mask]
+            increased_correction_weights = {key: self.network.weight_correction_factor[key] + step_size for key in keys_of_correctly_predicted_layers}
+            self.network.weight_correction_factor.update(increased_correction_weights)
+            # if layer predicted erroneous decrease weight correction factor p^(l) by step size
             # p^(l) = p^(l) - step_size
-            # todo: adjust weight of layer l:
-            # todo: if layer l was correct increase beta:
+            keys_of_incorrectly_predicted_layers = self.network.layer_result_keys[~correctly_predicted_layers_mask]
+            decreased_correction_weights = {key: self.network.weight_correction_factor[key] - step_size for key in keys_of_incorrectly_predicted_layers}
+            self.network.weight_correction_factor.update(decreased_correction_weights)
+
+            # adjust weight of layer l:
+            
+            # if layer l was correct increase beta:
             # increase beta^(l) while assuring that 0 <= beta^(l) <= 1 by
             # beta^(l) = min((1 + p^(l)) * beta^(l), 1)
-            # todo: if layer l was correct decrease beta:
+            increased_voting_weights = {
+                key: 
+                    min(
+                        (1 + self.network.weight_correction_factor[key]) * self.network.voting_weights[key],
+                        1
+                    ) 
+                for key in keys_of_correctly_predicted_layers
+            }
+            self.network.voting_weights.update(increased_voting_weights)
+            
+            # if layer l was correct decrease beta:
             # beta^(l) = p^(l) * beta^(l)
-            raise NotImplementedError
+            decreased_voting_weights = {
+                key: self.network.weight_correction_factor[key] * self.network.voting_weights[key]
+                for key in keys_of_correctly_predicted_layers
+            }
+            self.network.voting_weights.update(decreased_voting_weights)
 
         def _high_lvl_learning(self):
             raise NotImplementedError

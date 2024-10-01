@@ -73,7 +73,7 @@ class TestOptimizerStep:
 
         initial_params = [param.clone() for param in model.parameters()]
 
-        optimizer.step()
+        optimizer.step(target)
 
         for initial_param, param in zip(initial_params, model.parameters()):
             assert not torch.equal(initial_param, param), \
