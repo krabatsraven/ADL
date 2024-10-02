@@ -22,11 +22,15 @@ class AutoDeepLearner(nn.Module):
 
         # assumes that at least a single concept is to be learned in a data stream
         # list of all dynamic layers, starting with a single layer in the shape (in, 1)
-        self.layers: nn.ModuleList = nn.ModuleList([nn.Linear(nr_of_features, 1, dtype=torch.float)])
+        first_hidden_layer = nn.Linear(nr_of_features, 1, dtype=torch.float)
+        nn.init.xavier_normal_(first_hidden_layer.weight)
+        self.layers: nn.ModuleList = nn.ModuleList([first_hidden_layer])
 
         # list of all linear layers for the voting part, starts with a single layer in the shape (1, out)
         # contains only the indices of self.layers that are eligible to vote
-        self.voting_linear_layers: nn.ModuleDict = nn.ModuleDict({'0': nn.Linear(1, nr_of_classes, dtype=torch.float)})
+        first_output_layer = nn.Linear(1, nr_of_classes, dtype=torch.float)
+        nn.init.xavier_normal_(first_output_layer.weight)
+        self.voting_linear_layers: nn.ModuleDict = nn.ModuleDict({'0': first_output_layer})
 
         # all voting weights should always be normalised,
         # and only contain the indices of self.layers that eligible to vote
@@ -86,10 +90,13 @@ class AutoDeepLearner(nn.Module):
         # new layers are initialised with one node
         nr_of_out_nodes = 1
         new_layer = nn.Linear(previous_layer_output_size, nr_of_out_nodes)
+        nn.init.xavier_normal_(new_layer.weight)
         self.layers.append(new_layer)
 
         idx_of_new_layer = len(self.layers) - 1
-        self.voting_linear_layers[str(idx_of_new_layer)] = nn.Linear(nr_of_out_nodes, self.output_size)
+        new_output_layer = nn.Linear(nr_of_out_nodes, self.output_size)
+        nn.init.xavier_normal_(new_output_layer.weight)
+        self.voting_linear_layers[str(idx_of_new_layer)] = new_output_layer
         self.voting_weights[idx_of_new_layer] = 0
         self.weight_correction_factor[idx_of_new_layer] = self.initial_weight_correction_factor
 
@@ -158,7 +165,7 @@ class AutoDeepLearner(nn.Module):
         new_layer = nn.Linear(in_before, out_before + 1)
 
         # the new weight is set by Xavier Initialisation
-        nn.init.xavier_uniform_(new_layer.weight)
+        nn.init.xavier_normal_(new_layer.weight)
 
         # with the same weights and one additional one
         new_layer.weight = nn.parameter.Parameter(torch.cat((layer_to_add_to.weight, new_layer.weight[0:1])))
@@ -172,7 +179,7 @@ class AutoDeepLearner(nn.Module):
             old_following_layer = self.layers[layer_index + 1]
             anount_out_vectors, amount_in_vectors = old_following_layer.weight.size()
             new_following_layer = nn.Linear(amount_in_vectors + 1, anount_out_vectors)
-            nn.init.xavier_uniform_(new_following_layer.weight)
+            nn.init.xavier_normal_(new_following_layer.weight)
             new_following_layer.weight = nn.parameter.Parameter(
                 torch.cat((old_following_layer.weight, new_following_layer.weight[:, 0:1]), dim=1))
             self.layers[layer_index + 1] = new_following_layer
@@ -182,7 +189,7 @@ class AutoDeepLearner(nn.Module):
         old_voting_layer = self.voting_linear_layers[str(layer_index)]
         new_voting_layer = nn.Linear(out_before + 1, self.output_size)
 
-        nn.init.xavier_uniform_(new_voting_layer.weight)
+        nn.init.xavier_normal_(new_voting_layer.weight)
 
         new_voting_layer.weight = nn.parameter.Parameter(
             torch.cat((old_voting_layer.weight, new_voting_layer.weight[:, 0:1]), dim=1))
