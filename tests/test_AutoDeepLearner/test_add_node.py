@@ -107,9 +107,9 @@ class TestAutoDeepLearnerAddNode:
 
             model._add_node(layer_idx)
 
-            assert (torch.all(model.layers[layer_idx].weight[:-1] == weights_before_add),
-                    (f"add node should not change the weights "
-                     f"of the old nodes: {model.layers[layer_idx].weight[:-1] == weights_before_add}"))
+            assert torch.all(model.layers[layer_idx].weight[:-1] == weights_before_add), \
+            (f"add node should not change the weights "
+                     f"of the old nodes: {model.layers[layer_idx].weight[:-1] == weights_before_add}")
 
     def test_add_node_changes_voting_layer(self, model, layers_to_add_to):
         """
@@ -122,9 +122,9 @@ class TestAutoDeepLearnerAddNode:
             nr_of_vectors_from_layer, _ = model.layers[layer_idx].weight.size()
             _, nr_of_vectors_into_voting_layer = model.voting_linear_layers[str(layer_idx)].weight.size()
 
-            assert (nr_of_vectors_from_layer == nr_of_vectors_into_voting_layer,
-                    ("add node should also change the shape of the linear layer "
-                    "responsible to transform the layer output into the voting output"))
+            assert nr_of_vectors_from_layer == nr_of_vectors_into_voting_layer, \
+                ("add node should also change the shape of the linear layer "
+                 "responsible to transform the layer output into the voting output")
 
     def test_add_node_should_still_not_break_forward(self, model, feature_count, class_count, layers_to_add_to):
         """

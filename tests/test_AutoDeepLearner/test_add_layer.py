@@ -44,8 +44,8 @@ class TestAutoDeepLearnerAddLayer:
                 "__add_layer should result in model having a single layer more than before"
             )
 
-        assert (len(model.layers) == nr_of_layers + 1,
-                f"model should have {nr_of_layers + 1} layers after adding a {nr_of_layers} layers")
+        assert len(model.layers) == nr_of_layers + 1,\
+            f"model should have {nr_of_layers + 1} layers after adding a {nr_of_layers} layers"
 
     def test_new_layers_vote(self, model, nr_of_layers):
 
@@ -56,8 +56,8 @@ class TestAutoDeepLearnerAddLayer:
                 "__add_layer should result in model having a single layer more that votes than before"
             )
 
-        assert (len(model.voting_linear_layers) == nr_of_layers + 1,
-                f"model should have {nr_of_layers + 1} voting layers after adding a {nr_of_layers} layers")
+        assert len(model.voting_linear_layers) == nr_of_layers + 1,\
+            f"model should have {nr_of_layers + 1} voting layers after adding a {nr_of_layers} layers"
 
     def test_new_layers_voting_weight(self, model, nr_of_layers):
 
@@ -68,11 +68,11 @@ class TestAutoDeepLearnerAddLayer:
                 "__add_layer should result in model having a single voting weight more that votes than before"
             )
 
-        assert (len(model.voting_weights) == nr_of_layers + 1,
-                f"model should have {nr_of_layers + 1} voting weights after adding a {nr_of_layers} layers")
+        assert len(model.voting_weights) == nr_of_layers + 1,\
+            f"model should have {nr_of_layers + 1} voting weights after adding a {nr_of_layers} layers"
 
-        assert (math.sqrt(sum((value ** 2 for value in model.voting_weights.values()))) == 1,
-                "models voting weights should be normalised")
+        assert math.sqrt(sum((value ** 2 for value in model.voting_weights.values()))) == 1,\
+            "models voting weights should be normalised"
 
     def test_new_layers_voting_weight_correction_factor(self, model, nr_of_layers):
         for i in range(nr_of_layers):
@@ -83,7 +83,7 @@ class TestAutoDeepLearnerAddLayer:
                 "more that votes than before"
             )
 
-            assert i + 1 in model.weight_correction_factor.keys(),\
+            assert i + 1 in model.weight_correction_factor.keys(), \
                 f"the key {i + 1} should be added after adding the {i + 1}-te layer"
 
             assert model.weight_correction_factor[i + 1] == model.initial_weight_correction_factor, \

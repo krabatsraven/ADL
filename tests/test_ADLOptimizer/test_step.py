@@ -6,7 +6,6 @@ from torch import nn
 
 from ADLOptimizer import create_adl_optimizer
 from AutoDeepLearner import AutoDeepLearner
-from tests.test_AutoDeepLearner.test_integration_internal_methods import TestAutoDeepLearnerIntegration
 
 optimizer_choices = [torch.optim.SGD, torch.optim.Adam]
 

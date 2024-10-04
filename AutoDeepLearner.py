@@ -3,8 +3,7 @@ from typing import List, Dict, Optional
 import numpy as np
 import torch
 from numpy._typing import NDArray
-from sympy.codegen.fnodes import reshape
-from torch import nn, dtype
+from torch import nn
 
 
 class AutoDeepLearner(nn.Module):
@@ -60,7 +59,7 @@ class AutoDeepLearner(nn.Module):
             assert x.size()[1] == self.input_size, \
                 f"Given batch of data has {x.size()[1]} many features, expected where {self.input_size}"
         else:
-            assert x.size()[0] == self.input_size,\
+            assert x.size()[0] == self.input_size, \
                 f"Given batch of data has {x.size()[0]} many features, expected where {self.input_size}"
 
         # calculate all h^{l} = \sigma(W^{l} h^{(l-1)} + b^{l}), h^{(0)} = x
@@ -75,7 +74,8 @@ class AutoDeepLearner(nn.Module):
         # add n empty dimensions at the end of betas dimensionality to allow for multiplying with the layer results:
         # e.g.: beta.size = (layers) -> beta.size = (layers, 1, 1) or beta.size = (layers, 1) if batch size is 1
         # n is 2 for a batch size greater than 1 else it is 1
-        betas = torch.tensor([beta for beta in self.voting_weights.values()])[(..., ) + (None,) * (len(self.layer_results.size()) - 1)]
+        betas = torch.tensor([beta for beta in self.voting_weights.values()])[
+            (...,) + (None,) * (len(self.layer_results.size()) - 1)]
 
         # calculated total voted/weighted class probability
         total_weighted_class_probability = torch.mul(self.layer_results, betas).sum(dim=0)
@@ -117,7 +117,7 @@ class AutoDeepLearner(nn.Module):
              f"as it is not a layer that will projected onto a vote")
         assert layer_index in self.voting_weights.keys(), \
             (f"cannot remove the layer with the index {layer_index}, "
-            f"as it is not a layer that can vote because it has no voting weight")
+             f"as it is not a layer that can vote because it has no voting weight")
         assert layer_index in self.weight_correction_factor, \
             (f"cannot remove the layer with the index {layer_index}, "
              f"as it is not a layer that has no weight correction factor")
@@ -152,10 +152,10 @@ class AutoDeepLearner(nn.Module):
         """
 
         # check whether layer exists (sanity check)
-        assert 0 <= layer_index < len(self.layers),\
+        assert 0 <= layer_index < len(self.layers), \
             (f"cannot add a node to layer with the index {layer_index}, "
              f"as it is not in the range [0, amount of layers in model]")
-        assert str(layer_index) in self.voting_linear_layers.keys(),\
+        assert str(layer_index) in self.voting_linear_layers.keys(), \
             (f"cannot add a node to layer with the index {layer_index}, "
              f"as it is not a layer that will projected onto a vote")
 
@@ -218,14 +218,16 @@ class AutoDeepLearner(nn.Module):
             # create new nn.linear(in=old_in - 1, out=old_out)
             new_following_layer = nn.Linear(old_following_in - 1, old_following_out)
             # set weights of new layer to the one of the original missing the node_index row (zero indexed)
-            new_following_layer.weight = nn.parameter.Parameter(torch.cat((old_following_layer.weight[:, :node_index], old_following_layer.weight[:, node_index + 1:]), dim=1))
+            new_following_layer.weight = nn.parameter.Parameter(
+                torch.cat((old_following_layer.weight[:, :node_index], old_following_layer.weight[:, node_index + 1:]),
+                          dim=1))
             return new_following_layer
 
         # check whether layer exists (sanity check)
-        assert 0 <= layer_index < len(self.layers),\
+        assert 0 <= layer_index < len(self.layers), \
             (f"cannot remove a node from the layer with the index {layer_index},"
              f" as it is not in the range [0, amount of layers in model]")
-        assert str(layer_index) in self.voting_linear_layers.keys(),\
+        assert str(layer_index) in self.voting_linear_layers.keys(), \
             (f"cannot remove a node from the layer with the index {layer_index}, "
              f"as it is not a layer that will projected onto a vote")
 
@@ -235,20 +237,24 @@ class AutoDeepLearner(nn.Module):
         old_out, old_in = old_layer.weight.size()
 
         # check whether layer has node to delete (sanity check)
-        assert 0 <= node_index < old_out,\
+        assert 0 <= node_index < old_out, \
             (f"cannot remove the node with index {node_index} from the layer with the index {layer_index}, "
              f"as it has no node with index {node_index}")
 
         new_layer = nn.Linear(old_in, old_out - 1)
         # set weights of new layer to the one of the original missing the node_index row (zero indexed)
-        new_layer.weight = nn.parameter.Parameter(torch.cat((old_layer.weight[:node_index], old_layer.weight[node_index + 1:]), dim=0))
+        new_layer.weight = nn.parameter.Parameter(
+            torch.cat((old_layer.weight[:node_index], old_layer.weight[node_index + 1:]), dim=0))
         # set bias of new layer to the one of the original missing the node_index row (zero indexed)
-        new_layer.bias = nn.parameter.Parameter(torch.cat((old_layer.bias[:node_index], old_layer.bias[node_index + 1:]), dim=0))
+        new_layer.bias = nn.parameter.Parameter(
+            torch.cat((old_layer.bias[:node_index], old_layer.bias[node_index + 1:]), dim=0))
         self.layers[layer_index] = new_layer
 
         # change the next layer after layer_index
         if layer_index < len(self.layers) - 1:
-            self.layers[layer_index + 1] = create_new_layer_with_deleted_node_index(self.layers[layer_index + 1], node_index)
+            self.layers[layer_index + 1] = create_new_layer_with_deleted_node_index(self.layers[layer_index + 1],
+                                                                                    node_index)
 
         # change voting layer the same as the layer next_layer + 1
-        self.voting_linear_layers[str(layer_index)] = create_new_layer_with_deleted_node_index(self.voting_linear_layers[str(layer_index)], node_index)
+        self.voting_linear_layers[str(layer_index)] = create_new_layer_with_deleted_node_index(
+            self.voting_linear_layers[str(layer_index)], node_index)

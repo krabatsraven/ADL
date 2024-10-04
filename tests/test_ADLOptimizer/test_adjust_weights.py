@@ -3,7 +3,6 @@ from copy import deepcopy
 
 import pytest
 import torch
-from typing import Tuple
 from torch import nn
 
 import ADLOptimizer

@@ -48,8 +48,8 @@ class TestPruneLayerByVoteRemoval:
 
         for index in random.sample(range(nr_of_layers), random.randint(1, nr_of_layers)):
             model._prune_layer_by_vote_removal(index)
-            assert (str(index) not in model.voting_linear_layers.keys(),
-                    "_prune_layer_by_vote_removal should remove the layer from model.voting_linear_layers")
+            assert str(index) not in model.voting_linear_layers.keys(), \
+                "_prune_layer_by_vote_removal should remove the layer from model.voting_linear_layers"
 
     def test_prune_layer_by_vote_removal_does_not_remove_layer(self, model, nr_of_layers):
         """
@@ -66,8 +66,8 @@ class TestPruneLayerByVoteRemoval:
         """
         for index in random.sample(range(nr_of_layers), random.randint(1, nr_of_layers)):
             model._prune_layer_by_vote_removal(index)
-            assert (index not in model.voting_weights.keys(),
-                    "_prune_layer_by_vote_removal should remove the layer from the voting weights")
+            assert index not in model.voting_weights.keys(), \
+                "_prune_layer_by_vote_removal should remove the layer from the voting weights"
 
     def test_prune_layer_by_vote_removal_removes_vote_correction_factor(self, model, nr_of_layers):
         """
@@ -75,19 +75,21 @@ class TestPruneLayerByVoteRemoval:
         """
         for index in random.sample(range(nr_of_layers), random.randint(1, nr_of_layers)):
             model._prune_layer_by_vote_removal(index)
-            assert (index not in model.weight_correction_factor.keys(),
-                    "_prune_layer_by_vote_removal should remove the layer from the voting weights correction factor")
+            assert index not in model.weight_correction_factor.keys(),\
+                "_prune_layer_by_vote_removal should remove the layer from the voting weights correction factor"
 
-    def test_after_prune_layer_by_vote_removal_voting_weights_are_normalized(self, model, nr_of_layers, float_precision_tolerance):
+    def test_after_prune_layer_by_vote_removal_voting_weights_are_normalized(self, model, nr_of_layers,
+                                                                             float_precision_tolerance):
         """
         _prune_layer_by_vote_removal should leave the voting weights normalized
         """
         for index in random.sample(range(nr_of_layers), random.randint(1, nr_of_layers)):
             model._prune_layer_by_vote_removal(index)
-            assert (math.sqrt(sum(map(lambda x: x ** 2, model.voting_weights.values()))) - 1 <= float_precision_tolerance,
-                "_prune_layer_by_vote_removal should leave the voting weights normalized")
+            assert math.sqrt(sum(map(lambda x: x ** 2, model.voting_weights.values()))) - 1 <= float_precision_tolerance,\
+                "_prune_layer_by_vote_removal should leave the voting weights normalized"
 
-    def test_after_prune_layer_by_vote_removal_voting_weights_are_correctly_normalized(self, model, nr_of_layers, float_precision_tolerance):
+    def test_after_prune_layer_by_vote_removal_voting_weights_are_correctly_normalized(self, model, nr_of_layers,
+                                                                                       float_precision_tolerance):
         """
         _prune_layer_by_vote_removal should not switch the voting weights
         """
@@ -104,10 +106,16 @@ class TestPruneLayerByVoteRemoval:
             }
 
             model._prune_layer_by_vote_removal(index)
-            assert (all([weights_without_key_normalized[key] - model.voting_weights[key] <= float_precision_tolerance for key in keys]),
-                "_prune_layer_by_vote_removal should not switch the voting weights")
+            assert all(
+                [
+                    weights_without_key_normalized[key] - model.voting_weights[key] <= float_precision_tolerance 
+                    for key in keys
+                ]
+            ), \
+                "_prune_layer_by_vote_removal should not switch the voting weights"
 
-    def test_prune_layer_by_vote_removal_does_not_break_forward_single_item(self, model, nr_of_layers, class_count, feature_count):
+    def test_prune_layer_by_vote_removal_does_not_break_forward_single_item(self, model, nr_of_layers, class_count,
+                                                                            feature_count):
         """
         _prune_layer_by_vote_removal should not affect the functionality of the forward pass on single item batches
         """
@@ -122,7 +130,8 @@ class TestPruneLayerByVoteRemoval:
             msg="After performing _add_node: "
         )
 
-    def test_prune_layer_by_vote_removal_does_not_break_backward_multiple_item(self, model, feature_count, class_count, nr_of_layers):
+    def test_prune_layer_by_vote_removal_does_not_break_backward_multiple_item(self, model, feature_count, class_count,
+                                                                               nr_of_layers):
         """
         _prune_layer_by_vote_removal should not affect the functionality of the backward pass on multiple item batches
         """
@@ -190,7 +199,8 @@ class TestPruneLayerByVoteRemoval:
         assert str(exec_info.value) == error_str, \
             "a layer index without a voting weight correction factor should raise an exception"
 
-    def test_prune_layer_layer_by_vote_removal_raises_on_removal_of_last_non_zero_voting_weight(self, model, nr_of_layers):
+    def test_prune_layer_layer_by_vote_removal_raises_on_removal_of_last_non_zero_voting_weight(self, model,
+                                                                                                nr_of_layers):
         layer_index = random.randint(0, nr_of_layers - 1)
         error_str = (f"cannot remove the layer with the index {layer_index}, "
                      f"as it is the last layer with a non zero voting weight")
