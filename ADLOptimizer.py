@@ -4,7 +4,11 @@ import torch.optim
 from AutoDeepLearner import AutoDeepLearner
 
 
-def create_adl_optimizer(network: AutoDeepLearner, optimizer: type(torch.optim.Optimizer), **kwargs):
+def create_adl_optimizer(
+        network: AutoDeepLearner,
+        optimizer: type(torch.optim.Optimizer),
+        learning_rate: float,
+        **kwargs):
     """
     creates the optimizer object that extents the pytorch optimizer of the provided type and returns it
     this optimizer only adds to the step function, where in actual optimization of the parameters is done by the provided optimizer
@@ -17,11 +21,12 @@ def create_adl_optimizer(network: AutoDeepLearner, optimizer: type(torch.optim.O
     class ADLOptimizer(optimizer):
 
         def __repr__(self):
-            return f"ADLOptimizer(network={network}, optimizer={optimizer})"
+            return f"ADLOptimizer(network={network}, optimizer={optimizer}, learning_rate={learning_rate})"
 
         def __init__(self):
-            super().__init__(network.parameters(), **kwargs)
+            super().__init__(network.parameters(), lr=learning_rate, **kwargs)
             self.network = network
+            self.learning_rate = learning_rate
 
         def step(self, true_label):
             # optimizer step of the super.optimizer that optimizes the parameters of the network
@@ -53,7 +58,7 @@ def create_adl_optimizer(network: AutoDeepLearner, optimizer: type(torch.optim.O
             self.network.weight_correction_factor.update(decreased_correction_weights)
 
             # adjust weight of layer l:
-            
+
             # if layer l was correct increase beta:
             # increase beta^(l) while assuring that 0 <= beta^(l) <= 1 by
             # beta^(l) = min((1 + p^(l)) * beta^(l), 1)
@@ -66,7 +71,7 @@ def create_adl_optimizer(network: AutoDeepLearner, optimizer: type(torch.optim.O
                 for key in keys_of_correctly_predicted_layers
             }
             self.network.voting_weights.update(increased_voting_weights)
-            
+
             # if layer l was correct decrease beta:
             # beta^(l) = p^(l) * beta^(l)
             decreased_voting_weights = {
