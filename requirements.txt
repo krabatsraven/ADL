@@ -10,13 +10,13 @@
 --index-url https://download.pytorch.org/whl/cpu
 
 # torch packages:
-torch>=2.4.0+cpu
+torch
 torchvision
 torchaudio
 
 
 # pytest for development:
-pytest>=8.3.2
+pytest
 
 # numpy
-numpy>=1.26.3
+numpy
