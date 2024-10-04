@@ -89,9 +89,9 @@ class TestAutoDeepLearnerAddLayer:
             assert model.weight_correction_factor[i + 1] == model.initial_weight_correction_factor, \
                 f"the {i + 1}-te layer should be initialised with the correct factor"
 
-        assert (len(model.weight_correction_factor) == nr_of_layers + 1,
-                f"model should have {nr_of_layers + 1} voting weight correction factors"
-                f" after adding a {nr_of_layers} layers")
+        assert len(model.weight_correction_factor) == nr_of_layers + 1,\
+            (f"model should have {nr_of_layers + 1} voting weight correction factor"
+             f" after adding a {nr_of_layers} layers")
 
     def test_add_layer_should_still_not_break_forward(self, model, feature_count, class_count, nr_of_layers):
         """
