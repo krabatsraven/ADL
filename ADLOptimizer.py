@@ -33,14 +33,13 @@ def create_adl_optimizer(
             super().step()
 
             # adjust voting weights
-            self._adjust_weights(true_label, step_size=0.01)
+            # self._adjust_weights(true_label, step_size=0.01)
 
             # todo: high level learning
             # todo: low level learning
 
         def _adjust_weights(self, true_label: torch.Tensor, step_size: float):
 
-            # todo: issue #35: when is prediction correct
             # find the indices of the results that where correctly predicted
             correctly_predicted_layers_indices = np.where(torch.argmax(network.layer_results, dim = 1) == true_label)
             correctly_predicted_layers_mask = np.zeros(self.network.layer_result_keys.shape, dtype=bool)

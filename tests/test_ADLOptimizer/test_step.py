@@ -1,4 +1,7 @@
 import random
+from copy import deepcopy
+from itertools import combinations
+from typing import Tuple
 
 import pytest
 import torch.optim
@@ -8,13 +11,11 @@ from ADLOptimizer import create_adl_optimizer
 from AutoDeepLearner import AutoDeepLearner
 
 optimizer_choices = [torch.optim.SGD, torch.optim.Adam]
+learning_rate_combinations = list(combinations([0.0001, 0.01, 0.1, 1], 2))
+trainings_steps = range(2, 5)
 
-
+@pytest.mark.parametrize('optimizer_choice', optimizer_choices)
 class TestOptimizerStep:
-    @pytest.fixture(scope="class")
-    def float_precision_tolerance(self):
-        return 10 ** -6
-
     @pytest.fixture(scope='class')
     def feature_count(self) -> int:
         return random.randint(0, 10_000)
@@ -25,12 +26,29 @@ class TestOptimizerStep:
 
     @pytest.fixture(scope='class')
     def iteration_count(self) -> int:
-        return random.randint(1000, 10_000)
+        return random.randint(10, 100)
 
-    @pytest.fixture(scope='class', autouse=True)
-    def model(self, feature_count: int, class_count: int, iteration_count: int) -> AutoDeepLearner:
+    @pytest.fixture(scope='class')
+    def input(self, feature_count: int) -> torch.Tensor:
+        return torch.rand(feature_count, requires_grad=True, dtype=torch.float)
+
+    @pytest.fixture(scope='class')
+    def target(self, class_count: int) -> torch.Tensor:
+        return torch.tensor(random.randint(0, class_count - 1))
+
+    @pytest.fixture
+    def criterion(self) -> nn.CrossEntropyLoss:
+        return nn.CrossEntropyLoss()
+
+    @pytest.fixture(autouse=True)
+    def model(self,
+              feature_count: int,
+              class_count: int,
+              iteration_count: int
+              ) -> AutoDeepLearner:
 
         model = AutoDeepLearner(nr_of_features=feature_count, nr_of_classes=class_count)
+        model.name = "test step model"
 
         for _ in range(iteration_count):
             dice = random.choice(range(1, 5))
@@ -39,7 +57,7 @@ class TestOptimizerStep:
                 case 1:
                     model._add_layer()
                     last_added_layer_idx = len(model.layers) - 1
-                    model.voting_weights[last_added_layer_idx] = random.uniform(0, 1)
+                    model.voting_weights[last_added_layer_idx] = 1
                     model._normalise_voting_weights()
                 case 2:
                     layer_choice = random.choice(list(model.voting_weights.keys()))
@@ -65,97 +83,335 @@ class TestOptimizerStep:
 
         del model
 
-    @pytest.mark.parametrize('optimizer_choice', optimizer_choices)
-    def test_is_correct_optimizer(self, model: AutoDeepLearner, optimizer_choice: type(torch.optim.Optimizer)):
-        optimizer = create_adl_optimizer(model, optimizer_choice)
+    @pytest.fixture(scope="function")
+    def two_same_models(self,
+                        model: AutoDeepLearner,
+                        feature_count: int,
+                        class_count: int
+                        ):
 
-        assert optimizer.__repr__().startswith("ADLOptimizer"), "the optimizer should be an ADLOptimizer"
-        assert isinstance(optimizer, optimizer_choice), \
-            "The created object should stil be an instance of the chosen optimizer class"
+        model_1 = AutoDeepLearner(feature_count, class_count)
+        model_2 = AutoDeepLearner(feature_count, class_count)
 
-    @pytest.mark.parametrize('optimizer_choice', optimizer_choices)
-    def test_step_changes_parameter(
+        # both models start at the same point but are independent
+        model_1.layers = deepcopy(model.layers)
+        model_1.voting_linear_layers = deepcopy(model.voting_linear_layers)
+        model_1.voting_weights = deepcopy(model.voting_weights)
+        model_2.layers = deepcopy(model.layers)
+        model_2.voting_linear_layers = deepcopy(model.voting_linear_layers)
+        model_2.voting_weights = deepcopy(model.voting_weights)
+
+        return model_1, model_2
+
+    @pytest.fixture(scope="class")
+    def learning_rate(self) -> float:
+        return 0.01
+
+    @pytest.fixture(scope="class")
+    def nr_of_trainings_steps(self) -> int:
+        return 1
+
+    @pytest.fixture(scope='function')
+    def optimizer(
             self,
             model: AutoDeepLearner,
             optimizer_choice: type(torch.optim.Optimizer),
-            feature_count: int,
-            class_count: int
+            criterion: nn.CrossEntropyLoss,
+            input: torch.Tensor,
+            target: torch.Tensor,
+            learning_rate: float
+    ) -> torch.optim.Optimizer:
+
+        opti = create_adl_optimizer(model, optimizer_choice, learning_rate)
+        opti.zero_grad()
+
+        yield opti
+
+        opti.zero_grad()
+
+    @pytest.fixture(scope='function')
+    def two_optimizer(self,
+                      two_same_models: Tuple[AutoDeepLearner, AutoDeepLearner],
+                      criterion: nn.CrossEntropyLoss,
+                      optimizer_choice: type(torch.optim.Optimizer),
+                      small_learning_rate: float,
+                      big_learning_rate: float
+                      ):
+
+        model_1, model_2 = two_same_models
+
+        small_step_optimizer = create_adl_optimizer(model_1, optimizer_choice, small_learning_rate)
+        big_step_optimizer = create_adl_optimizer(model_2, optimizer_choice, big_learning_rate)
+
+        return small_step_optimizer, big_step_optimizer
+
+    @staticmethod
+    def optimizer_step(local_model: AutoDeepLearner,
+                       local_criterion: nn.CrossEntropyLoss,
+                       local_optimizer: torch.optim.Optimizer,
+                       local_input: torch.Tensor,
+                       local_target: torch.Tensor
+                       ) -> None:
+
+        local_prediction = local_model(local_input)
+        local_loss = local_criterion(local_prediction, local_target)
+        local_loss.backward()
+        local_optimizer.step(local_target)
+        local_optimizer.zero_grad()
+
+    def test_is_correct_optimizer(
+            self,
+            model: AutoDeepLearner,
+            optimizer_choice: type(torch.optim.Optimizer)
     ):
-        optimizer = create_adl_optimizer(model, optimizer_choice)
+        build_optimizer = create_adl_optimizer(model, optimizer_choice, 0.01)
 
-        input = torch.rand(feature_count, requires_grad=True, dtype=torch.float)
-        target = torch.tensor(random.randint(0, class_count - 1))
+        assert build_optimizer.__repr__().startswith("ADLOptimizer"), "the optimizer should be an ADLOptimizer"
+        assert isinstance(build_optimizer, optimizer_choice), \
+            "The created object should stil be an instance of the chosen optimizer class"
 
-        initial_params = [param.clone() for param in model.parameters()]
+    @pytest.mark.parametrize('nr_of_trainings_steps', trainings_steps)
+    def test_step_changes_hidden_layer_weights(
+            self,
+            model: AutoDeepLearner,
+            optimizer: torch.optim.Optimizer,
+            input: torch.Tensor,
+            target: torch.Tensor,
+            criterion: nn.CrossEntropyLoss,
+            nr_of_trainings_steps: int,
+    ):
 
-        criterion = nn.CrossEntropyLoss()
-        prediction = model(input)
+        initial_models_hidden_layer_weights = [
+            hidden_layer.weight.clone()
+            for hidden_layer in model.layers
+        ]
 
-        loss = criterion(prediction, target)
-        loss.backward()
+        for _ in range(nr_of_trainings_steps):
+            self.optimizer_step(model, criterion, optimizer, input, target)
 
+        hidden_layers_weights_are_not_changing = all(
+            torch.equal(
+                initial_hidden_layer_weight,
+                current_hidden_layer.weight
+            )
+            for initial_hidden_layer_weight, current_hidden_layer
+            in zip(initial_models_hidden_layer_weights, model.layers))
 
-        optimizer.step(target)
+        assert not hidden_layers_weights_are_not_changing,\
+            "the hidden layers should be changing their weights if optimizing is happening"
 
-        for initial_param, param in zip(initial_params, model.parameters()):
-            assert not torch.equal(initial_param, param), \
-                f"parameters should have changed after step but initial:({initial_param}) == current:({param})"
+    @pytest.mark.parametrize('nr_of_trainings_steps', trainings_steps)
+    def test_step_changes_hidden_layer_biases(
+            self,
+            model: AutoDeepLearner,
+            optimizer: torch.optim.Optimizer,
+            input: torch.Tensor,
+            target: torch.Tensor,
+            criterion: nn.CrossEntropyLoss,
+            nr_of_trainings_steps: int,
+    ):
+
+        initial_models_hidden_layer_biases = [
+            hidden_layer.bias.clone()
+            for hidden_layer in model.layers
+        ]
+
+        for _ in range(nr_of_trainings_steps):
+            self.optimizer_step(model, criterion, optimizer, input, target)
+
+        hidden_layers_biases_are_not_changing = all(
+            torch.equal(
+                initial_models_hidden_layer_bias,
+                current_hidden_layer.bias
+            )
+            for initial_models_hidden_layer_bias, current_hidden_layer
+            in zip(initial_models_hidden_layer_biases, model.layers))
+
+        assert not hidden_layers_biases_are_not_changing, \
+            "the hidden layers should be changing their biases if optimizing is happening"
 
         optimizer.zero_grad()
 
-    @pytest.mark.parametrize('optimizer_choice', optimizer_choices)
-    def test_learning_rate_effects_changes_of_parameters(
+    @pytest.mark.parametrize('nr_of_trainings_steps', trainings_steps)
+    def test_step_changes_output_layer_weights(
             self,
             model: AutoDeepLearner,
-            optimizer_choice: type(torch.optim.Optimizer),
-            feature_count: int,
-            class_count: int
+            optimizer: torch.optim.Optimizer,
+            input: torch.Tensor,
+            target: torch.Tensor,
+            criterion: nn.CrossEntropyLoss,
+            nr_of_trainings_steps: int,
     ):
 
-        criterion = nn.CrossEntropyLoss()
-
-        input = torch.rand(feature_count, requires_grad=True, dtype=torch.float)
-        target = torch.tensor(random.randint(0, class_count - 1))
-
-
-        learning_results = {
-            'initial parameters': [param.clone() for param in model.parameters()]
-        }
-
-        for learning_rate in [0.0001, 0.01, 0.1, 1, 10]:
-
-            prediction = model(input)
-            optimizer = create_adl_optimizer(network=model, optimizer=optimizer_choice, learning_rate=learning_rate)
-
-            loss = criterion(prediction, target)
-            loss.backward()
-
-            optimizer.step(target)
-
-            learning_results[f'learning rate={learning_rate}'] =  [param.clone() for param in model.parameters()]
-            optimizer.zero_grad()
-
-        initial_params = learning_results['initial parameters']
-        delta_learning_result = dict()
-
-        learning_rates = [0.0001, 0.01, 0.1, 1, 10]
-        for learning_rate in learning_rates:
-            delta_learning_result[f'learning rate={learning_rate}'] = [
-                torch.subtract(param, initial_param)
-                for initial_param, param in zip(initial_params, learning_results[f'learning rate={learning_rate}'])
-            ]
-
-        deltas_grow_compared_to_previous_learning_rate = [
-            torch.all(torch.greater(torch.subtract(
-                param_from_bigger_lr_difference,
-                param_from_smaller_lr_difference
-            ), torch.tensor(0))) 
-            for i in range(1, len(learning_rates))
-            for param_from_bigger_lr_difference, param_from_smaller_lr_difference in zip(
-                delta_learning_result[f'learning rate={learning_rates[i]}'],
-                delta_learning_result[f'learning rate={learning_rates[i - 1]}']
-            )
+        initial_models_output_layer_weights = [
+            output_layer.weight.clone()
+            for output_layer in model.voting_linear_layers.values()
         ]
-        assert all(deltas_grow_compared_to_previous_learning_rate), \
-            (f"with growing learning rates the difference in changes to the initial parameters should grow, "
-             f"instead: {[f'learning rate={learning_rate}: {comparison}' for learning_rate, comparison in zip(learning_rates, deltas_grow_compared_to_previous_learning_rate)]}")
+
+        for _ in range(nr_of_trainings_steps):
+            self.optimizer_step(model, criterion, optimizer, input, target)
+
+        output_layers_weights_are_not_changing = all(
+            torch.equal(
+                initial_output_layer_weight,
+                current_output_layer.weight
+            )
+            for initial_output_layer_weight, current_output_layer
+            in zip(initial_models_output_layer_weights, model.voting_linear_layers.values()))
+
+        assert not output_layers_weights_are_not_changing, \
+            "the output layers should be changing their weights if optimizing is happening"
+
+        optimizer.zero_grad()
+
+    @pytest.mark.parametrize('nr_of_trainings_steps', trainings_steps)
+    def test_step_changes_output_layer_biases(
+            self,
+            model: AutoDeepLearner,
+            optimizer: torch.optim.Optimizer,
+            input: torch.Tensor,
+            target: torch.Tensor,
+            criterion: nn.CrossEntropyLoss,
+            nr_of_trainings_steps: int,
+    ):
+
+        initial_models_output_layer_biases = [
+            output_layer.bias.clone()
+            for output_layer in model.voting_linear_layers.values()
+        ]
+
+        for _ in range(nr_of_trainings_steps):
+            self.optimizer_step(model, criterion, optimizer, input, target)
+
+        output_layers_biases_are_not_changing = all(
+            torch.equal(
+                initial_output_layer_bias,
+                current_output_layer.bias
+            )
+            for initial_output_layer_bias, current_output_layer
+            in zip(initial_models_output_layer_biases, model.voting_linear_layers.values()))
+
+        assert not output_layers_biases_are_not_changing,\
+            "the output layers should be changing their biases if optimizing is happening"
+
+        optimizer.zero_grad()
+
+    @pytest.mark.parametrize('nr_of_trainings_steps', trainings_steps)
+    @pytest.mark.parametrize('small_learning_rate,big_learning_rate', learning_rate_combinations)
+    def test_learning_rate_effects_changes_of_hidden_layers_weights(
+            self,
+            two_same_models: Tuple[AutoDeepLearner, AutoDeepLearner],
+            criterion: nn.CrossEntropyLoss,
+            two_optimizer: Tuple[torch.optim.Optimizer, torch.optim.Optimizer],
+            input: torch.Tensor,
+            target: torch.Tensor,
+            nr_of_trainings_steps: int,
+    ):
+
+        model_1, model_2 = two_same_models
+        small_step_optimizer, big_step_optimizer = two_optimizer
+
+        for _ in range(nr_of_trainings_steps):
+            self.optimizer_step(model_1, criterion, small_step_optimizer, input, target)
+            self.optimizer_step(model_2, criterion, big_step_optimizer, input, target)
+
+        hidden_layers_are_the_same_with_both_models = all(
+            torch.equal(
+                model_1_hidden_layer.weight,
+                model_2_hidden_layer.weight
+            )
+            for model_1_hidden_layer, model_2_hidden_layer
+            in zip(model_1.layers, model_2.layers))
+
+        assert not hidden_layers_are_the_same_with_both_models, \
+            "the weights of the hidden layers should be changing differently for different learning rates"
+
+    @pytest.mark.parametrize('nr_of_trainings_steps', trainings_steps)
+    @pytest.mark.parametrize('small_learning_rate,big_learning_rate', learning_rate_combinations)
+    def test_learning_rate_effects_changes_of_output_layers_weights(
+            self,
+            two_same_models: Tuple[AutoDeepLearner, AutoDeepLearner],
+            criterion: nn.CrossEntropyLoss,
+            two_optimizer: Tuple[torch.optim.Optimizer, torch.optim.Optimizer],
+            input: torch.Tensor,
+            target: torch.Tensor,
+            nr_of_trainings_steps: int,
+    ):
+
+        model_1, model_2 = two_same_models
+        small_step_optimizer, big_step_optimizer = two_optimizer
+
+        for _ in range(nr_of_trainings_steps):
+            self.optimizer_step(model_1, criterion, small_step_optimizer, input, target)
+            self.optimizer_step(model_2, criterion, big_step_optimizer, input, target)
+
+        output_layers_are_the_same_with_both_models = all(
+            torch.equal(
+                model_1_hidden_layer.weight,
+                model_2_hidden_layer.weight
+            )
+            for model_1_hidden_layer, model_2_hidden_layer
+            in zip(model_1.voting_linear_layers.values(), model_2.voting_linear_layers.values()))
+
+        assert not output_layers_are_the_same_with_both_models, \
+            "the weights of the output layers should be changing differently for different learning rates"
+
+    @pytest.mark.parametrize('nr_of_trainings_steps', trainings_steps)
+    @pytest.mark.parametrize('small_learning_rate,big_learning_rate', learning_rate_combinations)
+    def test_learning_rate_effects_changes_of_hidden_layers_biases(
+            self,
+            two_same_models: Tuple[AutoDeepLearner, AutoDeepLearner],
+            criterion: nn.CrossEntropyLoss,
+            two_optimizer: Tuple[torch.optim.Optimizer, torch.optim.Optimizer],
+            input: torch.Tensor,
+            target: torch.Tensor,
+            nr_of_trainings_steps: int,
+    ):
+
+        model_1, model_2 = two_same_models
+        small_step_optimizer, big_step_optimizer = two_optimizer
+
+        for _ in range(nr_of_trainings_steps):
+            self.optimizer_step(model_1, criterion, small_step_optimizer, input, target)
+            self.optimizer_step(model_2, criterion, big_step_optimizer, input, target)
+
+        hidden_layers_are_the_same_with_both_models = all(
+            torch.equal(
+                model_1_hidden_layer.bias,
+                model_2_hidden_layer.bias
+            )
+            for model_1_hidden_layer, model_2_hidden_layer
+            in zip(model_1.layers, model_2.layers))
+
+        assert not hidden_layers_are_the_same_with_both_models, \
+            "the biases of the hidden layers should be changing differently for different learning rates"
+
+    @pytest.mark.parametrize('nr_of_trainings_steps', trainings_steps)
+    @pytest.mark.parametrize('small_learning_rate,big_learning_rate', learning_rate_combinations)
+    def test_learning_rate_effects_changes_of_output_layers_biases(
+            self,
+            two_same_models: Tuple[AutoDeepLearner, AutoDeepLearner],
+            criterion: nn.CrossEntropyLoss,
+            two_optimizer: Tuple[torch.optim.Optimizer, torch.optim.Optimizer],
+            input: torch.Tensor,
+            target: torch.Tensor,
+            nr_of_trainings_steps: int,
+    ):
+
+        model_1, model_2 = two_same_models
+        small_step_optimizer, big_step_optimizer = two_optimizer
+
+        for _ in range(nr_of_trainings_steps):
+            self.optimizer_step(model_1, criterion, small_step_optimizer, input, target)
+            self.optimizer_step(model_2, criterion, big_step_optimizer, input, target)
+
+        output_layers_are_the_same_with_both_models = all(
+            torch.equal(
+                model_1_hidden_layer.bias,
+                model_2_hidden_layer.bias
+            )
+            for model_1_hidden_layer, model_2_hidden_layer
+            in zip(model_1.voting_linear_layers.values(), model_2.voting_linear_layers.values()))
+
+        assert not output_layers_are_the_same_with_both_models, \
+            "the biases of the output layers should be changing differently for different learning rates"

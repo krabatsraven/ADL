@@ -23,7 +23,9 @@ class AutoDeepLearner(nn.Module):
         # list of all dynamic layers, starting with a single layer in the shape (in, 1)
         first_hidden_layer = nn.Linear(nr_of_features, 1, dtype=torch.float)
         nn.init.xavier_normal_(first_hidden_layer.weight)
-        self.layers: nn.ModuleList = nn.ModuleList([first_hidden_layer])
+        self.layers: nn.ModuleList = nn.ModuleList()
+        self.layers.append(first_hidden_layer)
+        # self.layers.add_module(f"hidden_layer l={0}", first_hidden_layer)
 
         # list of all linear layers for the voting part, starts with a single layer in the shape (1, out)
         # contains only the indices of self.layers that are eligible to vote
@@ -92,13 +94,20 @@ class AutoDeepLearner(nn.Module):
         # new layers are initialised with one node
         nr_of_out_nodes = 1
         new_layer = nn.Linear(previous_layer_output_size, nr_of_out_nodes)
+
         nn.init.xavier_normal_(new_layer.weight)
+
+        # add new hidden layer to layer list
+        idx_of_new_layer = len(self.layers)
+        # self.layers.add_module(f"hidden_layer l={idx_of_new_layer}", new_layer)
         self.layers.append(new_layer)
 
-        idx_of_new_layer = len(self.layers) - 1
+        # add new output layer
         new_output_layer = nn.Linear(nr_of_out_nodes, self.output_size)
         nn.init.xavier_normal_(new_output_layer.weight)
         self.voting_linear_layers[str(idx_of_new_layer)] = new_output_layer
+
+        # add new weight
         self.voting_weights[idx_of_new_layer] = 0
         self.weight_correction_factor[idx_of_new_layer] = self.initial_weight_correction_factor
 
