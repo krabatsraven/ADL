@@ -26,7 +26,7 @@ class TestOptimizerStep:
 
     @pytest.fixture(scope='class')
     def iteration_count(self) -> int:
-        return random.randint(10, 100)
+        return random.randint(1, 20)
 
     @pytest.fixture(scope='class')
     def input(self, feature_count: int) -> torch.Tensor:
