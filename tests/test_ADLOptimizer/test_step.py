@@ -18,11 +18,11 @@ trainings_steps = range(2, 5)
 class TestOptimizerStep:
     @pytest.fixture(scope='class')
     def feature_count(self) -> int:
-        return random.randint(0, 10_000)
+        return random.randint(1, 10_000)
 
     @pytest.fixture(scope='class')
     def class_count(self) -> int:
-        return random.randint(0, 10_000)
+        return random.randint(1, 10_000)
 
     @pytest.fixture(scope='class')
     def iteration_count(self) -> int:
