@@ -31,7 +31,7 @@ class AutoDeepLearner(nn.Module):
         # contains only the indices of self.layers that are eligible to vote
         first_output_layer = nn.Linear(1, nr_of_classes, dtype=torch.float)
         nn.init.xavier_normal_(first_output_layer.weight)
-        self.voting_linear_layers: nn.ModuleDict = nn.ModuleDict({'0': first_output_layer})
+        self.voting_linear_layers: nn.ModuleDict = nn.ModuleDict({f'output layer {0}': first_output_layer})
 
         # all voting weights should always be normalised,
         # and only contain the indices of self.layers that eligible to vote
@@ -46,6 +46,23 @@ class AutoDeepLearner(nn.Module):
         # it is necessary to keep track of a correction_factor for each layer
         self.initial_weight_correction_factor: float = 0.5
         self.weight_correction_factor: Dict[int, float] = {0: self.initial_weight_correction_factor}
+
+    def get_output_layer(self, layer_index: int) -> nn.Module:
+        """
+        :returns the output layer of the hidden layer at given index
+        :param layer_index: the index of the hidden layer in the self.layers list
+        :return: linear layer of dim (out of hidden layer, number of classes)
+        """
+        return self.voting_linear_layers[f'output layer {layer_index}']
+
+    def __set_output_layer(self, layer_index: int, new_output_layer) -> None:
+        self.voting_linear_layers[f'output layer {layer_index}'] = new_output_layer
+
+    def __pop_output_layer(self, layer_index: int) -> None:
+        self.voting_linear_layers.pop(f'output layer {layer_index}')
+
+    def __output_layer_with_index_exists(self, layer_index: int) -> bool:
+        return f'output layer {layer_index}' in self.voting_linear_layers.keys()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -70,7 +87,7 @@ class AutoDeepLearner(nn.Module):
         # calculate all y^i = s.max(W_{s_l}h^{l} + b_{s_l})
         # that are not currently pruned
         self.layer_result_keys = np.array(list(self.voting_weights.keys()))
-        self.layer_results = torch.stack([nn.Softmax()(self.voting_linear_layers[str(i)](hidden_layers[i]))
+        self.layer_results = torch.stack([nn.Softmax()(self.get_output_layer(i)(hidden_layers[i]))
                                           for i in self.layer_result_keys])
 
         # add n empty dimensions at the end of betas dimensionality to allow for multiplying with the layer results:
@@ -105,7 +122,7 @@ class AutoDeepLearner(nn.Module):
         # add new output layer
         new_output_layer = nn.Linear(nr_of_out_nodes, self.output_size)
         nn.init.xavier_normal_(new_output_layer.weight)
-        self.voting_linear_layers[str(idx_of_new_layer)] = new_output_layer
+        self.__set_output_layer(idx_of_new_layer, new_output_layer)
 
         # add new weight
         self.voting_weights[idx_of_new_layer] = 0
@@ -121,7 +138,7 @@ class AutoDeepLearner(nn.Module):
         assert 0 <= layer_index < len(self.layers), \
             (f"cannot remove the layer with the index {layer_index}, "
              f"as it is not in the range [0, amount of layers in model]")
-        assert str(layer_index) in self.voting_linear_layers.keys(), \
+        assert self.__output_layer_with_index_exists(layer_index), \
             (f"cannot remove the layer with the index {layer_index}, "
              f"as it is not a layer that will projected onto a vote")
         assert layer_index in self.voting_weights.keys(), \
@@ -135,7 +152,7 @@ class AutoDeepLearner(nn.Module):
              f"as it is the last layer with a non zero voting weight")
 
         # remove layer from self.voting_linear_layers, and thereby from voting
-        self.voting_linear_layers.pop(str(layer_index))
+        self.__pop_output_layer(layer_index)
         # remove the weight of the layer from self.voting_weights
         self.voting_weights.pop(layer_index)
         # remove the correction_factor from self.weight_correction_factor
@@ -164,7 +181,7 @@ class AutoDeepLearner(nn.Module):
         assert 0 <= layer_index < len(self.layers), \
             (f"cannot add a node to layer with the index {layer_index}, "
              f"as it is not in the range [0, amount of layers in model]")
-        assert str(layer_index) in self.voting_linear_layers.keys(), \
+        assert self.__output_layer_with_index_exists(layer_index), \
             (f"cannot add a node to layer with the index {layer_index}, "
              f"as it is not a layer that will projected onto a vote")
 
@@ -197,7 +214,7 @@ class AutoDeepLearner(nn.Module):
 
         # change the shape of Ws^l
         # (the linear layer that takes the outputs of the hidden layer for the voting function)
-        old_voting_layer = self.voting_linear_layers[str(layer_index)]
+        old_voting_layer = self.get_output_layer(layer_index)
         new_voting_layer = nn.Linear(out_before + 1, self.output_size)
 
         nn.init.xavier_normal_(new_voting_layer.weight)
@@ -208,7 +225,7 @@ class AutoDeepLearner(nn.Module):
         new_voting_layer.bias = nn.parameter.Parameter(old_voting_layer.bias)
 
         # change voting layer
-        self.voting_linear_layers[str(layer_index)] = new_voting_layer
+        self.__set_output_layer(layer_index, new_voting_layer)
 
     def _delete_node(self, layer_index: int, node_index: int) -> None:
         """
@@ -236,7 +253,7 @@ class AutoDeepLearner(nn.Module):
         assert 0 <= layer_index < len(self.layers), \
             (f"cannot remove a node from the layer with the index {layer_index},"
              f" as it is not in the range [0, amount of layers in model]")
-        assert str(layer_index) in self.voting_linear_layers.keys(), \
+        assert self.__output_layer_with_index_exists(layer_index), \
             (f"cannot remove a node from the layer with the index {layer_index}, "
              f"as it is not a layer that will projected onto a vote")
 
@@ -265,5 +282,7 @@ class AutoDeepLearner(nn.Module):
                                                                                     node_index)
 
         # change voting layer the same as the layer next_layer + 1
-        self.voting_linear_layers[str(layer_index)] = create_new_layer_with_deleted_node_index(
-            self.voting_linear_layers[str(layer_index)], node_index)
+        new_output_layer = create_new_layer_with_deleted_node_index(
+            self.get_output_layer(layer_index), node_index)
+
+        self.__set_output_layer(layer_index, new_output_layer)

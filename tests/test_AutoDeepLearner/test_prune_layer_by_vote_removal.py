@@ -168,7 +168,7 @@ class TestPruneLayerByVoteRemoval:
 
     def test_prune_layer_layer_by_vote_removal_raises_on_no_voting_linear_layer(self, model, nr_of_layers):
         layer_index = random.randint(0, nr_of_layers - 1)
-        model.voting_linear_layers.pop(str(layer_index))
+        model._AutoDeepLearner__pop_output_layer(layer_index)
         error_str = (f"cannot remove the layer with the index {layer_index}, "
                      f"as it is not a layer that will projected onto a vote")
         with pytest.raises(Exception) as exec_info:

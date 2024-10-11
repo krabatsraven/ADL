@@ -230,7 +230,7 @@ class TestAutoDeepLearnerDeleteNode:
             model=model,
             previous=self.previous_context_layers,
             test=(lambda index, previous_size, choice_1, choice_2:
-                  model.voting_linear_layers[str(index)].weight.size()[1] == previous_size - 1),
+                  model.get_output_layer(index).weight.size()[1] == previous_size - 1),
             msg="_delete node should change the shape of the voting layer"
         )
 
@@ -238,7 +238,7 @@ class TestAutoDeepLearnerDeleteNode:
             model=model,
             previous=self.previous_context_layers,
             test=(lambda index, previous_size, choice_1, choice_2:
-                  model.voting_linear_layers[str(index)].weight.size()[1] == previous_size - 2),
+                  model.get_output_layer(index).weight.size()[1] == previous_size - 2),
             msg="_delete node should change the shape of the voting layer even if done twice in a row"
         )
 
@@ -248,7 +248,7 @@ class TestAutoDeepLearnerDeleteNode:
         node
         """
 
-        previous = lambda index, model: model.voting_linear_layers[str(index)].weight
+        previous = lambda index, model: model.get_output_layer(index).weight
 
         self.delete_nodes_with_test(
             model=model,
@@ -257,7 +257,7 @@ class TestAutoDeepLearnerDeleteNode:
                   torch.all(torch.cat(
                       (previous_size[:, :choice_1],
                        previous_size[:, choice_1 + 1:])
-                      , dim=1) == model.voting_linear_layers[str(index)].weight)
+                      , dim=1) == model.get_output_layer(index).weight)
                   ),
             msg="_delete node should not change the weights of the voting layer "
                 "except for deleting the column of the deleted node"
@@ -271,7 +271,7 @@ class TestAutoDeepLearnerDeleteNode:
                       (previous_size[:, :choice_1],
                        previous_size[:, choice_1 + 1:choice_2],
                        previous_size[:, choice_2 + 1:]), dim=1
-                  ) == model.voting_linear_layers[str(index)].weight)
+                  ) == model.get_output_layer(index).weight)
                   ),
             msg="_delete node should not change the weights of the voting layer "
                 "except for deleting the column of the deleted node "
@@ -377,7 +377,7 @@ class TestAutoDeepLearnerDeleteNode:
     def test_delete_node_raises_on_no_voting_linear_layer(self, model, nr_of_layers):
         layer_index = random.randint(0, nr_of_layers - 1)
         node_index = random.randint(0, model.layers[layer_index].weight.shape[0] - 1)
-        model.voting_linear_layers.pop(str(layer_index))
+        model._AutoDeepLearner__pop_output_layer(layer_index)
         error_str = (f"cannot remove a node from the layer with the index {layer_index}, "
                      f"as it is not a layer that will projected onto a vote")
         with pytest.raises(Exception) as exec_info:

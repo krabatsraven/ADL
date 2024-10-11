@@ -120,7 +120,7 @@ class TestAutoDeepLearnerAddNode:
         for layer_idx in layers_to_add_to:
             model._add_node(layer_idx)
             nr_of_vectors_from_layer, _ = model.layers[layer_idx].weight.size()
-            _, nr_of_vectors_into_voting_layer = model.voting_linear_layers[str(layer_idx)].weight.size()
+            _, nr_of_vectors_into_voting_layer = model.get_output_layer(layer_idx).weight.size()
 
             assert nr_of_vectors_from_layer == nr_of_vectors_into_voting_layer, \
                 ("add node should also change the shape of the linear layer "
@@ -181,7 +181,7 @@ class TestAutoDeepLearnerAddNode:
 
     def test_add_node_raises_on_no_voting_linear_layer(self, model, nr_of_layers):
         layer_index = random.randint(0, nr_of_layers - 1)
-        model.voting_linear_layers.pop(str(layer_index))
+        model._AutoDeepLearner__pop_output_layer(layer_index)
         error_str = (f"cannot add a node to layer with the index {layer_index}, "
                      f"as it is not a layer that will projected onto a vote")
         with pytest.raises(Exception) as exec_info:
