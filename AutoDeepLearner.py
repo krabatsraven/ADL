@@ -25,7 +25,6 @@ class AutoDeepLearner(nn.Module):
         nn.init.xavier_normal_(first_hidden_layer.weight)
         self.layers: nn.ModuleList = nn.ModuleList()
         self.layers.append(first_hidden_layer)
-        # self.layers.add_module(f"hidden_layer l={0}", first_hidden_layer)
 
         # list of all linear layers for the voting part, starts with a single layer in the shape (1, out)
         # contains only the indices of self.layers that are eligible to vote
@@ -35,17 +34,19 @@ class AutoDeepLearner(nn.Module):
 
         # all voting weights should always be normalised,
         # and only contain the indices of self.layers that eligible to vote
+        self.weight_initializiation_value: float = 0
         self.voting_weights: Dict[int, float] = {0: 1.0}
+        self.voting_weights: nn.ParameterDict = nn.ParameterDict({'0': 1.0})
 
         # for the adjustment of the weights in the optimizer
         # it is necessary to have the results of the single voting layers
-        self.layer_result_keys: Optional[NDArray[np.int_]] = None
+        self.layer_result_keys: Optional[torch.Tensor] = None
         self.layer_results: Optional[torch.Tensor] = None
 
         # for the adjustment of the weights in the optimizer
         # it is necessary to keep track of a correction_factor for each layer
-        self.initial_weight_correction_factor: float = 0.5
-        self.weight_correction_factor: Dict[int, float] = {0: self.initial_weight_correction_factor}
+        self.weight_correction_factor_initialization_value: float = 0.5
+        self.weight_correction_factor: Dict[int, float] = {0: self.weight_correction_factor_initialization_value}
 
     def get_output_layer(self, layer_index: int) -> nn.Module:
         """
@@ -61,8 +62,33 @@ class AutoDeepLearner(nn.Module):
     def __pop_output_layer(self, layer_index: int) -> None:
         self.voting_linear_layers.pop(f'output layer {layer_index}')
 
-    def __output_layer_with_index_exists(self, layer_index: int) -> bool:
+    def output_layer_with_index_exists(self, layer_index: int) -> bool:
         return f'output layer {layer_index}' in self.voting_linear_layers.keys()
+
+    def get_voting_weight(self, layer_index: int) -> float:
+        """
+        returns the factor with which the result of the l-th output layer is weighted in the final result
+        :param layer_index: the index of the hidden layer in the self.layers list
+        :return: factor between 0 and 1, weights the result of the i-th output layer
+        """
+
+        return self.voting_weights[str(int(layer_index))]
+
+    def __set_voting_weight(self, layer_index: int, new_weight: float) -> None:
+        assert isinstance(layer_index, int)
+        self.voting_weights[str(layer_index)] = new_weight
+
+    def __pop_voting_weight(self, layer_index: int) -> float:
+        return self.voting_weights.pop(str(int(layer_index)))
+
+    def voting_weight_with_index_exists(self, layer_index: int) -> bool:
+        return str(int(layer_index)) in self.voting_weights.keys()
+
+    def get_voting_weight_keys(self) -> torch.Tensor:
+        return torch.tensor(list(map(int, self.voting_weights.keys())), dtype=torch.int)
+
+    def get_voting_weight_values(self) -> torch.Tensor:
+        return torch.Tensor(list(self.voting_weights.values()))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -86,14 +112,14 @@ class AutoDeepLearner(nn.Module):
 
         # calculate all y^i = s.max(W_{s_l}h^{l} + b_{s_l})
         # that are not currently pruned
-        self.layer_result_keys = np.array(list(self.voting_weights.keys()))
+        self.layer_result_keys = self.get_voting_weight_keys()
         self.layer_results = torch.stack([nn.Softmax()(self.get_output_layer(i)(hidden_layers[i]))
                                           for i in self.layer_result_keys])
 
         # add n empty dimensions at the end of betas dimensionality to allow for multiplying with the layer results:
         # e.g.: beta.size = (layers) -> beta.size = (layers, 1, 1) or beta.size = (layers, 1) if batch size is 1
         # n is 2 for a batch size greater than 1 else it is 1
-        betas = torch.tensor([beta for beta in self.voting_weights.values()])[
+        betas = torch.tensor([beta for beta in self.get_voting_weight_values()])[
             (...,) + (None,) * (len(self.layer_results.size()) - 1)]
 
         # calculated total voted/weighted class probability
@@ -125,8 +151,8 @@ class AutoDeepLearner(nn.Module):
         self.__set_output_layer(idx_of_new_layer, new_output_layer)
 
         # add new weight
-        self.voting_weights[idx_of_new_layer] = 0
-        self.weight_correction_factor[idx_of_new_layer] = self.initial_weight_correction_factor
+        self.__set_voting_weight(idx_of_new_layer, self.weight_initializiation_value)
+        self.weight_correction_factor[idx_of_new_layer] = self.weight_correction_factor_initialization_value
 
     def _prune_layer_by_vote_removal(self, layer_index: int) -> None:
         """
@@ -138,37 +164,40 @@ class AutoDeepLearner(nn.Module):
         assert 0 <= layer_index < len(self.layers), \
             (f"cannot remove the layer with the index {layer_index}, "
              f"as it is not in the range [0, amount of layers in model]")
-        assert self.__output_layer_with_index_exists(layer_index), \
+        assert self.output_layer_with_index_exists(layer_index), \
             (f"cannot remove the layer with the index {layer_index}, "
              f"as it is not a layer that will projected onto a vote")
-        assert layer_index in self.voting_weights.keys(), \
+        assert self.voting_weight_with_index_exists(layer_index), \
             (f"cannot remove the layer with the index {layer_index}, "
              f"as it is not a layer that can vote because it has no voting weight")
         assert layer_index in self.weight_correction_factor, \
             (f"cannot remove the layer with the index {layer_index}, "
              f"as it is not a layer that has no weight correction factor")
-        assert any(True for key, value in self.voting_weights.items() if key != layer_index and value != 0), \
+        assert (any(True for value in self.get_voting_weight_values()[:layer_index] if value != 0)
+                or any(True for value in self.get_voting_weight_values()[layer_index + 1:] if value != 0)), \
             (f"cannot remove the layer with the index {layer_index}, "
              f"as it is the last layer with a non zero voting weight")
 
         # remove layer from self.voting_linear_layers, and thereby from voting
         self.__pop_output_layer(layer_index)
         # remove the weight of the layer from self.voting_weights
-        self.voting_weights.pop(layer_index)
+        self.__pop_voting_weight(layer_index)
         # remove the correction_factor from self.weight_correction_factor
         self.weight_correction_factor.pop(layer_index)
         # and re-normalize the voting weights?
         self._normalise_voting_weights()
 
     def _normalise_voting_weights(self) -> None:
-        voting_weights_keys_vector: NDArray[int] = np.fromiter(self.voting_weights.keys(), dtype=int)
-        voting_weights_values_vector: NDArray[float] = np.fromiter(self.voting_weights.values(), dtype=float)
-        norm_of_voting_weights: np.floating = np.linalg.norm(voting_weights_values_vector)
+        voting_weights_keys_vector = self.get_voting_weight_keys()
+        voting_weights_values_vector = self.get_voting_weight_values()
+
+        norm_of_voting_weights = torch.linalg.norm(voting_weights_values_vector, ord=2, dim=0)
         assert norm_of_voting_weights != 0, \
             "The voting weights vector has a length of zero and cannot be normalised"
-        voting_weights_values_vector /= norm_of_voting_weights
+
+        voting_weights_values_vector = nn.functional.normalize(voting_weights_values_vector, p=2, dim=0)
         for index, key in np.ndenumerate(voting_weights_keys_vector):
-            self.voting_weights[key] = float(voting_weights_values_vector[index])
+            self.__set_voting_weight(int(key), float(voting_weights_values_vector[index]))
 
     def _add_node(self, layer_index: int) -> None:
         """
@@ -181,7 +210,7 @@ class AutoDeepLearner(nn.Module):
         assert 0 <= layer_index < len(self.layers), \
             (f"cannot add a node to layer with the index {layer_index}, "
              f"as it is not in the range [0, amount of layers in model]")
-        assert self.__output_layer_with_index_exists(layer_index), \
+        assert self.output_layer_with_index_exists(layer_index), \
             (f"cannot add a node to layer with the index {layer_index}, "
              f"as it is not a layer that will projected onto a vote")
 
@@ -205,8 +234,8 @@ class AutoDeepLearner(nn.Module):
         # change following layer
         if layer_index < len(self.layers) - 1:
             old_following_layer = self.layers[layer_index + 1]
-            anount_out_vectors, amount_in_vectors = old_following_layer.weight.size()
-            new_following_layer = nn.Linear(amount_in_vectors + 1, anount_out_vectors)
+            amount_out_vectors, amount_in_vectors = old_following_layer.weight.size()
+            new_following_layer = nn.Linear(amount_in_vectors + 1, amount_out_vectors)
             nn.init.xavier_normal_(new_following_layer.weight)
             new_following_layer.weight = nn.parameter.Parameter(
                 torch.cat((old_following_layer.weight, new_following_layer.weight[:, 0:1]), dim=1))
@@ -253,7 +282,7 @@ class AutoDeepLearner(nn.Module):
         assert 0 <= layer_index < len(self.layers), \
             (f"cannot remove a node from the layer with the index {layer_index},"
              f" as it is not in the range [0, amount of layers in model]")
-        assert self.__output_layer_with_index_exists(layer_index), \
+        assert self.output_layer_with_index_exists(layer_index), \
             (f"cannot remove a node from the layer with the index {layer_index}, "
              f"as it is not a layer that will projected onto a vote")
 

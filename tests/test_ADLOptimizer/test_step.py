@@ -1,6 +1,5 @@
 import random
 from copy import deepcopy
-from itertools import combinations
 from typing import Tuple
 
 import pytest
@@ -9,10 +8,8 @@ from torch import nn
 
 from ADLOptimizer import create_adl_optimizer
 from AutoDeepLearner import AutoDeepLearner
+from tests.resources import optimizer_choices, trainings_steps, learning_rate_combinations, random_initialize_model
 
-optimizer_choices = [torch.optim.SGD, torch.optim.Adam]
-learning_rate_combinations = list(combinations([0.0001, 0.01, 0.1, 1], 2))
-trainings_steps = range(2, 5)
 
 @pytest.mark.parametrize('optimizer_choice', optimizer_choices)
 class TestOptimizerStep:
@@ -48,36 +45,8 @@ class TestOptimizerStep:
               ) -> AutoDeepLearner:
 
         model = AutoDeepLearner(nr_of_features=feature_count, nr_of_classes=class_count)
-        model.name = "test step model"
 
-        for _ in range(iteration_count):
-            dice = random.choice(range(1, 5))
-
-            match dice:
-                case 1:
-                    model._add_layer()
-                    last_added_layer_idx = len(model.layers) - 1
-                    model.voting_weights[last_added_layer_idx] = 1
-                    model._normalise_voting_weights()
-                case 2:
-                    layer_choice = random.choice(list(model.voting_weights.keys()))
-                    model._add_node(layer_choice)
-                case 3:
-                    if len(model.voting_weights.keys()) > 2:
-                        layer_choice = random.choice(list(model.voting_weights.keys()))
-                        model._prune_layer_by_vote_removal(layer_choice)
-                    else:
-                        continue
-                case 4:
-                    if len(model.voting_weights.keys()) > 2:
-                        layer_choice = random.choice(list(model.voting_weights.keys()))
-                        if model.layers[layer_choice].weight.size()[0] > 2:
-                            node_choice = random.choice(range(model.layers[layer_choice].weight.size()[0]))
-                            model._delete_node(layer_choice, node_choice)
-                        else:
-                            continue
-                    else:
-                        continue
+        model = random_initialize_model(model, iteration_count)
 
         yield model
 

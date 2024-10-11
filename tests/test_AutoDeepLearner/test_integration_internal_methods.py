@@ -3,6 +3,7 @@ import random
 import pytest
 
 from AutoDeepLearner import AutoDeepLearner
+from tests.resources import random_initialize_model
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
 
 
@@ -16,46 +17,24 @@ class TestAutoDeepLearnerIntegration:
     def class_count(self) -> int:
         return random.randint(0, 10_000)
 
+    @pytest.fixture(scope='class')
+    def iteration_count(self) -> int:
+        return random.randint(1_000, 10_000)
+
     @pytest.fixture(scope='class', autouse=True)
-    def model(self, feature_count, class_count) -> AutoDeepLearner:
+    def model(self,
+              feature_count: int,
+              class_count: int,
+              iteration_count: int
+              ) -> AutoDeepLearner:
+
         model = AutoDeepLearner(nr_of_features=feature_count, nr_of_classes=class_count)
 
-        for _ in range(1000):
-            dice = random.choice(range(1, 5))
+        model = random_initialize_model(model, iteration_count)
 
-            match dice:
-                case 1:
-                    model._add_layer()
+        yield model
 
-                    # the add_layer function initialises the voting weight with 0
-                    # not all voting weight can be zero: solution here: randomly assign a value between zero and one
-                    last_added_layer_idx = len(model.layers) - 1
-                    model.voting_weights[last_added_layer_idx] = random.uniform(0, 1)
-
-                    # and normalise the voting weights
-                    model._normalise_voting_weights()
-
-                case 2:
-                    layer_choice = random.choice(list(model.voting_weights.keys()))
-                    model._add_node(layer_choice)
-                case 3:
-                    if len(model.voting_weights.keys()) > 2:
-                        layer_choice = random.choice(list(model.voting_weights.keys()))
-                        model._prune_layer_by_vote_removal(layer_choice)
-                    else:
-                        continue
-                case 4:
-                    if len(model.voting_weights.keys()) > 2:
-                        layer_choice = random.choice(list(model.voting_weights.keys()))
-                        if model.layers[layer_choice].weight.size()[0] > 2:
-                            node_choice = random.choice(range(model.layers[layer_choice].weight.size()[0]))
-                            model._delete_node(layer_choice, node_choice)
-                        else:
-                            continue
-                    else:
-                        continue
-
-        return model
+        del model
 
     def test_single_batch_integration(self, model, feature_count, class_count):
 

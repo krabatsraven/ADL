@@ -9,7 +9,7 @@ from AutoDeepLearner import AutoDeepLearner
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
 
 def has_normalised_voting_weights(model_to_test: AutoDeepLearner) -> bool:
-    voting_weights_values_vector: NDArray[float] = np.fromiter(model_to_test.voting_weights.values(), dtype=float)
+    voting_weights_values_vector: NDArray[float] = model_to_test.get_voting_weight_values().numpy() #np.fromiter(model_to_test.voting_weights.values(), dtype=float)
     norm_of_voting_weights: np.floating = np.linalg.norm(voting_weights_values_vector)
     return norm_of_voting_weights - 1.0 <= 10 ** -6
 
@@ -38,11 +38,17 @@ class TestAutoDeepLearnerNormaliseVotingWeights:
         del model
 
     def test_static_method_returns_false_on_not_normalised_vector(self, model: AutoDeepLearner, nr_of_layers: int):
-        model.voting_weights[random.choice(list(model.voting_weights.keys()))] = 2.0
+        key_choice = random.choice(model.get_voting_weight_keys())
+        model._AutoDeepLearner__set_voting_weight(int(key_choice), 2.0)
         assert not has_normalised_voting_weights(model), "The voting weights should not be normalised anymore"
 
-    def test_static_method_returns_true_on_normalised_vector(self, model):
-        model.voting_weights = {key: 0.0 if key != 0 else 1.0 for key in model.voting_weights.keys()}
+    def test_static_method_returns_true_on_normalised_vector(self, model: AutoDeepLearner):
+        for key in model.get_voting_weight_keys():
+            if key != 0:
+                model._AutoDeepLearner__set_voting_weight(int(key), 0.0)
+            else:
+                model._AutoDeepLearner__set_voting_weight(int(key), 1.0)
+
         assert has_normalised_voting_weights(model), "The voting weights should be normalised"
 
     def test_normalise_works_on_already_normalised_voting_weights(self, model: AutoDeepLearner):
@@ -53,7 +59,11 @@ class TestAutoDeepLearnerNormaliseVotingWeights:
             "The model should still possess a normalised voting vector after normalising a normalised vector"
 
     def test_normalise_works_on_not_normalised_vectors(self, model: AutoDeepLearner):
-        model.voting_weights = {key: random.randint(0, 100) if key != 0 else 2.0 for key in model.voting_weights.keys()}
+        for key in model.get_voting_weight_keys():
+            if key != 0:
+                model._AutoDeepLearner__set_voting_weight(int(key), random.randint(0, 100))
+            else:
+                model._AutoDeepLearner__set_voting_weight(int(key), 2.0)
 
         assert not has_normalised_voting_weights(model), \
             "Assuring that the initial models voting vector is not normalised anymore"
@@ -62,7 +72,8 @@ class TestAutoDeepLearnerNormaliseVotingWeights:
             "The model should possess a normalised voting vector after normalising"
 
     def test_normalise_raises_on_all_zeros_voting_weights_vector(self, model: AutoDeepLearner):
-        model.voting_weights = {key: 0 for key in model.voting_weights.keys()}
+        for key in model.get_voting_weight_keys():
+            model._AutoDeepLearner__set_voting_weight(int(key), 0)
 
         with pytest.raises(Exception) as excinfo:
             model._normalise_voting_weights()
@@ -70,7 +81,11 @@ class TestAutoDeepLearnerNormaliseVotingWeights:
         assert str(excinfo.value) == "The voting weights vector has a length of zero and cannot be normalised"
 
     def test_normalise_does_not_break_forward_on_single_batch(self, model: AutoDeepLearner, feature_count: int, class_count: int):
-        model.voting_weights = {key: random.randint(0, 100) if key != 0 else 2.0 for key in model.voting_weights.keys()}
+        for key in model.get_voting_weight_keys():
+            if key != 0:
+                model._AutoDeepLearner__set_voting_weight(int(key), random.randint(0, 100))
+            else:
+                model._AutoDeepLearner__set_voting_weight(int(key), 2.0)
         model._normalise_voting_weights()
 
         forward_tests = TestAutoDeepLearnerForward()
@@ -82,7 +97,11 @@ class TestAutoDeepLearnerNormaliseVotingWeights:
         )
 
     def test_normalise_does_not_break_forward_on_multiple_batch(self, model: AutoDeepLearner, feature_count: int, class_count: int):
-        model.voting_weights = {key: random.randint(0, 100) if key != 0 else 2.0 for key in model.voting_weights.keys()}
+        for key in model.get_voting_weight_keys():
+            if key != 0:
+                model._AutoDeepLearner__set_voting_weight(int(key), random.randint(0, 100))
+            else:
+                model._AutoDeepLearner__set_voting_weight(int(key), 2.0)
         model._normalise_voting_weights()
 
         forward_tests = TestAutoDeepLearnerForward()

@@ -5,6 +5,7 @@ import pytest
 
 from AutoDeepLearner import AutoDeepLearner
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
+from tests.test_AutoDeepLearner.test_normalise_voting_weights import has_normalised_voting_weights
 
 
 class TestPruneLayerByVoteRemoval:
@@ -27,14 +28,14 @@ class TestPruneLayerByVoteRemoval:
     @pytest.fixture(autouse=True)
     def model(self, feature_count, class_count, nr_of_layers) -> AutoDeepLearner:
         model = AutoDeepLearner(feature_count, class_count)
-        model.voting_weights[0] = random.randint(0, 100)
+        model._AutoDeepLearner__set_voting_weight(0, random.randint(0, 100))
 
         for i in range(nr_of_layers - 1):
             model._add_layer()
 
-            model.voting_weights[i + 1] = random.randint(0, 100)
+            model._AutoDeepLearner__set_voting_weight(i + 1, random.randint(0, 100))
 
-        # re-normalize the randomized voting weights
+            # re-normalize the randomized voting weights
         model._normalise_voting_weights()
 
         yield model
@@ -48,7 +49,7 @@ class TestPruneLayerByVoteRemoval:
 
         for index in random.sample(range(nr_of_layers), random.randint(1, nr_of_layers)):
             model._prune_layer_by_vote_removal(index)
-            assert str(index) not in model.voting_linear_layers.keys(), \
+            assert not model.output_layer_with_index_exists(index), \
                 "_prune_layer_by_vote_removal should remove the layer from model.voting_linear_layers"
 
     def test_prune_layer_by_vote_removal_does_not_remove_layer(self, model, nr_of_layers):
@@ -94,24 +95,8 @@ class TestPruneLayerByVoteRemoval:
         _prune_layer_by_vote_removal should not switch the voting weights
         """
         for index in random.sample(range(nr_of_layers), random.randint(1, nr_of_layers)):
-            keys = [key for key in model.voting_weights.keys() if key != index]
-            length_of_weights_without_key = (
-                math.sqrt(
-                    sum([value ** 2 for key, value in model.voting_weights.items() if key != index]))
-            )
-            weights_without_key_normalized = {
-                key: value / length_of_weights_without_key
-                for key, value in model.voting_weights.items()
-                if key != index
-            }
-
             model._prune_layer_by_vote_removal(index)
-            assert all(
-                [
-                    weights_without_key_normalized[key] - model.voting_weights[key] <= float_precision_tolerance 
-                    for key in keys
-                ]
-            ), \
+            assert has_normalised_voting_weights(model), \
                 "_prune_layer_by_vote_removal should not switch the voting weights"
 
     def test_prune_layer_by_vote_removal_does_not_break_forward_single_item(self, model, nr_of_layers, class_count,
@@ -179,7 +164,7 @@ class TestPruneLayerByVoteRemoval:
 
     def test_prune_layer_layer_by_vote_removal_raises_on_no_voting_weight(self, model, nr_of_layers):
         layer_index = random.randint(0, nr_of_layers - 1)
-        model.voting_weights.pop(layer_index)
+        model._AutoDeepLearner__pop_voting_weight(layer_index)
         error_str = (f"cannot remove the layer with the index {layer_index}, "
                      f"as it is not a layer that can vote because it has no voting weight")
         with pytest.raises(Exception) as exec_info:
@@ -207,7 +192,7 @@ class TestPruneLayerByVoteRemoval:
 
         for idx in range(nr_of_layers):
             if idx != layer_index:
-                model.voting_weights[idx] = 0.0
+                model._AutoDeepLearner__set_voting_weight(idx, 0)
 
         with pytest.raises(Exception) as exec_info:
             model._prune_layer_by_vote_removal(layer_index)

@@ -2,7 +2,6 @@ import random
 from copy import deepcopy
 from typing import Tuple
 
-import numpy as np
 import pytest
 import torch
 from torch import nn
@@ -10,7 +9,7 @@ from torch import nn
 import ADLOptimizer
 from ADLOptimizer import create_adl_optimizer
 from AutoDeepLearner import AutoDeepLearner
-from tests.test_ADLOptimizer.test_step import optimizer_choices
+from tests.resources import random_initialize_model, optimizer_choices
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
 from tests.test_AutoDeepLearner.test_normalise_voting_weights import has_normalised_voting_weights
 
@@ -32,45 +31,12 @@ class TestAdjustWeights:
     def iteration_count(self) -> int:
         return random.randint(1000, 10_000)
 
-    @staticmethod
-    def _random_initialize_model(model: AutoDeepLearner, iteration_count: int) -> AutoDeepLearner:
-        for _ in range(iteration_count):
-            dice = random.choice(range(1, 5))
-
-            match dice:
-                case 1:
-                    model._add_layer()
-                    last_added_layer_idx = len(model.layers) - 1
-                    model.voting_weights[last_added_layer_idx] = random.uniform(0, 1)
-                    model._normalise_voting_weights()
-                case 2:
-                    layer_choice = random.choice(list(model.voting_weights.keys()))
-                    model._add_node(layer_choice)
-                case 3:
-                    if len(model.voting_weights.keys()) > 2:
-                        layer_choice = random.choice(list(model.voting_weights.keys()))
-                        model._prune_layer_by_vote_removal(layer_choice)
-                    else:
-                        continue
-                case 4:
-                    if len(model.voting_weights.keys()) > 2:
-                        layer_choice = random.choice(list(model.voting_weights.keys()))
-                        if model.layers[layer_choice].weight.size()[0] > 2:
-                            node_choice = random.choice(range(model.layers[layer_choice].weight.size()[0]))
-                            model._delete_node(layer_choice, node_choice)
-                        else:
-                            continue
-                    else:
-                        continue
-
-        return model
-
     @pytest.fixture(scope='class', autouse=True)
     def model(self, feature_count, class_count, iteration_count) -> AutoDeepLearner:
 
         model = AutoDeepLearner(nr_of_features=feature_count, nr_of_classes=class_count)
 
-        model = self._random_initialize_model(model, iteration_count)
+        model = random_initialize_model(model, iteration_count)
 
         yield model
 
@@ -83,9 +49,9 @@ class TestAdjustWeights:
     @pytest.fixture(scope='class')
     def two_models(self, feature_count: int, class_count: int, iteration_count: int) -> Tuple[AutoDeepLearner, AutoDeepLearner]:
         model_1 = AutoDeepLearner(nr_of_features=feature_count, nr_of_classes=class_count)
-        model_1 = self._random_initialize_model(model_1, iteration_count)
+        model_1 = random_initialize_model(model_1, iteration_count)
         model_2 = AutoDeepLearner(nr_of_features=feature_count, nr_of_classes=class_count)
-        model_2 = self._random_initialize_model(model_2, iteration_count)
+        model_2 = random_initialize_model(model_2, iteration_count)
 
         yield model_1, model_2
 
@@ -141,8 +107,8 @@ class TestAdjustWeights:
         local_optimizer = self.setup_test(model, optimizer_choice, feature_count, class_count, 0.01)
 
         initial_weight_correction_factors_are_same = [
-            initial_weight_correction_factors[key] == model.weight_correction_factor[key]
-            for key in model.voting_weights
+            initial_weight_correction_factors[int(key)] == model.weight_correction_factor[int(key)]
+            for key in model.get_voting_weight_keys()
         ]
         assert not any(initial_weight_correction_factors_are_same), \
             "all the weight correction factors should have changed as the layer was either correct or wrong"
@@ -237,7 +203,7 @@ class TestAdjustWeights:
         prediction = model(input)
 
         initial_weight_correction_factor = deepcopy(model.weight_correction_factor[0])
-        initial_voting_voting_weight = deepcopy(model.voting_weights[0])
+        initial_voting_voting_weight = deepcopy(model.get_voting_weight(0))
 
         loss = criterion(prediction, target)
         loss.backward()
@@ -246,11 +212,11 @@ class TestAdjustWeights:
         local_optimizer.zero_grad()
 
         if torch.argmax(prediction) == target:
-            assert model.voting_weights[0] == min(
+            assert model.get_voting_weight(0) == min(
                 (1 + initial_voting_voting_weight * (initial_weight_correction_factor + learning_rate)),
                 1
             ), \
                 "the prediction was correct and the weight should have increased"
         else:
-            assert model.voting_weights[0] == initial_voting_voting_weight * (initial_weight_correction_factor - learning_rate), \
+            assert model.get_voting_weight(0) == initial_voting_voting_weight * (initial_weight_correction_factor - learning_rate), \
                 "the prediction was wrong and the weight should have decreased"

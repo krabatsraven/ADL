@@ -86,7 +86,7 @@ class TestAutoDeepLearnerAddLayer:
             assert i + 1 in model.weight_correction_factor.keys(), \
                 f"the key {i + 1} should be added after adding the {i + 1}-te layer"
 
-            assert model.weight_correction_factor[i + 1] == model.initial_weight_correction_factor, \
+            assert model.weight_correction_factor[i + 1] == model.weight_correction_factor_initialization_value, \
                 f"the {i + 1}-te layer should be initialised with the correct factor"
 
         assert len(model.weight_correction_factor) == nr_of_layers + 1,\
