@@ -2,7 +2,6 @@ from typing import List, Dict, Optional
 
 import numpy as np
 import torch
-from numpy._typing import NDArray
 from torch import nn
 
 
@@ -273,26 +272,6 @@ class AutoDeepLearner(nn.Module):
 
         self.__set_output_layer(layer_index, new_output_layer)
 
-    def get_weight_correction_factor(self, layer_index: int) -> float:
-        """
-        :returns the weight correction factor of the hidden layer at given index
-        :param layer_index: the index of the hidden layer in the self.layers list
-        :return: float between 0 and 1 that is used as a factor to reward/punish weights on correctly/falsely categorizing
-        """
-        return self.weight_correction_factor[str(layer_index)]
-
-    def __set_weight_correction_factor(self, layer_index: int, new_weight_correction_factor: float) -> None:
-        self.weight_correction_factor[str(layer_index)] = new_weight_correction_factor
-
-    def __pop_weight_correction_factor(self, layer_index: int) -> float:
-        return self.weight_correction_factor.pop(str(layer_index))
-
-    def weight_correction_factor_with_index_exists(self, layer_index: int):
-        """
-        :returns whether the layer with the given index has a weight correction factor associated with it
-        """
-        return str(layer_index) in self.weight_correction_factor.keys()
-
     def get_output_layer(self, layer_index: int) -> nn.Module:
         """
         :returns the output layer of the hidden layer at given index
@@ -352,3 +331,23 @@ class AutoDeepLearner(nn.Module):
         :return: 1-dim tensor that contains all the voting weights of all layers in self.layers
         """
         return torch.Tensor(list(self.voting_weights.values()))
+
+    def get_weight_correction_factor(self, layer_index: int) -> float:
+        """
+        :returns the weight correction factor of the hidden layer at given index
+        :param layer_index: the index of the hidden layer in the self.layers list
+        :return: float between 0 and 1 that is used as a factor to reward/punish weights on correctly/falsely categorizing
+        """
+        return self.weight_correction_factor[str(layer_index)]
+
+    def __set_weight_correction_factor(self, layer_index: int, new_weight_correction_factor: float) -> None:
+        self.weight_correction_factor[str(layer_index)] = new_weight_correction_factor
+
+    def __pop_weight_correction_factor(self, layer_index: int) -> float:
+        return self.weight_correction_factor.pop(str(layer_index))
+
+    def weight_correction_factor_with_index_exists(self, layer_index: int):
+        """
+        :returns whether the layer with the given index has a weight correction factor associated with it
+        """
+        return str(layer_index) in self.weight_correction_factor.keys()
