@@ -34,7 +34,7 @@ class TestAutoDeepLearnerAddNode:
 
     @pytest.fixture(scope="class", autouse=True)
     def layers_to_add_to(self, nr_of_layers: int) -> List[int]:
-        return [random.randint(0, nr_of_layers) for _ in range(random.randint(0, nr_of_layers))]
+        return [random.randint(0, nr_of_layers) for _ in range(random.randint(1, nr_of_layers))]
 
     def test_add_node_adds_node(self, model, layers_to_add_to):
         """

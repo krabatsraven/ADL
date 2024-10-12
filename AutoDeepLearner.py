@@ -127,7 +127,7 @@ class AutoDeepLearner(nn.Module):
         assert self.voting_weight_with_index_exists(layer_index), \
             (f"cannot remove the layer with the index {layer_index}, "
              f"as it is not a layer that can vote because it has no voting weight")
-        assert layer_index in self.weight_correction_factor, \
+        assert self.weight_correction_factor_with_index_exists(layer_index), \
             (f"cannot remove the layer with the index {layer_index}, "
              f"as it is not a layer that has no weight correction factor")
         assert (any(True for value in self.get_voting_weight_values()[:layer_index] if value != 0)
