@@ -46,31 +46,6 @@ class TestAdjustWeights:
     def optimizer(self, model: AutoDeepLearner, optimizer_choice: type(torch.optim.Optimizer), learning_rate: float) -> torch.optim.Optimizer:
         return create_adl_optimizer(model, optimizer_choice, learning_rate)
 
-    @pytest.fixture(scope='class')
-    def two_models(self, feature_count: int, class_count: int, iteration_count: int) -> Tuple[AutoDeepLearner, AutoDeepLearner]:
-        model_1 = AutoDeepLearner(nr_of_features=feature_count, nr_of_classes=class_count)
-        model_1 = random_initialize_model(model_1, iteration_count)
-        model_2 = AutoDeepLearner(nr_of_features=feature_count, nr_of_classes=class_count)
-        model_2 = random_initialize_model(model_2, iteration_count)
-
-        yield model_1, model_2
-
-        del model_1, model_2
-
-    @pytest.fixture(scope='function')
-    def two_optimizers(self, 
-                       two_models: Tuple[AutoDeepLearner, AutoDeepLearner], 
-                       optimizer_choice: torch.optim.Optimizer, 
-                       small_learning_rate: float,
-                       big_learning_rate: float
-                       ) -> Tuple[torch.optim.Optimizer, torch.optim.Optimizer]:
-
-        model_1, model_2 = two_models
-        small_step_optimizer = create_adl_optimizer(model_1, optimizer_choice, small_learning_rate)
-        big_step_optimizer = create_adl_optimizer(model_2, optimizer_choice, big_learning_rate)
-
-        return small_step_optimizer, big_step_optimizer
-
     @staticmethod
     def setup_test(model: ADLOptimizer, optimizer_choice: torch.optim.Optimizer, feature_count: int, class_count: int, learning_rate: float) -> ADLOptimizer:
         local_optimizer = create_adl_optimizer(model, optimizer_choice, learning_rate)
@@ -92,7 +67,7 @@ class TestAdjustWeights:
     def test_votes_all_change(self, model: AutoDeepLearner, optimizer_choice: torch.optim.Optimizer, feature_count: int, class_count: int):
 
         initial_votes = deepcopy(model.voting_weights)
-    
+
         local_optimizer = self.setup_test(model, optimizer_choice, feature_count, class_count, 0.01)
 
         weights_are_same = [initial_votes[key] == model.voting_weights[key] for key in model.voting_weights]

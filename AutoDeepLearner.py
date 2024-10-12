@@ -68,7 +68,7 @@ class AutoDeepLearner(nn.Module):
 
         # calculate all y^i = s.max(W_{s_l}h^{l} + b_{s_l})
         # that are not currently pruned
-        self.layer_result_keys = self.get_voting_weight_keys()
+        self.layer_result_keys = self.get_voting_weight_keys().numpy()
         self.layer_results = torch.stack([nn.Softmax()(self.get_output_layer(i)(hidden_layers[i]))
                                           for i in self.layer_result_keys])
 

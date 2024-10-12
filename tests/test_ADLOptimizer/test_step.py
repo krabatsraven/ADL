@@ -37,7 +37,7 @@ class TestOptimizerStep:
     def criterion(self) -> nn.CrossEntropyLoss:
         return nn.CrossEntropyLoss()
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, scope="function")
     def model(self,
               feature_count: int,
               class_count: int,
@@ -66,9 +66,11 @@ class TestOptimizerStep:
         model_1.layers = deepcopy(model.layers)
         model_1.voting_linear_layers = deepcopy(model.voting_linear_layers)
         model_1.voting_weights = deepcopy(model.voting_weights)
+        model_1.weight_correction_factor = deepcopy(model.weight_correction_factor)
         model_2.layers = deepcopy(model.layers)
         model_2.voting_linear_layers = deepcopy(model.voting_linear_layers)
         model_2.voting_weights = deepcopy(model.voting_weights)
+        model_2.weight_correction_factor = deepcopy(model.weight_correction_factor)
 
         return model_1, model_2
 
@@ -111,7 +113,7 @@ class TestOptimizerStep:
 
         small_step_optimizer = create_adl_optimizer(model_1, optimizer_choice, small_learning_rate)
         big_step_optimizer = create_adl_optimizer(model_2, optimizer_choice, big_learning_rate)
-
+        
         return small_step_optimizer, big_step_optimizer
 
     @staticmethod
