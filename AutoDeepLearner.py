@@ -33,7 +33,7 @@ class AutoDeepLearner(nn.Module):
 
         # all voting weights should always be normalised,
         # and only contain the indices of self.layers that eligible to vote
-        self.weight_initializiation_value: float = 0
+        self.weight_initializiation_value: float = 1
         self.voting_weights: nn.ParameterDict = nn.ParameterDict({'0': 1.0})
 
         # for the adjustment of the weights in the optimizer
@@ -43,7 +43,7 @@ class AutoDeepLearner(nn.Module):
 
         # for the adjustment of the weights in the optimizer
         # it is necessary to keep track of a correction_factor for each layer
-        self.weight_correction_factor_initialization_value: float = 0.5
+        self.weight_correction_factor_initialization_value: float = 1
         self.weight_correction_factor: nn.ParameterDict = nn.ParameterDict({'0': self.weight_correction_factor_initialization_value})
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
