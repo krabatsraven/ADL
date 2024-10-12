@@ -8,10 +8,17 @@ from numpy._typing import NDArray
 from AutoDeepLearner import AutoDeepLearner
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
 
+
 def has_normalised_voting_weights(model_to_test: AutoDeepLearner) -> bool:
-    voting_weights_values_vector: NDArray[float] = model_to_test.get_voting_weight_values().numpy() #np.fromiter(model_to_test.voting_weights.values(), dtype=float)
-    norm_of_voting_weights: np.floating = np.linalg.norm(voting_weights_values_vector)
+    """
+    Checks if the models voting weights are normalized
+    :param model_to_test: the AutoDeepLearner model to test
+    :return: bool, true if the models voting weights are normalized
+    """
+    voting_weights_values_vector: NDArray[float] = model_to_test.get_voting_weight_values().numpy()
+    norm_of_voting_weights: np.floating = np.linalg.norm(voting_weights_values_vector, ord=1)
     return norm_of_voting_weights - 1.0 <= 10 ** -6
+
 
 class TestAutoDeepLearnerNormaliseVotingWeights:
     @pytest.fixture(scope="class")

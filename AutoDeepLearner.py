@@ -151,7 +151,7 @@ class AutoDeepLearner(nn.Module):
         assert norm_of_voting_weights != 0, \
             "The voting weights vector has a length of zero and cannot be normalised"
 
-        voting_weights_values_vector = nn.functional.normalize(voting_weights_values_vector, p=2, dim=0)
+        voting_weights_values_vector = nn.functional.normalize(voting_weights_values_vector, p=1, dim=0)
         for index, key in np.ndenumerate(voting_weights_keys_vector):
             self.__set_voting_weight(int(key), float(voting_weights_values_vector[index]))
 
@@ -272,6 +272,8 @@ class AutoDeepLearner(nn.Module):
 
         self.__set_output_layer(layer_index, new_output_layer)
 
+    # getter and setter methods for module and parameter dicts:
+    # --------------------------------------------------------
     def get_output_layer(self, layer_index: int) -> nn.Module:
         """
         :returns the output layer of the hidden layer at given index
