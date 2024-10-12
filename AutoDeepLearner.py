@@ -45,7 +45,7 @@ class AutoDeepLearner(nn.Module):
         # for the adjustment of the weights in the optimizer
         # it is necessary to keep track of a correction_factor for each layer
         self.weight_correction_factor_initialization_value: float = 0.5
-        self.weight_correction_factor: Dict[int, float] = {0: self.weight_correction_factor_initialization_value}
+        self.weight_correction_factor: nn.ParameterDict = nn.ParameterDict({'0': self.weight_correction_factor_initialization_value})
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -279,19 +279,19 @@ class AutoDeepLearner(nn.Module):
         :param layer_index: the index of the hidden layer in the self.layers list
         :return: float between 0 and 1 that is used as a factor to reward/punish weights on correctly/falsely categorizing
         """
-        return self.weight_correction_factor[layer_index]
+        return self.weight_correction_factor[str(layer_index)]
 
     def __set_weight_correction_factor(self, layer_index: int, new_weight_correction_factor: float) -> None:
-        self.weight_correction_factor[layer_index] = new_weight_correction_factor
+        self.weight_correction_factor[str(layer_index)] = new_weight_correction_factor
 
     def __pop_weight_correction_factor(self, layer_index: int) -> float:
-        return self.weight_correction_factor.pop(layer_index)
+        return self.weight_correction_factor.pop(str(layer_index))
 
     def weight_correction_factor_with_index_exists(self, layer_index: int):
         """
         :returns whether the layer with the given index has a weight correction factor associated with it
         """
-        return layer_index in self.weight_correction_factor.keys()
+        return str(layer_index) in self.weight_correction_factor.keys()
 
     def get_output_layer(self, layer_index: int) -> nn.Module:
         """
