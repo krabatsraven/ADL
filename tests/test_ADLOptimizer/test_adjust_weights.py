@@ -102,12 +102,12 @@ class TestAdjustWeights:
 
     @pytest.mark.parametrize('optimizer_choice', optimizer_choices)
     def test_voting_weight_correction_factor_all_change(self, model: AutoDeepLearner, optimizer_choice: torch.optim.Optimizer, feature_count: int, class_count: int):
-        initial_weight_correction_factors = deepcopy(model.weight_correction_factor)
+        initial_weight_correction_factors = {int(key): value for key, value in model.weight_correction_factor.items()}
 
         local_optimizer = self.setup_test(model, optimizer_choice, feature_count, class_count, 0.01)
 
         initial_weight_correction_factors_are_same = [
-            initial_weight_correction_factors[int(key)] == model.weight_correction_factor[int(key)]
+            initial_weight_correction_factors[int(key)] == model.get_weight_correction_factor(int(key))
             for key in model.get_voting_weight_keys()
         ]
         assert not any(initial_weight_correction_factors_are_same), \
@@ -170,7 +170,7 @@ class TestAdjustWeights:
         criterion = nn.CrossEntropyLoss()
         prediction = model(input)
 
-        initial_weight_correction_factor = deepcopy(model.weight_correction_factor[0])
+        initial_weight_correction_factor = deepcopy(model.get_weight_correction_factor(0))
 
         loss = criterion(prediction, target)
         loss.backward()
@@ -179,10 +179,10 @@ class TestAdjustWeights:
         local_optimizer.zero_grad()
 
         if torch.argmax(prediction) == target:
-            assert model.weight_correction_factor[0] == initial_weight_correction_factor + learning_rate, \
+            assert model.get_weight_correction_factor(0) == initial_weight_correction_factor + learning_rate, \
                 "the prediction was correct and the weight correction factor should have increased"
         else:
-            assert model.weight_correction_factor[0] ==  initial_weight_correction_factor - learning_rate,\
+            assert model.get_weight_correction_factor(0) ==  initial_weight_correction_factor - learning_rate,\
                 "the prediction was wrong and the weight correction factor should have decreased"
 
     @pytest.mark.parametrize('optimizer_choice', optimizer_choices)
@@ -202,7 +202,7 @@ class TestAdjustWeights:
         criterion = nn.CrossEntropyLoss()
         prediction = model(input)
 
-        initial_weight_correction_factor = deepcopy(model.weight_correction_factor[0])
+        initial_weight_correction_factor = deepcopy(model.get_weight_correction_factor(0))
         initial_voting_voting_weight = deepcopy(model.get_voting_weight(0))
 
         loss = criterion(prediction, target)

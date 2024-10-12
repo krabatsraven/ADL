@@ -76,7 +76,7 @@ class TestPruneLayerByVoteRemoval:
         """
         for index in random.sample(range(nr_of_layers), random.randint(1, nr_of_layers)):
             model._prune_layer_by_vote_removal(index)
-            assert index not in model.weight_correction_factor.keys(),\
+            assert not model.weight_correction_factor_with_index_exists(index),\
                 "_prune_layer_by_vote_removal should remove the layer from the voting weights correction factor"
 
     def test_after_prune_layer_by_vote_removal_voting_weights_are_normalized(self, model, nr_of_layers,
@@ -175,7 +175,7 @@ class TestPruneLayerByVoteRemoval:
 
     def test_prune_layer_layer_by_vote_removal_raises_on_no_voting_weight_correction_factor(self, model, nr_of_layers):
         layer_index = random.randint(0, nr_of_layers - 1)
-        model.weight_correction_factor.pop(layer_index)
+        model._AutoDeepLearner__pop_weight_correction_factor(layer_index)
         error_str = (f"cannot remove the layer with the index {layer_index}, "
                      f"as it is not a layer that has no weight correction factor")
         with pytest.raises(Exception) as exec_info:

@@ -35,7 +35,6 @@ class AutoDeepLearner(nn.Module):
         # all voting weights should always be normalised,
         # and only contain the indices of self.layers that eligible to vote
         self.weight_initializiation_value: float = 0
-        self.voting_weights: Dict[int, float] = {0: 1.0}
         self.voting_weights: nn.ParameterDict = nn.ParameterDict({'0': 1.0})
 
         # for the adjustment of the weights in the optimizer
@@ -47,48 +46,6 @@ class AutoDeepLearner(nn.Module):
         # it is necessary to keep track of a correction_factor for each layer
         self.weight_correction_factor_initialization_value: float = 0.5
         self.weight_correction_factor: Dict[int, float] = {0: self.weight_correction_factor_initialization_value}
-
-    def get_output_layer(self, layer_index: int) -> nn.Module:
-        """
-        :returns the output layer of the hidden layer at given index
-        :param layer_index: the index of the hidden layer in the self.layers list
-        :return: linear layer of dim (out of hidden layer, number of classes)
-        """
-        return self.voting_linear_layers[f'output layer {layer_index}']
-
-    def __set_output_layer(self, layer_index: int, new_output_layer) -> None:
-        self.voting_linear_layers[f'output layer {layer_index}'] = new_output_layer
-
-    def __pop_output_layer(self, layer_index: int) -> None:
-        self.voting_linear_layers.pop(f'output layer {layer_index}')
-
-    def output_layer_with_index_exists(self, layer_index: int) -> bool:
-        return f'output layer {layer_index}' in self.voting_linear_layers.keys()
-
-    def get_voting_weight(self, layer_index: int) -> float:
-        """
-        returns the factor with which the result of the l-th output layer is weighted in the final result
-        :param layer_index: the index of the hidden layer in the self.layers list
-        :return: factor between 0 and 1, weights the result of the i-th output layer
-        """
-
-        return self.voting_weights[str(int(layer_index))]
-
-    def __set_voting_weight(self, layer_index: int, new_weight: float) -> None:
-        assert isinstance(layer_index, int)
-        self.voting_weights[str(layer_index)] = new_weight
-
-    def __pop_voting_weight(self, layer_index: int) -> float:
-        return self.voting_weights.pop(str(int(layer_index)))
-
-    def voting_weight_with_index_exists(self, layer_index: int) -> bool:
-        return str(int(layer_index)) in self.voting_weights.keys()
-
-    def get_voting_weight_keys(self) -> torch.Tensor:
-        return torch.tensor(list(map(int, self.voting_weights.keys())), dtype=torch.int)
-
-    def get_voting_weight_values(self) -> torch.Tensor:
-        return torch.Tensor(list(self.voting_weights.values()))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -152,7 +109,7 @@ class AutoDeepLearner(nn.Module):
 
         # add new weight
         self.__set_voting_weight(idx_of_new_layer, self.weight_initializiation_value)
-        self.weight_correction_factor[idx_of_new_layer] = self.weight_correction_factor_initialization_value
+        self.__set_weight_correction_factor(idx_of_new_layer, self.weight_correction_factor_initialization_value)
 
     def _prune_layer_by_vote_removal(self, layer_index: int) -> None:
         """
@@ -183,7 +140,7 @@ class AutoDeepLearner(nn.Module):
         # remove the weight of the layer from self.voting_weights
         self.__pop_voting_weight(layer_index)
         # remove the correction_factor from self.weight_correction_factor
-        self.weight_correction_factor.pop(layer_index)
+        self.__pop_weight_correction_factor(layer_index)
         # and re-normalize the voting weights?
         self._normalise_voting_weights()
 
@@ -315,3 +272,83 @@ class AutoDeepLearner(nn.Module):
             self.get_output_layer(layer_index), node_index)
 
         self.__set_output_layer(layer_index, new_output_layer)
+
+    def get_weight_correction_factor(self, layer_index: int) -> float:
+        """
+        :returns the weight correction factor of the hidden layer at given index
+        :param layer_index: the index of the hidden layer in the self.layers list
+        :return: float between 0 and 1 that is used as a factor to reward/punish weights on correctly/falsely categorizing
+        """
+        return self.weight_correction_factor[layer_index]
+
+    def __set_weight_correction_factor(self, layer_index: int, new_weight_correction_factor: float) -> None:
+        self.weight_correction_factor[layer_index] = new_weight_correction_factor
+
+    def __pop_weight_correction_factor(self, layer_index: int) -> float:
+        return self.weight_correction_factor.pop(layer_index)
+
+    def weight_correction_factor_with_index_exists(self, layer_index: int):
+        """
+        :returns whether the layer with the given index has a weight correction factor associated with it
+        """
+        return layer_index in self.weight_correction_factor.keys()
+
+    def get_output_layer(self, layer_index: int) -> nn.Module:
+        """
+        :returns the output layer of the hidden layer at given index
+        :param layer_index: the index of the hidden layer in the self.layers list
+        :return: linear layer of dim (out of hidden layer, number of classes)
+        """
+        return self.voting_linear_layers[f'output layer {layer_index}']
+
+    def __set_output_layer(self, layer_index: int, new_output_layer) -> None:
+        self.voting_linear_layers[f'output layer {layer_index}'] = new_output_layer
+
+    def __pop_output_layer(self, layer_index: int) -> None:
+        self.voting_linear_layers.pop(f'output layer {layer_index}')
+
+    def output_layer_with_index_exists(self, layer_index: int) -> bool:
+        """
+        :returns whether the layer with the given index has an output layer associated with it
+        """
+        return f'output layer {layer_index}' in self.voting_linear_layers.keys()
+
+    def get_voting_weight(self, layer_index: int) -> float:
+        """
+        returns the factor with which the result of the l-th output layer is weighted in the final result
+        :param layer_index: the index of the hidden layer in the self.layers list
+        :return: factor between 0 and 1, weights the result of the i-th output layer
+        """
+
+        return self.voting_weights[str(int(layer_index))]
+
+    def __set_voting_weight(self, layer_index: int, new_weight: float) -> None:
+        assert isinstance(layer_index, int)
+        self.voting_weights[str(layer_index)] = new_weight
+
+    def __pop_voting_weight(self, layer_index: int) -> float:
+        return self.voting_weights.pop(str(int(layer_index)))
+
+    def voting_weight_with_index_exists(self, layer_index: int) -> bool:
+        """
+        :returns whether the layer with the given index has a voting weight associated with it
+        """
+        return str(int(layer_index)) in self.voting_weights.keys()
+
+    def get_voting_weight_keys(self) -> torch.Tensor:
+        """
+        :returns all indicies of all layers in self.layers that have a voting weight associated with them
+        as ParamDict is ordered it should hold that if voting weight of layer i w_i exists 
+        -> (i, w_i) in zip(get_voting_weight_keys(), get_voting_weight_values())
+        :return: 1-dim tensor that contains all the indicies of all layers in self.layers with an voting weight
+        """
+        return torch.tensor(list(map(int, self.voting_weights.keys())), dtype=torch.int)
+
+    def get_voting_weight_values(self) -> torch.Tensor:
+        """
+        :returns all voting weights of all layers in self.layers that have one associated with them
+        as ParamDict is ordered it should hold that if voting weight of layer i w_i exists 
+        -> (i, w_i) in zip(get_voting_weight_keys(), get_voting_weight_values())
+        :return: 1-dim tensor that contains all the voting weights of all layers in self.layers
+        """
+        return torch.Tensor(list(self.voting_weights.values()))
