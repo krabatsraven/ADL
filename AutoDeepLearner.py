@@ -18,6 +18,9 @@ class AutoDeepLearner(nn.Module):
         self.input_size: int = nr_of_features
         self.output_size: int = nr_of_classes
 
+        # lowest possible value that voting weights and voting weight correction factors can assume
+        self._epsilon = 10 ** -6
+
         # assumes that at least a single concept is to be learned in a data stream
         # list of all dynamic layers, starting with a single layer in the shape (in, 1)
         first_hidden_layer = nn.Linear(nr_of_features, 1, dtype=torch.float)
@@ -31,17 +34,29 @@ class AutoDeepLearner(nn.Module):
         nn.init.xavier_normal_(first_output_layer.weight)
         self.voting_linear_layers: nn.ModuleDict = nn.ModuleDict({f'output layer {0}': first_output_layer})
 
+        # voting weights:
+        # are dynamically adjusted
+        # upper and lower boarder for the domain of the voting weights
+        self.lower_voting_weigth_boarder: float = self._epsilon
+        self.upper_voting_weight_boarder: float = 1
+
         # all voting weights should always be normalised,
         # and only contain the indices of self.layers that eligible to vote
         self.weight_initializiation_value: float = 1
-        self.voting_weights: nn.ParameterDict = nn.ParameterDict({'0': 1.0})
+        self.voting_weights: nn.ParameterDict = nn.ParameterDict({'0': self.weight_initializiation_value})
 
         # for the adjustment of the weights in the optimizer
         # it is necessary to have the results of the single voting layers
         self.layer_result_keys: Optional[torch.Tensor] = None
         self.layer_results: Optional[torch.Tensor] = None
 
+        # voting weights correction factors:
+        # voting weights correction factors are dynamically adjusted
         # for the adjustment of the weights in the optimizer
+        # upper and lower boarder for the domain of the voting weight correction factors
+        self.lower_weigth_correction_factor_boarder: float = self._epsilon
+        self.upper_weigth_correction_factor_boarder: float = 1
+
         # it is necessary to keep track of a correction_factor for each layer
         self.weight_correction_factor_initialization_value: float = 1
         self.weight_correction_factor: nn.ParameterDict = nn.ParameterDict({'0': self.weight_correction_factor_initialization_value})

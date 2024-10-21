@@ -39,7 +39,6 @@ def create_adl_optimizer(
             # todo: low level learning
 
         def _adjust_weights(self, true_label: torch.Tensor, step_size: float):
-
             # find the indices of the results that where correctly predicted
             correctly_predicted_layers_indices = np.where(torch.argmax(network.layer_results, dim = 1) == true_label)
             correctly_predicted_layers_mask = np.zeros(self.network.layer_result_keys.shape, dtype=bool)
@@ -48,12 +47,24 @@ def create_adl_optimizer(
             # if layer predicted correctly increase weight correction factor p^(l) by step_size "zeta"
             # p^(l) = p^(l) + step_size
             keys_of_correctly_predicted_layers = self.network.layer_result_keys[correctly_predicted_layers_mask]
-            increased_correction_weights = {str(key): self.network.get_weight_correction_factor(key) + step_size for key in keys_of_correctly_predicted_layers}
+            increased_correction_weights = {
+                str(key): min(
+                    self.network.get_weight_correction_factor(key) + step_size,
+                    self.network.upper_weigth_correction_factor_boarder
+                )
+                for key in keys_of_correctly_predicted_layers
+            }
             self.network.weight_correction_factor.update(increased_correction_weights)
             # if layer predicted erroneous decrease weight correction factor p^(l) by step size
             # p^(l) = p^(l) - step_size
             keys_of_incorrectly_predicted_layers = self.network.layer_result_keys[~correctly_predicted_layers_mask]
-            decreased_correction_weights = {str(key): self.network.get_weight_correction_factor(key) - step_size for key in keys_of_incorrectly_predicted_layers}
+            decreased_correction_weights = {
+                str(key): max(
+                    self.network.get_weight_correction_factor(key) - step_size,
+                    self.network.lower_weigth_correction_factor_boarder
+                )
+                for key in keys_of_incorrectly_predicted_layers
+            }
             self.network.weight_correction_factor.update(decreased_correction_weights)
 
             # adjust weight of layer l:
@@ -62,11 +73,11 @@ def create_adl_optimizer(
             # increase beta^(l) while assuring that 0 <= beta^(l) <= 1 by
             # beta^(l) = min((1 + p^(l)) * beta^(l), 1)
             increased_voting_weights = {
-                str(key): 
+                str(key):
                     min(
                         (1 + self.network.get_weight_correction_factor(key)) * self.network.get_voting_weight(key),
-                        1
-                    ) 
+                        self.network.upper_voting_weight_boarder
+                    )
                 for key in keys_of_correctly_predicted_layers
             }
             self.network.voting_weights.update(increased_voting_weights)
@@ -74,7 +85,11 @@ def create_adl_optimizer(
             # if layer l was correct decrease beta:
             # beta^(l) = p^(l) * beta^(l)
             decreased_voting_weights = {
-                str(key): self.network.get_weight_correction_factor(key) * self.network.get_voting_weight(key)
+                str(key):
+                    max(
+                        self.network.get_weight_correction_factor(key) * self.network.get_voting_weight(key),
+                        self.network.lower_voting_weigth_boarder
+                    )
                 for key in keys_of_incorrectly_predicted_layers
             }
             self.network.voting_weights.update(decreased_voting_weights)
