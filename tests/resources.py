@@ -20,7 +20,7 @@ def random_initialize_model(model: AutoDeepLearner, iteration_count: int) -> Aut
                 # the add_layer function initialises the voting weight with 0
                 # not all voting weight can be zero: solution here: randomly assign a value between zero and one
                 last_added_layer_idx = len(model.layers) - 1
-                model._AutoDeepLearner__set_voting_weight(last_added_layer_idx, random.uniform(0, 1))
+                model._AutoDeepLearner__set_voting_weight(last_added_layer_idx, random.uniform(0.01, 0.99))
 
                 # and normalise the voting weights
                 model._normalise_voting_weights()
