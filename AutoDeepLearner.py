@@ -36,7 +36,8 @@ class AutoDeepLearner(nn.Module):
 
         # voting weights:
         # are dynamically adjusted
-        # upper and lower boarder for the domain of the voting weights
+        # upper and lower boarder for the domain of the voting weights beta(l) for layer l
+        # lower_voting_weigth_boarder <= beta(l) <= upper_voting_weight_boarder for all l
         self.lower_voting_weigth_boarder: float = self._epsilon
         self.upper_voting_weight_boarder: float = 1
 
@@ -53,13 +54,17 @@ class AutoDeepLearner(nn.Module):
         # voting weights correction factors:
         # voting weights correction factors are dynamically adjusted
         # for the adjustment of the weights in the optimizer
-        # upper and lower boarder for the domain of the voting weight correction factors
+
+        # upper and lower boarder for the domain of the voting weight correction factors p(l) for layer l:
+        # self.lower_weigth_correction_factor_boarder <= p(l) <= self.upper_weigth_correction_factor_boarder for all l
         self.lower_weigth_correction_factor_boarder: float = self._epsilon
         self.upper_weigth_correction_factor_boarder: float = 1
 
         # it is necessary to keep track of a correction_factor for each layer
         self.weight_correction_factor_initialization_value: float = 1
-        self.weight_correction_factor: nn.ParameterDict = nn.ParameterDict({'0': self.weight_correction_factor_initialization_value})
+        self.weight_correction_factor: nn.ParameterDict = nn.ParameterDict(
+            {'0': self.weight_correction_factor_initialization_value}
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
