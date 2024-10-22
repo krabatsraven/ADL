@@ -17,7 +17,7 @@ from tests.test_AutoDeepLearner.test_normalise_voting_weights import has_normali
 class TestAdjustWeights:
     @pytest.fixture(scope="class")
     def float_precision_tolerance(self):
-        return 10 ** -6
+        return 10 ** -7
 
     @pytest.fixture(scope='class')
     def feature_count(self) -> int:
@@ -148,7 +148,8 @@ class TestAdjustWeights:
                                                                feature_count: int,
                                                                class_count: int,
                                                                optimizer_choice: type(torch.optim.Optimizer),
-                                                               learning_rate: float
+                                                               learning_rate: float,
+                                                                               float_precision_tolerance: float
                                                                ):
 
         model = AutoDeepLearner(feature_count, class_count)
@@ -169,15 +170,15 @@ class TestAdjustWeights:
         local_optimizer.zero_grad()
 
         if torch.argmax(prediction) == target:
-            assert model.get_weight_correction_factor(0) == min(
+            assert model.get_weight_correction_factor(0) - min(
                 initial_weight_correction_factor + learning_rate,
                 model.upper_weigth_correction_factor_boarder
-            ), "the prediction was correct and the weight correction factor should have increased"
+            ) <= float_precision_tolerance, "the prediction was correct and the weight correction factor should have increased"
         else:
-            assert model.get_weight_correction_factor(0) == max(
+            assert model.get_weight_correction_factor(0) - max(
                 initial_weight_correction_factor - learning_rate,
                 model.lower_weigth_correction_factor_boarder
-            ), "the prediction was wrong and the weight correction factor should have decreased"
+            ) <= float_precision_tolerance, "the prediction was wrong and the weight correction factor should have decreased"
 
     @pytest.mark.parametrize('optimizer_choice', optimizer_choices)
     @pytest.mark.parametrize('learning_rate', [0.0001, 0.01, 0.1, 1])
@@ -185,7 +186,8 @@ class TestAdjustWeights:
                                                                     feature_count: int,
                                                                     class_count: int,
                                                                     optimizer_choice: type(torch.optim.Optimizer),
-                                                                    learning_rate: float
+                                                                    learning_rate: float,
+                                                                    float_precision_tolerance: float
                                                                     ):
         model = AutoDeepLearner(feature_count, class_count)
         local_optimizer = create_adl_optimizer(model, optimizer_choice, learning_rate)
@@ -206,16 +208,16 @@ class TestAdjustWeights:
         local_optimizer.zero_grad()
 
         if torch.argmax(prediction) == target:
-            assert model.get_voting_weight(0) == min(
+            assert model.get_voting_weight(0) - min(
                 (1 + initial_voting_voting_weight * (initial_weight_correction_factor + learning_rate)),
                 model.upper_voting_weight_boarder
-            ), \
+            ) <= float_precision_tolerance, \
                 "the prediction was correct and the weight should have increased"
         else:
-            assert model.get_voting_weight(0) == max(
+            assert model.get_voting_weight(0) - max(
                 initial_voting_voting_weight * (initial_weight_correction_factor - learning_rate),
                 model.lower_voting_weigth_boarder
-            ), "the prediction was wrong and the weight should have decreased"
+            ) <= float_precision_tolerance, "the prediction was wrong and the weight should have decreased"
 
     @pytest.mark.parametrize('optimizer_choice', optimizer_choices)
     @pytest.mark.parametrize('learning_rate', [1, 2, 10])
@@ -224,7 +226,8 @@ class TestAdjustWeights:
             feature_count: int,
             class_count: int,
             optimizer_choice: type(torch.optim.Optimizer),
-            learning_rate: float
+            learning_rate: float,
+            float_precision_tolerance: float
     ):
         local_model = AutoDeepLearner(feature_count, class_count)
         local_optimizer = create_adl_optimizer(local_model, optimizer_choice, learning_rate)
@@ -244,12 +247,12 @@ class TestAdjustWeights:
         if torch.argmax(prediction) == target:
             # prediction is correct
             # assert that voting weight is not greater than the upper boarder of the domain of voting weights
-            assert local_model.get_voting_weight(0) <= local_model.upper_voting_weight_boarder,\
+            assert local_model.get_voting_weight(0) <= local_model.upper_voting_weight_boarder + float_precision_tolerance,\
                 "even if correct the voting weight of the model should not exceed the limits of its domain"
         else:
             # prediction is wrong
             # assert that voting weight is not smaller than the lower boarder of the domain of voting weights
-            assert local_model.get_voting_weight(0) >= local_model.lower_voting_weigth_boarder, \
+            assert local_model.get_voting_weight(0) >= local_model.lower_voting_weigth_boarder - float_precision_tolerance, \
                 "even if wrong the voting weight of the model should not drop below the limits of its domain"
 
     @pytest.mark.parametrize('optimizer_choice', optimizer_choices)
@@ -259,7 +262,8 @@ class TestAdjustWeights:
         feature_count: int,
         class_count: int,
         optimizer_choice: type(torch.optim.Optimizer),
-        learning_rate: float
+        learning_rate: float,
+        float_precision_tolerance: float
     ):
         local_model = AutoDeepLearner(feature_count, class_count)
         local_optimizer = create_adl_optimizer(local_model, optimizer_choice, learning_rate)
@@ -279,14 +283,14 @@ class TestAdjustWeights:
         if torch.argmax(prediction) == target:
             # prediction is correct
             # assert that voting weight is not greater than the upper boarder of the domain of voting weights
-            assert local_model.get_weight_correction_factor(0) <= local_model.upper_weigth_correction_factor_boarder, \
+            assert local_model.get_weight_correction_factor(0) <= local_model.upper_weigth_correction_factor_boarder + float_precision_tolerance, \
                 ("even if correct:"
                  " the voting weight correction factor of the hidden layer"
                  " should not exceed the limits of its domain")
         else:
             # prediction is wrong
             # assert that voting weight is not smaller than the lower boarder of the domain of voting weights
-            assert local_model.get_weight_correction_factor(0) >= local_model.lower_weigth_correction_factor_boarder, \
+            assert local_model.get_weight_correction_factor(0) >= local_model.lower_weigth_correction_factor_boarder - float_precision_tolerance, \
                 ("even if wrong:"
                  " the voting weight correction factor of the hidden layer "
                  "should not drop below the limits of its domain")

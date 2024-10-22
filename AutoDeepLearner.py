@@ -19,7 +19,7 @@ class AutoDeepLearner(nn.Module):
         self.output_size: int = nr_of_classes
 
         # lowest possible value that voting weights and voting weight correction factors can assume
-        self._epsilon = 10 ** -6
+        self._epsilon: float = 10 ** -6
 
         # assumes that at least a single concept is to be learned in a data stream
         # list of all dynamic layers, starting with a single layer in the shape (in, 1)
@@ -42,7 +42,7 @@ class AutoDeepLearner(nn.Module):
 
         # all voting weights should always be normalised,
         # and only contain the indices of self.layers that eligible to vote
-        self.weight_initializiation_value: float = 1
+        self.weight_initializiation_value: float = 1.0
         self.voting_weights: nn.ParameterDict = nn.ParameterDict({'0': self.weight_initializiation_value})
 
         # for the adjustment of the weights in the optimizer
@@ -347,7 +347,7 @@ class AutoDeepLearner(nn.Module):
         -> (i, w_i) in zip(get_voting_weight_keys(), get_voting_weight_values())
         :return: 1-dim tensor that contains all the voting weights of all layers in self.layers
         """
-        return torch.Tensor(list(self.voting_weights.values()))
+        return torch.tensor(list(self.voting_weights.values()), dtype=torch.float)
 
     def get_weight_correction_factor(self, layer_index: int) -> float:
         """
@@ -356,6 +356,15 @@ class AutoDeepLearner(nn.Module):
         :return: float between 0 and 1 that is used as a factor to reward/punish weights on correctly/falsely categorizing
         """
         return self.weight_correction_factor[str(layer_index)]
+
+    def get_weight_correction_factor_keys(self) -> torch.Tensor:
+        return torch.tensor(list(map(int, self.weight_correction_factor.keys())))
+
+    def get_weight_correction_factor_values(self) -> torch.Tensor:
+        return torch.tensor(list(self.weight_correction_factor.values()), dtype=torch.float)
+
+    def get_weight_correction_factor_items(self):
+        return torch.stack((self.get_weight_correction_factor_keys(), self.get_weight_correction_factor_values()))
 
     def __set_weight_correction_factor(self, layer_index: int, new_weight_correction_factor: float) -> None:
         self.weight_correction_factor[str(layer_index)] = new_weight_correction_factor
