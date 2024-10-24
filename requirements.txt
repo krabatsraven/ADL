@@ -10,10 +10,15 @@
 --index-url https://download.pytorch.org/whl/cpu
 
 # torch packages:
+# neural network
 torch
 torchvision
 torchaudio
 
+# capyMoa
+# stream learning
+# dependencies for CapyMoa: Java
+capymoa
 
 # pytest for development:
 pytest
