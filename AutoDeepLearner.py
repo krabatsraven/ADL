@@ -95,8 +95,7 @@ class AutoDeepLearner(nn.Module):
         # add n empty dimensions at the end of betas dimensionality to allow for multiplying with the layer results:
         # e.g.: beta.size = (layers) -> beta.size = (layers, 1, 1) or beta.size = (layers, 1) if batch size is 1
         # n is 2 for a batch size greater than 1 else it is 1
-        betas = torch.tensor([beta for beta in self.get_voting_weight_values()])[
-            (...,) + (None,) * (len(self.layer_results.size()) - 1)]
+        betas = self.get_voting_weight_values()[(...,) + (None,) * (len(self.layer_results.size()) - 1)]
 
         # calculated total voted/weighted class probability
         total_weighted_class_probability = torch.mul(self.layer_results, betas).sum(dim=0)
