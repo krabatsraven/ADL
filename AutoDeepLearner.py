@@ -66,6 +66,10 @@ class AutoDeepLearner(nn.Module):
             {'0': self.weight_correction_factor_initialization_value}
         )
 
+        # the accuracy matrix is used for univariant drift detection
+        # therefore it is necessary to save the last prediction
+        self.last_prediction: Optional[torch.Tensor] = None
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         returns the classification from self.output_size many classes stemming from the data input x
@@ -99,6 +103,7 @@ class AutoDeepLearner(nn.Module):
 
         # calculated total voted/weighted class probability
         total_weighted_class_probability = torch.mul(self.layer_results, betas).sum(dim=0)
+        self.last_prediction = torch.argmax(total_weighted_class_probability)
 
         return total_weighted_class_probability
 

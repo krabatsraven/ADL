@@ -62,7 +62,7 @@ if __name__ == "__main__":
         local_optimizer.step(instance.y_index)
         local_optimizer.zero_grad()
 
-        detector.add_element(ob_evaluator.accuracy())
+        detector.add_element(loss)
         if i % 100 == 0:
             print(f'step {i}: loss: {loss}, accuracy: {ob_evaluator.accuracy()}')
         if detector.detected_warning():

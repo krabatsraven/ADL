@@ -1,5 +1,9 @@
+from typing import Union
+
 import numpy as np
 import torch.optim
+from capymoa.evaluation import ClassificationEvaluator, RegressionEvaluator
+from capymoa.drift.base_detector import BaseDriftDetector
 
 from AutoDeepLearner import AutoDeepLearner
 
@@ -8,6 +12,8 @@ def create_adl_optimizer(
         network: AutoDeepLearner,
         optimizer: type(torch.optim.Optimizer),
         learning_rate: float,
+        # evaluator: Union[ClassificationEvaluator, RegressionEvaluator],
+        # drift_detector: BaseDriftDetector,
         **kwargs):
     """
     creates the optimizer object that extents the pytorch optimizer of the provided type and returns it
@@ -26,8 +32,10 @@ def create_adl_optimizer(
 
         def __init__(self):
             super().__init__(network.parameters(), lr=learning_rate, **kwargs)
-            self.network = network
-            self.learning_rate = learning_rate
+            self.network: AutoDeepLearner = network
+            self.learning_rate: float = learning_rate
+            # self.evaluator: Union[ClassificationEvaluator, RegressionEvaluator] = evaluator
+            # self.drift_detector: BaseDriftDetector = drift_detector
 
             self.stop_flag = False
 
@@ -40,6 +48,8 @@ def create_adl_optimizer(
 
             # todo: high level learning
             # todo: low level learning
+
+            self.network.last_prediction = None
 
         def _adjust_weights(self, true_label: torch.Tensor, step_size: float):
             # find the indices of the results that where correctly predicted
@@ -112,7 +122,19 @@ def create_adl_optimizer(
             }
             self.network.voting_weights.update(voting_weight_items)
 
-        def _high_lvl_learning(self):
+        def _high_lvl_learning(self, true_label: torch.Tensor):
+            # calculate the current accuracy
+            self.evaluator.update(true_label.item(), self.network.last_prediction)
+            # use accuracy to univariant detect concept drift
+            self.drift_detector.add_element(self.evaluator.accuracy())
+
+            if self.drift_detector.detected_change():
+                # add layer
+                # train the layer
+                pass
+            elif self.drift_detector.detected_warning():
+                # store instance
+                pass
             raise NotImplementedError
 
         def _low_lvl_learning(self):
