@@ -29,7 +29,7 @@ class ADLClassifier(Classifier):
     ):
 
         super().__init__(schema, random_seed)
-        self.model: Optional[nn.Module] = None
+        self.model: Optional[AutoDeepLearner] = None
         self.optimizer: Optional[Optimizer] = None
         self.loss_function = loss_fn
         self.learning_rate: float = lr
@@ -87,10 +87,10 @@ class ADLClassifier(Classifier):
         loss.backward()
         self.optimizer.step()
 
-        # self._adjust_weights(true_label = y, step_size = self.learning_rate)
+        self._adjust_weights(true_label=y, step_size=self.learning_rate)
         # todo: eventual test runtimes methods start from optimizer vs run from classifier, does it change if it is on gpu?
-        # todo: implement grace period, where a new layer is only generated after a certain amount of instances
-        # high lvl(prediction, true label)
+        # todo: implement grace period, where a new layer is only generated after a certain amount of 
+        self._high_lvl_learning(true_label=y, prediction=pred, data=X)
         # low lvl
 
         self.optimizer.zero_grad()
@@ -182,14 +182,27 @@ class ADLClassifier(Classifier):
         }
         self.model.voting_weights.update(voting_weight_items)
 
-    def _high_lvl_learning(self, true_label: torch.Tensor, prediction: torch.Tensor):
+    def _high_lvl_learning(self, true_label: torch.Tensor, prediction: torch.Tensor, data: torch.Tensor):
 
         self.drift_detector.add_element(self.__drift_criterion(true_label, prediction))
 
         if self.drift_detector.detected_change():
             # add layer
+            self.model._add_layer()
             # train the layer:
-            # substitute / freeze the parameters not new
+                # freeze the parameters not new:
+                    # originaly they create a new network with only one layer and train the weights there
+                    # can we just delete the gradients of all weights not in the new layer?
+                # train by gradient
+            pred = self.model.forward(data, exclude_layer_indicies_in_training=list(range(len(self.model.layers) - 1)))
+            loss = self.loss_function(pred, true_label)
+
+            # Backpropagation
+            loss.backward()
+            self.optimizer.step()
+            # low level training
+            # todo: comment in low level if implemented
+            # self._low_lvl_learning()
             pass
 
         elif self.drift_detector.detected_warning():

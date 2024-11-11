@@ -88,35 +88,42 @@ class AutoDeepLearner(nn.Module):
                 f"Given batch of data has {x.size()[0]} many features, expected where {self.input_size}"
 
         if exclude_layer_indicies_in_training is not None:
-            # check whether the indicies provided to be excluded from training are valid:
-            # todo: test this part
-            assert all((isinstance(elem, int) for elem in exclude_layer_indicies_in_training)), \
+            assert all(map(lambda elem: isinstance(elem, int), exclude_layer_indicies_in_training)), \
                 (f"the provided list of indicies to exclude in training does not consist of only ints: "
                  f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-            assert all((0 <= index < len(self.layers) for index in exclude_layer_indicies_in_training)), \
-                ("The provided list of indicies to exclude in training does not consist only of indicies,"
-                 "that are valid for the list of hidden layers"
-                 f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-            assert all((self.output_layer_with_index_exists(index) for index in exclude_layer_indicies_in_training)), \
-                (f"Not all provided indicies are valid output layer indices, "
-                 f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-            assert all(self.layers[index].requires_grad for index in exclude_layer_indicies_in_training), \
-                (f"Not all layers that where listed to be excluded from training are enabled,"
-                 f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-            assert all(self.get_output_layer(index).requires_grad for index in exclude_layer_indicies_in_training),\
-                (f"Not all output layers that where listed to be excluded from training are enabled,"
-                 f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-
-            # set requires grad to False
-            for excluded_index in exclude_layer_indicies_in_training:
-                self.layers[excluded_index].requires_grad_(requires_grad=False)
-                self.get_output_layer(excluded_index).requires_grad_(requires_grad=False)
 
         # calculate all h^{l} = \sigma(W^{l} h^{(l-1)} + b^{l}), h^{(0)} = x
-        hidden_layers: List[torch.Tensor] = [x := nn.Sigmoid()(layer(x)) for layer in self.layers]
+        if exclude_layer_indicies_in_training is None:
+            hidden_layers: List[torch.Tensor] = [x := nn.Sigmoid()(layer(x)) for layer in self.layers]
+        else:
+            # calculate the first slice of not excluded layers
+            hidden_layers: List[torch.Tensor] = [x := nn.Sigmoid()(layer(x)) for layer in self.layers[:exclude_layer_indicies_in_training[0]]]
+            for idx in range(1, len(exclude_layer_indicies_in_training)):
+                with torch.no_grad:
+                    # calculate the excluded layer without saving the gradient
+                    (x := nn.Sigmoid()(self.layers[exclude_layer_indicies_in_training[idx - 1]](x)))
+                hidden_layers.append(x)
+
+                # calculate the next slice of not excluded layers:
+                hidden_layers_middle_part: List[torch.Tensor] = [
+                    x := nn.Sigmoid()(layer(x))
+                    for idx in range(1, len(exclude_layer_indicies_in_training))
+                    for layer in self.layers[exclude_layer_indicies_in_training[idx - 1] + 1: exclude_layer_indicies_in_training[idx]]
+                ]
+
+                # append the results to the list of results
+                hidden_layers += hidden_layers_middle_part
+
+            # the excluded index and the last slice
+            with torch.no_grad:
+                (x := nn.Sigmoid()(self.layers[exclude_layer_indicies_in_training[- 1]](x)))
+            hidden_layers.append(x)
+            hidden_layers_last_part: torch.Tensor = [x := nn.Sigmoid()(layer(x)) for layer in self.layers[exclude_layer_indicies_in_training[-1] + 1:]]
+            hidden_layers += hidden_layers_last_part
 
         # calculate all y^i = s.max(W_{s_l}h^{l} + b_{s_l})
         # that are not currently pruned
+        # todo: prevent the saving of gradients for output layers that are excluded from training
         self.layer_result_keys = self.get_voting_weight_keys().numpy()
         self.layer_results = torch.stack([nn.Softmax()(self.get_output_layer(i)(hidden_layers[i]))
                                           for i in self.layer_result_keys])
@@ -129,12 +136,6 @@ class AutoDeepLearner(nn.Module):
         # calculated total voted/weighted class probability
         total_weighted_class_probability = torch.mul(self.layer_results, betas).sum(dim=0)
         self.last_prediction = torch.argmax(total_weighted_class_probability)
-
-        if exclude_layer_indicies_in_training is not None:
-            # set requires grad to True/ re-enable them
-            for excluded_index in exclude_layer_indicies_in_training:
-                self.layers[excluded_index].requires_grad_(requires_grad=True)
-                self.get_output_layer(excluded_index).requires_grad_(requires_grad=True)
 
         return total_weighted_class_probability
 

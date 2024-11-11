@@ -27,7 +27,7 @@ class TestOptimizerStep:
 
     @pytest.fixture(scope='class')
     def input(self, feature_count: int) -> torch.Tensor:
-        return torch.rand(feature_count, requires_grad=True, dtype=torch.float)
+        return torch.randn(feature_count, requires_grad=True, dtype=torch.float)
 
     @pytest.fixture(scope='class')
     def target(self, class_count: int) -> torch.Tensor:
