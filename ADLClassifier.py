@@ -50,6 +50,9 @@ class ADLClassifier(Classifier):
         self.drift_detector: BaseDriftDetector = drift_detector
         self.__drift_criterion_switch = drift_criterion
 
+        self.drift_warning_data: Optional[torch.Tensor] = None
+        self.drift_warning_label: Optional[torch.Tensor] = None
+
     def __str__(self):
         return str(self.model)
 
@@ -88,8 +91,8 @@ class ADLClassifier(Classifier):
         self.optimizer.step()
 
         self._adjust_weights(true_label=y, step_size=self.learning_rate)
-        # todo: eventual test runtimes methods start from optimizer vs run from classifier, does it change if it is on gpu?
-        # todo: implement grace period, where a new layer is only generated after a certain amount of 
+        # todo: # 71
+        # todo: # 72
         self._high_lvl_learning(true_label=y, prediction=pred, data=X)
         # low lvl
 
@@ -187,9 +190,16 @@ class ADLClassifier(Classifier):
         self.drift_detector.add_element(self.__drift_criterion(true_label, prediction))
 
         if self.drift_detector.detected_change():
+            # stack saved data if there is any onto the current instance to train with both
+            if self.drift_warning_data is not None:
+                data = torch.stack((self.drift_warning_data, data))
+                true_label = torch.stack((self.drift_warning_label, true_label))
+
             # add layer
             self.model._add_layer()
+
             # train the layer:
+            # todo: question #69
                 # freeze the parameters not new:
                     # originaly they create a new network with only one layer and train the weights there
                     # can we just delete the gradients of all weights not in the new layer?
@@ -207,8 +217,14 @@ class ADLClassifier(Classifier):
 
         elif self.drift_detector.detected_warning():
             # store instance
-            pass
-        raise NotImplementedError
+            # todo: question: #70
+            self.drift_warning_data = data
+            self.drift_warning_label = true_label
+
+        else:
+            # stable phase means deletion of buffered warning instances
+            self.drift_warning_data = None
+            self.drift_warning_label = None
 
     def _low_lvl_learning(self):
         raise NotImplementedError
