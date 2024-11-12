@@ -90,6 +90,9 @@ class ADLClassifier(Classifier):
         loss.backward()
         self.optimizer.step()
 
+        self.evaluator.update(y.item(), torch.argmax(pred).item())
+        self.drift_detector.add_element(self.__drift_criterion(y, pred))
+
         self._adjust_weights(true_label=y, step_size=self.learning_rate)
         # todo: # 71
         # todo: # 72
@@ -187,8 +190,6 @@ class ADLClassifier(Classifier):
 
     def _high_lvl_learning(self, true_label: torch.Tensor, prediction: torch.Tensor, data: torch.Tensor):
 
-        self.drift_detector.add_element(self.__drift_criterion(true_label, prediction))
-
         if self.drift_detector.detected_change():
             # stack saved data if there is any onto the current instance to train with both
             if self.drift_warning_data is not None:
@@ -232,8 +233,6 @@ class ADLClassifier(Classifier):
     def __drift_criterion(self, true_label: torch.Tensor, prediction: torch.Tensor) -> float:
         match self.__drift_criterion_switch:
             case "accuracy":
-                # calculate the current accuracy
-                self.evaluator.update(true_label.item(), prediction.item())
                 # use accuracy to univariant detect concept drift
                 return self.evaluator.accuracy()
 
