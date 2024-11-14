@@ -189,7 +189,16 @@ class ADLClassifier(Classifier):
         self.model.voting_weights.update(voting_weight_items)
 
     def _high_lvl_learning(self, true_label: torch.Tensor, prediction: torch.Tensor, data: torch.Tensor):
+        # prune highly correlated layers:
+        # ------------------------------
 
+        # find correlated layers:
+        # compare the predictions of the layer pairwise
+        correlations = torch.corrcoef(self.model.layer_results)
+        # prune them
+
+        # grow the hidden layers to accommodate concept drift when it happens:
+        # -------------------------------------------------------------------
         if self.drift_detector.detected_change():
             # stack saved data if there is any onto the current instance to train with both
             if self.drift_warning_data is not None:
