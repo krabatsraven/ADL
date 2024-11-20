@@ -13,17 +13,17 @@ from ADLOptimizer import create_adl_optimizer
 from AutoDeepLearner import AutoDeepLearner
 from tests.resources import random_initialize_model, optimizer_choices
 
-from capymoa.datasets import Electricity
+from capymoa.datasets import Electricity, ElectricityTiny
 from capymoa.evaluation import ClassificationWindowedEvaluator, ClassificationEvaluator, prequential_evaluation
 from capymoa.classifier import AdaptiveRandomForestClassifier, HoeffdingTree, OnlineBagging
 
 if __name__ == "__main__":
-    elec_stream = Electricity()
+    elec_stream = ElectricityTiny()
     adl_classifier = ADLClassifier(schema=elec_stream.schema)
     
     results_ht = prequential_evaluation(stream=elec_stream, learner=adl_classifier, window_size=100, optimise=True, store_predictions=False, store_y=False)
 
-    print(f"total time spend in covariance loop: {adl_classifier.total_time_in_loop:.2E}ns, that equals {adl_classifier.total_time_in_loop / 10 ** 9}s or {adl_classifier.total_time_in_loop / 10 ** 9 /60}min")
+    print(f"total time spend in covariance loop: {adl_classifier.total_time_in_loop:.2E}ns, that equals {adl_classifier.total_time_in_loop / 10 ** 9:.2f}s or {adl_classifier.total_time_in_loop / 10 ** 9 /60:.2}min")
     
     print("\tDifferent ways of accessing metrics:")
     
@@ -45,6 +45,8 @@ if __name__ == "__main__":
     # results_ht.write_to_file() -> this will save the results to a directory
     
     plot_windowed_results(results_ht, metric= "accuracy")
+
+    print(f"the learner has {len(adl_classifier.model.layers)} hidden layers and {len(adl_classifier.model.voting_linear_layers)} output layers")
     
     
     # # drift detection testing:
