@@ -3,81 +3,112 @@ import random
 import numpy as np
 import torch
 from capymoa.drift.detectors import ADWIN
+from capymoa.evaluation.visualization import plot_windowed_results
 from capymoa.stream.drift import DriftStream, AbruptDrift, GradualDrift
 from capymoa.stream.generator import SEA
 from torch import nn
 
+from ADLClassifier import ADLClassifier
 from ADLOptimizer import create_adl_optimizer
 from AutoDeepLearner import AutoDeepLearner
 from tests.resources import random_initialize_model, optimizer_choices
 
 from capymoa.datasets import Electricity
-from capymoa.evaluation import ClassificationWindowedEvaluator, ClassificationEvaluator
+from capymoa.evaluation import ClassificationWindowedEvaluator, ClassificationEvaluator, prequential_evaluation
 from capymoa.classifier import AdaptiveRandomForestClassifier, HoeffdingTree, OnlineBagging
 
 if __name__ == "__main__":
-    # drift detection testing:
-    # -------------------------
-    data_stream = np.random.randint(2, size=2000)
-    for i in range(999, 2000):
-        data_stream[i] = np.random.randint(6, high=12)
-
     elec_stream = Electricity()
-    stream_sea2drift = DriftStream(stream=[SEA(function=1),
-                                           AbruptDrift(position=5000),
-                                           SEA(function=3),
-                                           GradualDrift(position=10000, width=2000),
-                                           # GradualDrift(start=9000, end=12000),
-                                           SEA(function=1)])
+    adl_classifier = ADLClassifier(schema=elec_stream.schema)
+    
+    results_ht = prequential_evaluation(stream=elec_stream, learner=adl_classifier, window_size=100, optimise=True, store_predictions=False, store_y=False)
 
-    active_stream = stream_sea2drift
-
-    ob_learner = AdaptiveRandomForestClassifier(schema=active_stream.get_schema(), ensemble_size=10)
-    ob_evaluator = ClassificationEvaluator(schema=active_stream.get_schema())
-    detector = ADWIN(delta=0.001)
-
-    feature_count = active_stream.schema.get_num_attributes()
-    class_count = active_stream.schema.get_num_classes()
-    iteration_count = random.randint(10, 250)
-
-    model: AutoDeepLearner = AutoDeepLearner(nr_of_features=feature_count, nr_of_classes=class_count)
-    local_optimizer = create_adl_optimizer(model, optimizer_choices[0], 0.01)
-
-    model = random_initialize_model(model, iteration_count)
-    criterion = nn.CrossEntropyLoss()
-
-    i = 0
-    while active_stream.has_more_instances() and i < 25_000:
-        i += 1
-        instance = active_stream.next_instance()
-        # prediction = ob_learner.predict(instance)
-        # ob_learner.train(instance)
-
-        prediction = model(torch.tensor(instance.x, dtype=torch.float))
-        ob_evaluator.update(instance.y_index, torch.argmax(prediction).item())
-
-        loss = criterion(prediction, torch.tensor(instance.y_index))
-        loss.backward()
-
-        local_optimizer.step(instance.y_index)
-        local_optimizer.zero_grad()
-
-        detector.add_element(loss)
-        if i % 100 == 0:
-            print(f'step {i}: loss: {loss}, accuracy: {ob_evaluator.accuracy()}')
-        if detector.detected_warning():
-            print('Warning for change in data: ' + str(active_stream.get_schema().dataset_name) + ' - at index: ' + str(i))
-        if detector.detected_change():
-            print('Change detected in data: ' + str(active_stream.get_schema().dataset_name) + ' - at index: ' + str(i))
-
-    print(detector.warning_index)
-    print(detector.detection_index)
+    print(f"total time spend in covariance loop: {adl_classifier.total_time_in_loop:.2E}ns, that equals {adl_classifier.total_time_in_loop / 10 ** 9}s or {adl_classifier.total_time_in_loop / 10 ** 9 /60}min")
+    
+    print("\tDifferent ways of accessing metrics:")
+    
+    print(f"results_ht['wallclock']: {results_ht['wallclock']} results_ht.wallclock(): {results_ht.wallclock()}")
+    print(f"results_ht['cpu_time']: {results_ht['cpu_time']} results_ht.cpu_time(): {results_ht.cpu_time()}")
+    
+    print(f"results_ht.cumulative.accuracy() = {results_ht.cumulative.accuracy()}")
+    print(f"results_ht.cumulative['accuracy'] = {results_ht.cumulative['accuracy']}")
+    print(f"results_ht['cumulative'].accuracy() = {results_ht['cumulative'].accuracy()}")
+    print(f"results_ht.accuracy() = {results_ht.accuracy()}")
+    
+    print(f"\n\tAll the cumulative results:")
+    print(results_ht.cumulative.metrics_dict())
+    
+    print(f"\n\tAll the windowed results:")
+    # display(results_ht.metrics_per_window())
+    # OR display(results_ht.windowed.metrics_per_window())
+    
+    # results_ht.write_to_file() -> this will save the results to a directory
+    
+    plot_windowed_results(results_ht, metric= "accuracy")
+    
+    
+    # # drift detection testing:
+    # # -------------------------
+    # data_stream = np.random.randint(2, size=2000)
+    # for i in range(999, 2000):
+    #     data_stream[i] = np.random.randint(6, high=12)
+    # 
+    # elec_stream = Electricity()
+    # stream_sea2drift = DriftStream(stream=[SEA(function=1),
+    #                                        AbruptDrift(position=5000),
+    #                                        SEA(function=3),
+    #                                        GradualDrift(position=10000, width=2000),
+    #                                        # GradualDrift(start=9000, end=12000),
+    #                                        SEA(function=1)])
+    # 
+    # active_stream = stream_sea2drift
+    # 
+    # ob_learner = AdaptiveRandomForestClassifier(schema=active_stream.get_schema(), ensemble_size=10)
+    # ob_evaluator = ClassificationEvaluator(schema=active_stream.get_schema())
+    # detector = ADWIN(delta=0.001)
+    # 
+    # feature_count = active_stream.schema.get_num_attributes()
+    # class_count = active_stream.schema.get_num_classes()
+    # iteration_count = random.randint(10, 250)
+    # 
+    # model: AutoDeepLearner = AutoDeepLearner(nr_of_features=feature_count, nr_of_classes=class_count)
+    # local_optimizer = create_adl_optimizer(model, optimizer_choices[0], 0.01)
+    # 
+    # model = random_initialize_model(model, iteration_count)
+    # criterion = nn.CrossEntropyLoss()
+    # 
+    # i = 0
+    # while active_stream.has_more_instances() and i < 25_000:
+    #     i += 1
+    #     instance = active_stream.next_instance()
+    #     # prediction = ob_learner.predict(instance)
+    #     # ob_learner.train(instance)
+    # 
+    #     prediction = model(torch.tensor(instance.x, dtype=torch.float))
+    #     ob_evaluator.update(instance.y_index, torch.argmax(prediction).item())
+    # 
+    #     loss = criterion(prediction, torch.tensor(instance.y_index))
+    #     loss.backward()
+    # 
+    #     local_optimizer.step(instance.y_index)
+    #     local_optimizer.zero_grad()
+    # 
+    #     detector.add_element(loss)
+    #     if i % 100 == 0:
+    #         print(f'step {i}: loss: {loss}, accuracy: {ob_evaluator.accuracy()}')
+    #     if detector.detected_warning():
+    #         print('Warning for change in data: ' + str(active_stream.get_schema().dataset_name) + ' - at index: ' + str(i))
+    #     if detector.detected_change():
+    #         print('Change detected in data: ' + str(active_stream.get_schema().dataset_name) + ' - at index: ' + str(i))
+    # 
+    # print(detector.warning_index)
+    # print(detector.detection_index)
     
     # capymoa hello world:
     # -------------------------
 
     # stream = Electricity()
-    #
+    # 
     # ARF = AdaptiveRandomForestClassifier(schema=stream.get_schema(), ensemble_size=10)
     # 
     # # The window_size in ClassificationWindowedEvaluator specifies the amount of instances used per evaluation
@@ -97,7 +128,7 @@ if __name__ == "__main__":
     # print(windowedEvaluatorARF.accuracy())
     # 
     # print(f'[ClassificationEvaluator] Cumulative accuracy: {classificationEvaluatorARF.accuracy()}')
-    # We could report the cumulative accuracy every window_size instances with the following code, but that is normally not very insightful.
+    # # We could report the cumulative accuracy every window_size instances with the following code, but that is normally not very insightful.
     # display(classificationEvaluatorARF.metrics_per_window())
 
     # simple pytorch usecase with randomized, predefined model

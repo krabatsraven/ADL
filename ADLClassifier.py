@@ -1,3 +1,4 @@
+import time
 from typing import Union, Optional
 
 import numpy as np
@@ -23,7 +24,7 @@ class ADLClassifier(Classifier):
             loss_fn=nn.CrossEntropyLoss(),
             device: str = ("cpu"),
             lr: float = 1e-3,
-            evaluator: ClassificationEvaluator = ClassificationEvaluator(),
+            evaluator: Optional[ClassificationEvaluator] = None,
             drift_detector: BaseDriftDetector = ADWIN(delta=0.001),
             drift_criterion: str = "accuracy",
             mci_threshold_for_layer_pruning: float = 0.5
@@ -47,7 +48,11 @@ class ADLClassifier(Classifier):
         else:
             self.optimizer = optimizer
 
-        self.evaluator: ClassificationEvaluator = evaluator
+        if evaluator is None:
+            self.evaluator = ClassificationEvaluator(self.schema)
+        else:
+            self.evaluator: ClassificationEvaluator = evaluator
+
         self.drift_detector: BaseDriftDetector = drift_detector
         self.__drift_criterion_switch = drift_criterion
 
@@ -55,6 +60,7 @@ class ADLClassifier(Classifier):
         self.drift_warning_label: Optional[torch.Tensor] = None
 
         self.mci_threshold_for_layer_pruning = mci_threshold_for_layer_pruning
+        self.total_time_in_loop = 0
 
     def __str__(self):
         return str(self.model)
@@ -63,18 +69,20 @@ class ADLClassifier(Classifier):
         return str('schema=None, random_seed=1, optimizer=None, loss_fn=nn.CrossEntropyLoss(), device=("cpu"), lr=1e-3 evaluator=ClassificationEvaluator(), drift_detector=ADWIN(delta=0.001), drift_criterion="accuracy"')
 
     def set_model(self, instance):
-        if self.schema is None:
+        if self.schema is not None:
+            self.model: AutoDeepLearner = AutoDeepLearner(
+                nr_of_features = self.schema.get_num_attributes(),
+                nr_of_classes = self.schema.get_num_classes()
+            ).to(self.device)
+
+        elif instance is not None:
             moa_instance = instance.java_instance.getData()
 
             self.model: AutoDeepLearner = AutoDeepLearner(
                 nr_of_features = moa_instance.get_num_attributes(),
                 nr_of_classes = moa_instance.get_num_classes()
             ).to(self.device)
-        elif instance is not None:
-            self.model: AutoDeepLearner = AutoDeepLearner(
-                nr_of_features = self.schema.get_num_attributes(),
-                nr_of_classes = self.schema.get_num_classes()
-            ).to(self.device)
+
 
     def train(self, instance):
         if self.model is None:
@@ -101,7 +109,6 @@ class ADLClassifier(Classifier):
         # todo: # 72
         self._high_lvl_learning(true_label=y, prediction=pred, data=X)
         # low lvl
-
         self.optimizer.zero_grad()
 
     def predict(self, instance):
@@ -122,7 +129,7 @@ class ADLClassifier(Classifier):
     # todo: new name for _adjust_weight()
     def _adjust_weights(self, true_label: torch.Tensor, step_size: float):
         # find the indices of the results that where correctly predicted
-        correctly_predicted_layers_indices = np.where(torch.argmax(self.model.layer_results, dim = 1) == true_label)
+        correctly_predicted_layers_indices = torch.where(torch.argmax(self.model.layer_results, dim = 1) == true_label)
         correctly_predicted_layers_mask = np.zeros(self.model.layer_result_keys.shape, dtype=bool)
         correctly_predicted_layers_mask[correctly_predicted_layers_indices] = True
 
@@ -202,10 +209,11 @@ class ADLClassifier(Classifier):
         n, m = self.model.layer_results.size()
         # to get all covariance values at once we reshape to (nr_of_layers * nr_of_classes, 1)
         # meaning: (layer_1_class_1_prob, layer_1_class_2_prob, ..., layer_1_class_m_prob, layer_2_class_1_prob, ...)
-        all_covariances_matrix  = torch.cov(torch.reshape(self.model.layer_results, (n * m, 1)))
+        all_covariances_matrix  = torch.cov(self.model.layer_results.reshape((n * m, 1)))
         variances = torch.diag(all_covariances_matrix)
         mci_values = torch.zeros((n, n, m))
-
+        
+        this_loop_start = time.time_ns()
         # Calculate MCI for each pair of layers
         for layer_i_idx in range(n):
             for layer_j_idx in range(layer_i_idx + 1, n):
@@ -225,6 +233,10 @@ class ADLClassifier(Classifier):
 
                     # Store the MCI in array for layer i and layer j
                     mci_values[layer_i_idx, layer_j_idx, class_o_idx] = mci
+
+        this_loop_stop = time.time_ns()
+        time_in_this_loop = this_loop_stop - this_loop_start
+        self.total_time_in_loop += time_in_this_loop
 
         # find the correlated pairs by comparing the max mci for each pairing against a user chosen threshold
         mci_max_values = torch.max(mci_values, dim=2).values

@@ -100,12 +100,12 @@ class AutoDeepLearner(nn.Module):
             assert all((self.output_layer_with_index_exists(index) for index in exclude_layer_indicies_in_training)), \
                 (f"Not all provided indicies are valid output layer indices, "
                  f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-            assert all(self.layers[index].requires_grad for index in exclude_layer_indicies_in_training), \
-                (f"Not all layers that where listed to be excluded from training are enabled,"
-                 f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-            assert all(self.get_output_layer(index).requires_grad for index in exclude_layer_indicies_in_training),\
-                (f"Not all output layers that where listed to be excluded from training are enabled,"
-                 f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
+            # assert all(self.layers[index].requires_grad for index in exclude_layer_indicies_in_training), \
+            #     (f"Not all layers that where listed to be excluded from training are enabled,"
+            #      f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
+            # assert all(self.get_output_layer(index).requires_grad for index in exclude_layer_indicies_in_training),\
+            #     (f"Not all output layers that where listed to be excluded from training are enabled,"
+            #      f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
 
             # set requires grad to False
             for excluded_index in exclude_layer_indicies_in_training:
@@ -118,16 +118,18 @@ class AutoDeepLearner(nn.Module):
         # calculate all y^i = s.max(W_{s_l}h^{l} + b_{s_l})
         # that are not currently pruned
         self.layer_result_keys = self.get_voting_weight_keys().numpy()
-        self.layer_results = torch.stack([nn.Softmax()(self.get_output_layer(i)(hidden_layers[i]))
+        layer_results = torch.stack([nn.Softmax()(self.get_output_layer(i)(hidden_layers[i]))
                                           for i in self.layer_result_keys])
+
+        self.layer_results = layer_results.reshape(len(self.layers), self.output_size)
 
         # add n empty dimensions at the end of betas dimensionality to allow for multiplying with the layer results:
         # e.g.: beta.size = (layers) -> beta.size = (layers, 1, 1) or beta.size = (layers, 1) if batch size is 1
         # n is 2 for a batch size greater than 1 else it is 1
-        betas = self.get_voting_weight_values()[(...,) + (None,) * (len(self.layer_results.size()) - 1)]
+        betas = self.get_voting_weight_values()[(...,) + (None,) * (len(layer_results.size()) - 1)]
 
         # calculated total voted/weighted class probability
-        total_weighted_class_probability = torch.mul(self.layer_results, betas).sum(dim=0)
+        total_weighted_class_probability = torch.mul(layer_results, betas).sum(dim=0)
         self.last_prediction = torch.argmax(total_weighted_class_probability)
 
         if exclude_layer_indicies_in_training is not None:
