@@ -18,14 +18,15 @@ class ADLClassifier(Classifier):
             self,
             schema: Optional[Schema] = None,
             random_seed: int = 1,
-            nn_model: Optional[nn.Module] = None,
+            nn_model: Optional[AutoDeepLearner] = None,
             optimizer: Optional[Optimizer] = None,
             loss_fn=nn.CrossEntropyLoss(),
             device: str = ("cpu"),
             lr: float = 1e-3,
             evaluator: ClassificationEvaluator = ClassificationEvaluator(),
             drift_detector: BaseDriftDetector = ADWIN(delta=0.001),
-            drift_criterion: str = "accuracy"
+            drift_criterion: str = "accuracy",
+            mci_threshold_for_layer_pruning: float = 0.5
     ):
 
         super().__init__(schema, random_seed)
@@ -53,6 +54,8 @@ class ADLClassifier(Classifier):
         self.drift_warning_data: Optional[torch.Tensor] = None
         self.drift_warning_label: Optional[torch.Tensor] = None
 
+        self.mci_threshold_for_layer_pruning = mci_threshold_for_layer_pruning
+
     def __str__(self):
         return str(self.model)
 
@@ -63,12 +66,12 @@ class ADLClassifier(Classifier):
         if self.schema is None:
             moa_instance = instance.java_instance.getData()
 
-            self.model = AutoDeepLearner(
+            self.model: AutoDeepLearner = AutoDeepLearner(
                 nr_of_features = moa_instance.get_num_attributes(),
                 nr_of_classes = moa_instance.get_num_classes()
             ).to(self.device)
         elif instance is not None:
-            self.model = AutoDeepLearner(
+            self.model: AutoDeepLearner = AutoDeepLearner(
                 nr_of_features = self.schema.get_num_attributes(),
                 nr_of_classes = self.schema.get_num_classes()
             ).to(self.device)
@@ -194,8 +197,58 @@ class ADLClassifier(Classifier):
 
         # find correlated layers:
         # compare the predictions of the layer pairwise
-        correlations = torch.corrcoef(self.model.layer_results)
+        # layer_results are the stacked result_i, where result_i stems from output layer i
+        # meaning the shape is (nr_of_layers, nr_of_classes)
+        n, m = self.model.layer_results.size()
+        # to get all covariance values at once we reshape to (nr_of_layers * nr_of_classes, 1)
+        # meaning: (layer_1_class_1_prob, layer_1_class_2_prob, ..., layer_1_class_m_prob, layer_2_class_1_prob, ...)
+        all_covariances_matrix  = torch.cov(torch.reshape(self.model.layer_results, (n * m, 1)))
+        variances = torch.diag(all_covariances_matrix)
+        mci_values = torch.zeros((n, n, m))
+
+        # Calculate MCI for each pair of layers
+        for layer_i_idx in range(n):
+            for layer_j_idx in range(layer_i_idx + 1, n):
+                for class_o_idx in range(m):
+                    i = layer_i_idx*m + class_o_idx
+                    j = layer_j_idx*m + class_o_idx
+                    # Get auto-covariances (variances) and cross-covariance
+                    variance_i = variances[i]
+                    variance_j = variances[j]
+                    cov_ij = all_covariances_matrix[i, j]
+
+                    # Calculate Pearson correlation
+                    pearson_corr = cov_ij / torch.sqrt(variance_i * variance_j)
+
+                    # Calculate MCI using the formula
+                    mci = 0.5 * (variance_i + variance_j) - torch.sqrt((variance_i + variance_j)**2 - 4 * variance_i * variance_j * (1 - pearson_corr**2))
+
+                    # Store the MCI in array for layer i and layer j
+                    mci_values[layer_i_idx, layer_j_idx, class_o_idx] = mci
+
+        # find the correlated pairs by comparing the max mci for each pairing against a user chosen threshold
+        mci_max_values = torch.max(mci_values, dim=2).values
+        # the pair (0, 1) and (1, 0) should only appear once
+        # later we prioritize to delete layer j before layer i if i < j
+        correlated_pairs = ((mci_max_values > self.mci_threshold_for_layer_pruning)
+                            .nonzero()
+                            .sort(dim = -1)[0]
+                            .unique(dim=0, sorted=True, return_counts=False, return_inverse=False)
+                            .flip(dims=(0,))
+                            )
         # prune them
+        for index_tensor_of_layer_i, index_tensor_of_layer_j in correlated_pairs:
+            index_of_layer_i, index_of_layer_j = index_tensor_of_layer_i.item(), index_tensor_of_layer_j.item()
+            # todo: issue #80
+            if self.model.output_layer_with_index_exists(index_of_layer_i) and self.model.output_layer_with_index_exists(index_of_layer_j):
+                if self.model.get_voting_weight(index_of_layer_i) < self.model.get_voting_weight(index_of_layer_j):
+                    # layer_i has the smaller voting weight and gets pruned
+                    self.model._prune_layer_by_vote_removal(index_of_layer_i)
+                else:
+                    # voting_weight(j) <= voting_weight(i) => prune j
+                    # as i <= j is guaranteed by beforehand sorting
+                    # we prune j if voting_weight(i) == voting_weight(j)
+                    self.model._prune_layer_by_vote_removal(index_of_layer_j)
 
         # grow the hidden layers to accommodate concept drift when it happens:
         # -------------------------------------------------------------------
