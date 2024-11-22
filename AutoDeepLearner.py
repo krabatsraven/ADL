@@ -23,9 +23,10 @@ class AutoDeepLearner(nn.Module):
 
         # assumes that at least a single concept is to be learned in a data stream
         # list of all dynamic layers, starting with a single layer in the shape (in, 1)
+        self.layers: nn.ModuleList = nn.ModuleList()
+
         first_hidden_layer = nn.Linear(nr_of_features, 1, dtype=torch.float)
         nn.init.xavier_normal_(first_hidden_layer.weight)
-        self.layers: nn.ModuleList = nn.ModuleList()
         self.layers.append(first_hidden_layer)
 
         # list of all linear layers for the voting part, starts with a single layer in the shape (1, out)
@@ -70,7 +71,7 @@ class AutoDeepLearner(nn.Module):
         # therefore it is necessary to save the last prediction
         self.last_prediction: Optional[torch.Tensor] = None
 
-    def forward(self, x: torch.Tensor, exclude_layer_indicies_in_training: Optional[List[int]] = None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         returns the classification from self.output_size many classes stemming from the data input x
         alternative: defines the forward pass through the network
@@ -87,30 +88,30 @@ class AutoDeepLearner(nn.Module):
             assert x.size()[0] == self.input_size, \
                 f"Given batch of data has {x.size()[0]} many features, expected where {self.input_size}"
 
-        if exclude_layer_indicies_in_training is not None:
-            # check whether the indicies provided to be excluded from training are valid:
-            # todo: test this part
-            assert all((isinstance(elem, int) for elem in exclude_layer_indicies_in_training)), \
-                (f"the provided list of indicies to exclude in training does not consist of only ints: "
-                 f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-            assert all((0 <= index < len(self.layers) for index in exclude_layer_indicies_in_training)), \
-                ("The provided list of indicies to exclude in training does not consist only of indicies,"
-                 "that are valid for the list of hidden layers"
-                 f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-            assert all((self.output_layer_with_index_exists(index) for index in exclude_layer_indicies_in_training)), \
-                (f"Not all provided indicies are valid output layer indices, "
-                 f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-            # assert all(self.layers[index].requires_grad for index in exclude_layer_indicies_in_training), \
-            #     (f"Not all layers that where listed to be excluded from training are enabled,"
-            #      f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-            # assert all(self.get_output_layer(index).requires_grad for index in exclude_layer_indicies_in_training),\
-            #     (f"Not all output layers that where listed to be excluded from training are enabled,"
-            #      f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-
-            # set requires grad to False
-            for excluded_index in exclude_layer_indicies_in_training:
-                self.layers[excluded_index].requires_grad_(requires_grad=False)
-                self.get_output_layer(excluded_index).requires_grad_(requires_grad=False)
+        # if exclude_layer_indicies_in_training is not None:
+        #     # check whether the indicies provided to be excluded from training are valid:
+        #     # todo: test this part
+        #     assert all((isinstance(elem, int) for elem in exclude_layer_indicies_in_training)), \
+        #         (f"the provided list of indicies to exclude in training does not consist of only ints: "
+        #          f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
+        #     assert all((0 <= index < len(self.layers) for index in exclude_layer_indicies_in_training)), \
+        #         ("The provided list of indicies to exclude in training does not consist only of indicies,"
+        #          "that are valid for the list of hidden layers"
+        #          f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
+        #     assert all((self.output_layer_with_index_exists(index) for index in exclude_layer_indicies_in_training)), \
+        #         (f"Not all provided indicies are valid output layer indices, "
+        #          f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
+        #     # assert all(self.layers[index].requires_grad for index in exclude_layer_indicies_in_training), \
+        #     #     (f"Not all layers that where listed to be excluded from training are enabled,"
+        #     #      f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
+        #     # assert all(self.get_output_layer(index).requires_grad for index in exclude_layer_indicies_in_training),\
+        #     #     (f"Not all output layers that where listed to be excluded from training are enabled,"
+        #     #      f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
+        #
+        #     # set requires grad to False
+        #     for excluded_index in exclude_layer_indicies_in_training:
+        #         self.layers[excluded_index].requires_grad_(requires_grad=False)
+        #         self.get_output_layer(excluded_index).requires_grad_(requires_grad=False)
 
         # calculate all h^{l} = \sigma(W^{l} h^{(l-1)} + b^{l}), h^{(0)} = x
         hidden_layers: List[torch.Tensor] = [x := nn.Sigmoid()(layer(x)) for layer in self.layers]
@@ -132,13 +133,67 @@ class AutoDeepLearner(nn.Module):
         total_weighted_class_probability = torch.mul(layer_results, betas).sum(dim=0)
         self.last_prediction = torch.argmax(total_weighted_class_probability)
 
-        if exclude_layer_indicies_in_training is not None:
-            # set requires grad to True/ re-enable them
-            for excluded_index in exclude_layer_indicies_in_training:
-                self.layers[excluded_index].requires_grad_(requires_grad=True)
-                self.get_output_layer(excluded_index).requires_grad_(requires_grad=True)
+        # if exclude_layer_indicies_in_training is not None:
+        #     # set requires grad to True/ re-enable them
+        #     for excluded_index in exclude_layer_indicies_in_training:
+        #         self.layers[excluded_index].requires_grad_(requires_grad=True)
+        #         self.get_output_layer(excluded_index).requires_grad_(requires_grad=True)
 
         return total_weighted_class_probability
+
+    def _disable_layers_for_training(self, layer_indicies: List[int]):
+        assert all((isinstance(elem, int) for elem in layer_indicies)), \
+            (f"the provided list of indicies to exclude in training does not consist of only ints: "
+             f"exclude_layer_indicies_in_training={layer_indicies}")
+        assert all((0 <= index < len(self.layers) for index in layer_indicies)), \
+            ("The provided list of indicies to exclude in training does not consist only of indicies,"
+             "that are valid for the list of hidden layers"
+             f"exclude_layer_indicies_in_training={layer_indicies}")
+        assert all((self.output_layer_with_index_exists(index) for index in layer_indicies)), \
+            (f"Not all provided indicies are valid output layer indices, "
+             f"exclude_layer_indicies_in_training={layer_indicies}")
+        assert all(
+            (self.layers[index].weight.requires_grad and self.layers[index].bias.requires_grad)
+            for index in layer_indicies), \
+            (f"Not all layers that where listed to be excluded from training are enabled,"
+             f"exclude_layer_indicies_in_training={layer_indicies}")
+        assert all(
+            (self.get_output_layer(index).weight.requires_grad and self.get_output_layer(index).bias.requires_grad)
+            for index in layer_indicies), \
+            (f"Not all output layers that where listed to be excluded from training are enabled,"
+             f"exclude_layer_indicies_in_training={layer_indicies}")
+
+        # set requires grad to False
+        for excluded_index in layer_indicies:
+            self.layers[excluded_index].requires_grad_(requires_grad=False)
+            self.get_output_layer(excluded_index).requires_grad_(requires_grad=False)
+
+    def _enable_layers_for_training(self, layer_indicies: List[int]):
+        assert all((isinstance(elem, int) for elem in layer_indicies)), \
+            (f"the provided list of indicies to exclude in training does not consist of only ints: "
+             f"exclude_layer_indicies_in_training={layer_indicies}")
+        assert all((0 <= index < len(self.layers) for index in layer_indicies)), \
+            ("The provided list of indicies to exclude in training does not consist only of indicies,"
+             "that are valid for the list of hidden layers"
+             f"exclude_layer_indicies_in_training={layer_indicies}")
+        assert all((self.output_layer_with_index_exists(index) for index in layer_indicies)), \
+            (f"Not all provided indicies are valid output layer indices, "
+             f"exclude_layer_indicies_in_training={layer_indicies}")
+        assert not any(
+            (self.layers[index].weight.requires_grad or self.layers[index].bias.requires_grad)
+            for index in layer_indicies), \
+            (f"Not all layers that where listed to be enabled for training were disabled,"
+             f"exclude_layer_indicies_in_training={layer_indicies}")
+        assert not any(
+            (self.get_output_layer(index).weight.requires_grad or self.get_output_layer(index).bias.requires_grad)
+            for index in layer_indicies), \
+            (f"Not all output layers that where listed to be enabled for training are disabled,"
+             f"exclude_layer_indicies_in_training={layer_indicies}")
+
+        # set requires grad to True
+        for excluded_index in layer_indicies:
+            self.layers[excluded_index].requires_grad_(requires_grad=True)
+            self.get_output_layer(excluded_index).requires_grad_(requires_grad=True)
 
     def _add_layer(self) -> None:
         """

@@ -27,7 +27,7 @@ class ADLClassifier(Classifier):
             evaluator: Optional[ClassificationEvaluator] = None,
             drift_detector: BaseDriftDetector = ADWIN(delta=0.001),
             drift_criterion: str = "accuracy",
-            mci_threshold_for_layer_pruning: float = 0.5
+            mci_threshold_for_layer_pruning: float = 0.05
     ):
 
         super().__init__(schema, random_seed)
@@ -209,6 +209,7 @@ class ADLClassifier(Classifier):
         n, m = self.model.layer_results.size()
         # to get all covariance values at once we reshape to (nr_of_layers * nr_of_classes, 1)
         # meaning: (layer_1_class_1_prob, layer_1_class_2_prob, ..., layer_1_class_m_prob, layer_2_class_1_prob, ...)
+        # todo: torch.cov returns only nans
         all_covariances_matrix  = torch.cov(self.model.layer_results.reshape((n * m, 1)))
         variances = torch.diag(all_covariances_matrix)
         mci_values = torch.zeros((n, n, m))
@@ -239,15 +240,18 @@ class ADLClassifier(Classifier):
         self.total_time_in_loop += time_in_this_loop
 
         # find the correlated pairs by comparing the max mci for each pairing against a user chosen threshold
-        mci_max_values = torch.max(mci_values, dim=2).values
+        mci_max_values = (torch.max(torch.absolute(mci_values), dim=2).values)
         # the pair (0, 1) and (1, 0) should only appear once
         # later we prioritize to delete layer j before layer i if i < j
-        correlated_pairs = ((mci_max_values > self.mci_threshold_for_layer_pruning)
+        # the maximal mci for a layer pair has to be smaller than the users threshold
+        #  todo: i added the condition that it has to be bigger than zero as that would mean that two values are not correlated/ or computed
+        correlated_pairs = ((torch.logical_and(mci_max_values < self.mci_threshold_for_layer_pruning, 0 < mci_max_values))
                             .nonzero()
                             .sort(dim = -1)[0]
                             .unique(dim=0, sorted=True, return_counts=False, return_inverse=False)
                             .flip(dims=(0,))
                             )
+
         # prune them
         for index_tensor_of_layer_i, index_tensor_of_layer_j in correlated_pairs:
             index_of_layer_i, index_of_layer_j = index_tensor_of_layer_i.item(), index_tensor_of_layer_j.item()
@@ -262,6 +266,9 @@ class ADLClassifier(Classifier):
                     # we prune j if voting_weight(i) == voting_weight(j)
                     self.model._prune_layer_by_vote_removal(index_of_layer_j)
 
+        # update the optimizer after pruning:
+        self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
+
         # grow the hidden layers to accommodate concept drift when it happens:
         # -------------------------------------------------------------------
         if self.drift_detector.detected_change():
@@ -272,6 +279,8 @@ class ADLClassifier(Classifier):
 
             # add layer
             self.model._add_layer()
+            # update optimizer after adding a layer
+            self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
 
             # train the layer:
             # todo: question #69
@@ -279,12 +288,16 @@ class ADLClassifier(Classifier):
                     # originaly they create a new network with only one layer and train the weights there
                     # can we just delete the gradients of all weights not in the new layer?
                 # train by gradient
-            pred = self.model.forward(data, exclude_layer_indicies_in_training=list(range(len(self.model.layers) - 1)))
+            # disable all but the newest layer:
+            self.model._disable_layers_for_training(list(range(len(self.model.layers) - 1)))
+            pred = self.model.forward(data)
             loss = self.loss_function(pred, true_label)
 
             # Backpropagation
             loss.backward()
             self.optimizer.step()
+            # reactivate all but the newest layer (the newest should already be active):
+            self.model._enable_layers_for_training(list(range(len(self.model.layers) - 1)))
             # low level training
             # todo: comment in low level if implemented
             # self._low_lvl_learning()
