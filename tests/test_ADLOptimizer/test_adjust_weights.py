@@ -66,13 +66,13 @@ class TestAdjustWeights:
     @pytest.mark.parametrize('optimizer_choice', optimizer_choices)
     def test_votes_all_change(self, model: AutoDeepLearner, optimizer_choice: torch.optim.Optimizer, feature_count: int, class_count: int):
 
-        initial_votes = {int(key): model.get_voting_weight(int(key)) for key in model.get_voting_weight_keys()} # deepcopy(model.voting_weights)
+        initial_votes = {int(key): model.get_voting_weight(int(key)) for key in model.get_keys_of_active_layers()} # deepcopy(model.voting_weights)
 
         local_optimizer = self.setup_test(model, optimizer_choice, feature_count, class_count, 0.01)
 
         weights_are_same = [
             initial_votes[int(key)] == model.get_voting_weight(int(key)) 
-            for key in model.get_voting_weight_keys() 
+            for key in model.get_keys_of_active_layers() 
             if not (
                     initial_votes[int(key)] == model.get_voting_weight(int(key)) == model.upper_voting_weight_boarder 
                     or
@@ -93,7 +93,7 @@ class TestAdjustWeights:
 
         initial_weight_correction_factors_are_same = [
             initial_weight_correction_factors[int(key)] == model.get_weight_correction_factor(int(key))
-            for key in model.get_voting_weight_keys()
+            for key in model.get_keys_of_active_layers()
             if not (
                     initial_weight_correction_factors[int(key)] == model.get_weight_correction_factor(int(key)) == model.upper_weigth_correction_factor_boarder
                     or

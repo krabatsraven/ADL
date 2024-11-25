@@ -24,7 +24,7 @@ if __name__ == "__main__":
     ### capymoa training of classifier on a stream:
     ### -------------------------------------------
     elec_stream = ElectricityTiny()
-    adl_classifier = ADLClassifier(schema=elec_stream.schema, mci_threshold_for_layer_pruning=0.99)
+    adl_classifier = ADLClassifier(schema=elec_stream.schema)
 
     total_time_start = time.time_ns()
     results_ht = prequential_evaluation(stream=elec_stream, learner=adl_classifier, window_size=100, optimise=True, store_predictions=False, store_y=False)

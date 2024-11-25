@@ -118,11 +118,14 @@ class AutoDeepLearner(nn.Module):
 
         # calculate all y^i = s.max(W_{s_l}h^{l} + b_{s_l})
         # that are not currently pruned
-        self.layer_result_keys = self.get_voting_weight_keys().numpy()
-        layer_results = torch.stack([nn.Softmax()(self.get_output_layer(i)(hidden_layers[i]))
+        self.layer_result_keys = self.get_keys_of_active_layers().numpy()
+        layer_results = torch.stack([nn.Softmax(dim=-1)(self.get_output_layer(i)(hidden_layers[i]))
                                           for i in self.layer_result_keys])
 
-        self.layer_results = layer_results.reshape(len(self.layers), self.output_size)
+        # todo: change to support shape=(x,N,M) where N = nr of hidden layers, M = nr of classes and x = nr of instances
+        # todo: currently it is assumed that x is 1, but:
+        # todo: currently expected a bug if more than one instances is fed into the network at once
+        self.layer_results = layer_results.flatten(end_dim=1)
 
         # add n empty dimensions at the end of betas dimensionality to allow for multiplying with the layer results:
         # e.g.: beta.size = (layers) -> beta.size = (layers, 1, 1) or beta.size = (layers, 1) if batch size is 1
@@ -210,7 +213,6 @@ class AutoDeepLearner(nn.Module):
 
         # add new hidden layer to layer list
         idx_of_new_layer = len(self.layers)
-        # self.layers.add_module(f"hidden_layer l={idx_of_new_layer}", new_layer)
         self.layers.append(new_layer)
 
         # add new output layer
@@ -241,8 +243,8 @@ class AutoDeepLearner(nn.Module):
         assert self.weight_correction_factor_with_index_exists(layer_index), \
             (f"cannot remove the layer with the index {layer_index}, "
              f"as it is not a layer that has no weight correction factor")
-        assert (any(True for value in self.get_voting_weight_values()[:layer_index] if value != 0)
-                or any(True for value in self.get_voting_weight_values()[layer_index + 1:] if value != 0)), \
+        assert (any((value != 0) for value in self.get_voting_weight_values()[:layer_index]) 
+                or any((value != 0) for value in self.get_voting_weight_values()[layer_index + 1:])), \
             (f"cannot remove the layer with the index {layer_index}, "
              f"as it is the last layer with a non zero voting weight")
 
@@ -256,7 +258,7 @@ class AutoDeepLearner(nn.Module):
         self._normalise_voting_weights()
 
     def _normalise_voting_weights(self) -> None:
-        voting_weights_keys_vector = self.get_voting_weight_keys()
+        voting_weights_keys_vector = self.get_keys_of_active_layers()
         voting_weights_values_vector = self.get_voting_weight_values()
 
         norm_of_voting_weights = torch.linalg.norm(voting_weights_values_vector, ord=2, dim=0)
@@ -428,7 +430,7 @@ class AutoDeepLearner(nn.Module):
         """
         return str(int(layer_index)) in self.voting_weights.keys()
 
-    def get_voting_weight_keys(self) -> torch.Tensor:
+    def get_keys_of_active_layers(self) -> torch.Tensor:
         """
         :returns all indicies of all layers in self.layers that have a voting weight associated with them
         as ParamDict is ordered it should hold that if voting weight of layer i w_i exists 

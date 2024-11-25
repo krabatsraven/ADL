@@ -45,12 +45,12 @@ class TestAutoDeepLearnerNormaliseVotingWeights:
         del model
 
     def test_static_method_returns_false_on_not_normalised_vector(self, model: AutoDeepLearner, nr_of_layers: int):
-        key_choice = random.choice(model.get_voting_weight_keys())
+        key_choice = random.choice(model.get_keys_of_active_layers())
         model._AutoDeepLearner__set_voting_weight(int(key_choice), 2.0)
         assert not has_normalised_voting_weights(model), "The voting weights should not be normalised anymore"
 
     def test_static_method_returns_true_on_normalised_vector(self, model: AutoDeepLearner):
-        for key in model.get_voting_weight_keys():
+        for key in model.get_keys_of_active_layers():
             if key != 0:
                 model._AutoDeepLearner__set_voting_weight(int(key), 0.0)
             else:
@@ -66,7 +66,7 @@ class TestAutoDeepLearnerNormaliseVotingWeights:
             "The model should still possess a normalised voting vector after normalising a normalised vector"
 
     def test_normalise_works_on_not_normalised_vectors(self, model: AutoDeepLearner):
-        for key in model.get_voting_weight_keys():
+        for key in model.get_keys_of_active_layers():
             if key != 0:
                 model._AutoDeepLearner__set_voting_weight(int(key), random.randint(0, 100))
             else:
@@ -79,7 +79,7 @@ class TestAutoDeepLearnerNormaliseVotingWeights:
             "The model should possess a normalised voting vector after normalising"
 
     def test_normalise_raises_on_all_zeros_voting_weights_vector(self, model: AutoDeepLearner):
-        for key in model.get_voting_weight_keys():
+        for key in model.get_keys_of_active_layers():
             model._AutoDeepLearner__set_voting_weight(int(key), 0)
 
         with pytest.raises(Exception) as excinfo:
@@ -88,7 +88,7 @@ class TestAutoDeepLearnerNormaliseVotingWeights:
         assert str(excinfo.value) == "The voting weights vector has a length of zero and cannot be normalised"
 
     def test_normalise_does_not_break_forward_on_single_batch(self, model: AutoDeepLearner, feature_count: int, class_count: int):
-        for key in model.get_voting_weight_keys():
+        for key in model.get_keys_of_active_layers():
             if key != 0:
                 model._AutoDeepLearner__set_voting_weight(int(key), random.randint(0, 100))
             else:
@@ -104,7 +104,7 @@ class TestAutoDeepLearnerNormaliseVotingWeights:
         )
 
     def test_normalise_does_not_break_forward_on_multiple_batch(self, model: AutoDeepLearner, feature_count: int, class_count: int):
-        for key in model.get_voting_weight_keys():
+        for key in model.get_keys_of_active_layers():
             if key != 0:
                 model._AutoDeepLearner__set_voting_weight(int(key), random.randint(0, 100))
             else:

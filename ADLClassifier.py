@@ -60,6 +60,7 @@ class ADLClassifier(Classifier):
         self.drift_warning_label: Optional[torch.Tensor] = None
 
         self.mci_threshold_for_layer_pruning = mci_threshold_for_layer_pruning
+        self.all_results_of_all_hidden_layers_ever: Optional[torch.Tensor] = None
         self.total_time_in_loop = 0
 
     def __str__(self):
@@ -199,6 +200,56 @@ class ADLClassifier(Classifier):
         self.model.voting_weights.update(voting_weight_items)
 
     def _high_lvl_learning(self, true_label: torch.Tensor, prediction: torch.Tensor, data: torch.Tensor):
+        self.__high_level_learning_pruning_hidden_layers()
+
+        # grow the hidden layers to accommodate concept drift when it happens:
+        # -------------------------------------------------------------------
+        if self.drift_detector.detected_change():
+            # stack saved data if there is any onto the current instance to train with both
+            if self.drift_warning_data is not None:
+                data = torch.stack((self.drift_warning_data, data))
+                true_label = torch.stack((self.drift_warning_label, true_label))
+
+            # add layer
+            self.model._add_layer()
+            self.all_results_of_all_hidden_layers_ever = None
+            # update optimizer after adding a layer
+            self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
+
+            # train the layer:
+            # todo: question #69
+                # freeze the parameters not new:
+                    # originaly they create a new network with only one layer and train the weights there
+                    # can we just delete the gradients of all weights not in the new layer?
+                # train by gradient
+            # disable all but the newest layer:
+            active_layers_not_just_added = self.model.get_keys_of_active_layers().tolist()[:-1]
+            self.model._disable_layers_for_training(active_layers_not_just_added)
+            pred = self.model.forward(data)
+            loss = self.loss_function(pred, true_label)
+
+            # Backpropagation
+            loss.backward()
+            self.optimizer.step()
+            # reactivate all but the newest layer (the newest should already be active):
+            self.model._enable_layers_for_training(active_layers_not_just_added)
+            # low level training
+            # todo: comment in low level if implemented
+            # self._low_lvl_learning()
+            pass
+
+        elif self.drift_detector.detected_warning():
+            # store instance
+            # todo: question: #70
+            self.drift_warning_data = data
+            self.drift_warning_label = true_label
+
+        else:
+            # stable phase means deletion of buffered warning instances
+            self.drift_warning_data = None
+            self.drift_warning_label = None
+
+    def __high_level_learning_pruning_hidden_layers(self):
         # prune highly correlated layers:
         # ------------------------------
 
@@ -206,16 +257,33 @@ class ADLClassifier(Classifier):
         # compare the predictions of the layer pairwise
         # layer_results are the stacked result_i, where result_i stems from output layer i
         # meaning the shape is (nr_of_layers, nr_of_classes)
-        n, m = self.model.layer_results.size()
-        # to get all covariance values at once we reshape to (nr_of_layers * nr_of_classes, 1)
-        # meaning: (layer_1_class_1_prob, layer_1_class_2_prob, ..., layer_1_class_m_prob, layer_2_class_1_prob, ...)
-        # todo: torch.cov returns only nans
-        all_covariances_matrix  = torch.cov(self.model.layer_results.reshape((n * m, 1)))
+        n = self.model.get_keys_of_active_layers().size(dim=0)
+        m = self.model.output_size
+        # to get all covariance values at once we reshape to (nr_of_layers * nr_of_classes, x),
+        # where x is the nr of instances seen
+        # meaning: (layer_1_class_1_prob, layer_1_class_2_prob, ..., layer_1_class_m_prob, layer_2_class_1_prob, ...), (2. instance)
+        current_results = self.model.layer_results.flatten().reshape(-1, n * m).transpose(0,1)
+
+        # todo: currently we stack all results and calculate the covariance in each step anew, 
+        # todo: this can be done in a on-stream fashion: see issue # ?? 
+        if self.all_results_of_all_hidden_layers_ever is not None:
+            self.all_results_of_all_hidden_layers_ever = torch.cat((self.all_results_of_all_hidden_layers_ever, current_results), dim=1)
+        else:
+            self.all_results_of_all_hidden_layers_ever = current_results
+
+        if self.model.get_keys_of_active_layers().size(dim=0) < 2 or self.all_results_of_all_hidden_layers_ever.size(dim=-1) == 1:
+            # if there are less than 2 active layers we cannot find a correlated layer
+            # also if there are less than 2 different results for all layers (right after changing of a layer) 
+            # we would divide by 0 (corrected statistical covariance)
+            return
+
+        all_covariances_matrix = torch.cov(self.all_results_of_all_hidden_layers_ever)
         variances = torch.diag(all_covariances_matrix)
-        mci_values = torch.zeros((n, n, m))
-        
+        mci_values = -1 * torch.ones((n, n, m))
+
         this_loop_start = time.time_ns()
         # Calculate MCI for each pair of layers
+        # todo: eventual: this is a big part of the calculation atm and should be parallelized
         for layer_i_idx in range(n):
             for layer_j_idx in range(layer_i_idx + 1, n):
                 for class_o_idx in range(m):
@@ -233,19 +301,18 @@ class ADLClassifier(Classifier):
                     mci = 0.5 * (variance_i + variance_j) - torch.sqrt((variance_i + variance_j)**2 - 4 * variance_i * variance_j * (1 - pearson_corr**2))
 
                     # Store the MCI in array for layer i and layer j
-                    mci_values[layer_i_idx, layer_j_idx, class_o_idx] = mci
+                    mci_values[layer_i_idx, layer_j_idx, class_o_idx] = torch.absolute(mci)
 
         this_loop_stop = time.time_ns()
         time_in_this_loop = this_loop_stop - this_loop_start
         self.total_time_in_loop += time_in_this_loop
 
         # find the correlated pairs by comparing the max mci for each pairing against a user chosen threshold
-        mci_max_values = (torch.max(torch.absolute(mci_values), dim=2).values)
+        mci_max_values = (torch.max(mci_values, dim=2).values)
         # the pair (0, 1) and (1, 0) should only appear once
         # later we prioritize to delete layer j before layer i if i < j
         # the maximal mci for a layer pair has to be smaller than the users threshold
-        #  todo: i added the condition that it has to be bigger than zero as that would mean that two values are not correlated/ or computed
-        correlated_pairs = ((torch.logical_and(mci_max_values < self.mci_threshold_for_layer_pruning, 0 < mci_max_values))
+        correlated_pairs = ((torch.logical_and(mci_max_values < self.mci_threshold_for_layer_pruning, 0 <= mci_max_values))
                             .nonzero()
                             .sort(dim = -1)[0]
                             .unique(dim=0, sorted=True, return_counts=False, return_inverse=False)
@@ -266,53 +333,10 @@ class ADLClassifier(Classifier):
                     # we prune j if voting_weight(i) == voting_weight(j)
                     self.model._prune_layer_by_vote_removal(index_of_layer_j)
 
+                self.all_results_of_all_hidden_layers_ever = None
+
         # update the optimizer after pruning:
         self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
-
-        # grow the hidden layers to accommodate concept drift when it happens:
-        # -------------------------------------------------------------------
-        if self.drift_detector.detected_change():
-            # stack saved data if there is any onto the current instance to train with both
-            if self.drift_warning_data is not None:
-                data = torch.stack((self.drift_warning_data, data))
-                true_label = torch.stack((self.drift_warning_label, true_label))
-
-            # add layer
-            self.model._add_layer()
-            # update optimizer after adding a layer
-            self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
-
-            # train the layer:
-            # todo: question #69
-                # freeze the parameters not new:
-                    # originaly they create a new network with only one layer and train the weights there
-                    # can we just delete the gradients of all weights not in the new layer?
-                # train by gradient
-            # disable all but the newest layer:
-            self.model._disable_layers_for_training(list(range(len(self.model.layers) - 1)))
-            pred = self.model.forward(data)
-            loss = self.loss_function(pred, true_label)
-
-            # Backpropagation
-            loss.backward()
-            self.optimizer.step()
-            # reactivate all but the newest layer (the newest should already be active):
-            self.model._enable_layers_for_training(list(range(len(self.model.layers) - 1)))
-            # low level training
-            # todo: comment in low level if implemented
-            # self._low_lvl_learning()
-            pass
-
-        elif self.drift_detector.detected_warning():
-            # store instance
-            # todo: question: #70
-            self.drift_warning_data = data
-            self.drift_warning_label = true_label
-
-        else:
-            # stable phase means deletion of buffered warning instances
-            self.drift_warning_data = None
-            self.drift_warning_label = None
 
     def _low_lvl_learning(self):
         raise NotImplementedError
