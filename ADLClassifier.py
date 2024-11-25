@@ -211,6 +211,7 @@ class ADLClassifier(Classifier):
                 true_label = torch.stack((self.drift_warning_label, true_label))
 
             # add layer
+            active_layers_before_adding = self.model.get_keys_of_active_layers().tolist()
             self.model._add_layer()
             self.all_results_of_all_hidden_layers_ever = None
             # update optimizer after adding a layer
@@ -222,9 +223,8 @@ class ADLClassifier(Classifier):
                     # originaly they create a new network with only one layer and train the weights there
                     # can we just delete the gradients of all weights not in the new layer?
                 # train by gradient
-            # disable all but the newest layer:
-            active_layers_not_just_added = self.model.get_keys_of_active_layers().tolist()[:-1]
-            self.model._disable_layers_for_training(active_layers_not_just_added)
+            # disable all active layers that were not just added:
+            self.model._disable_layers_for_training(active_layers_before_adding)
             pred = self.model.forward(data)
             loss = self.loss_function(pred, true_label)
 
@@ -232,7 +232,7 @@ class ADLClassifier(Classifier):
             loss.backward()
             self.optimizer.step()
             # reactivate all but the newest layer (the newest should already be active):
-            self.model._enable_layers_for_training(active_layers_not_just_added)
+            self.model._enable_layers_for_training(active_layers_before_adding)
             # low level training
             # todo: comment in low level if implemented
             # self._low_lvl_learning()
@@ -264,8 +264,7 @@ class ADLClassifier(Classifier):
         # meaning: (layer_1_class_1_prob, layer_1_class_2_prob, ..., layer_1_class_m_prob, layer_2_class_1_prob, ...), (2. instance)
         current_results = self.model.layer_results.flatten().reshape(-1, n * m).transpose(0,1)
 
-        # todo: currently we stack all results and calculate the covariance in each step anew, 
-        # todo: this can be done in a on-stream fashion: see issue # ?? 
+        # todo: # 82 
         if self.all_results_of_all_hidden_layers_ever is not None:
             self.all_results_of_all_hidden_layers_ever = torch.cat((self.all_results_of_all_hidden_layers_ever, current_results), dim=1)
         else:
@@ -283,7 +282,7 @@ class ADLClassifier(Classifier):
 
         this_loop_start = time.time_ns()
         # Calculate MCI for each pair of layers
-        # todo: eventual: this is a big part of the calculation atm and should be parallelized
+        # todo: # 81
         for layer_i_idx in range(n):
             for layer_j_idx in range(layer_i_idx + 1, n):
                 for class_o_idx in range(m):
