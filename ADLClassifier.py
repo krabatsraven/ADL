@@ -307,11 +307,11 @@ class ADLClassifier(Classifier):
         self.total_time_in_loop += time_in_this_loop
 
         # find the correlated pairs by comparing the max mci for each pairing against a user chosen threshold
-        mci_max_values = (torch.max(mci_values, dim=2).values)
+        mci_max_values = torch.max(mci_values, dim=2).values
         # the pair (0, 1) and (1, 0) should only appear once
         # later we prioritize to delete layer j before layer i if i < j
         # the maximal mci for a layer pair has to be smaller than the users threshold
-        correlated_pairs = ((torch.logical_and(mci_max_values < self.mci_threshold_for_layer_pruning, 0 <= mci_max_values))
+        correlated_pairs = ((torch.logical_and(0 <= mci_max_values, mci_max_values < self.mci_threshold_for_layer_pruning))
                             .nonzero()
                             .sort(dim = -1)[0]
                             .unique(dim=0, sorted=True, return_counts=False, return_inverse=False)
@@ -320,9 +320,12 @@ class ADLClassifier(Classifier):
 
         # prune them
         for index_tensor_of_layer_i, index_tensor_of_layer_j in correlated_pairs:
-            index_of_layer_i, index_of_layer_j = index_tensor_of_layer_i.item(), index_tensor_of_layer_j.item()
+            # transform the relative indices of correlated_pairs to the absolute indices of the active layers:
+            index_of_layer_i = self.model.get_keys_of_active_layers()[index_tensor_of_layer_i].item()
+            index_of_layer_j = self.model.get_keys_of_active_layers()[index_tensor_of_layer_j].item()
             # todo: issue #80
             if self.model.output_layer_with_index_exists(index_of_layer_i) and self.model.output_layer_with_index_exists(index_of_layer_j):
+                # if both layers still exist:
                 if self.model.get_voting_weight(index_of_layer_i) < self.model.get_voting_weight(index_of_layer_j):
                     # layer_i has the smaller voting weight and gets pruned
                     self.model._prune_layer_by_vote_removal(index_of_layer_i)
