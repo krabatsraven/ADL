@@ -199,55 +199,9 @@ class ADLClassifier(Classifier):
         }
         self.model.voting_weights.update(voting_weight_items)
 
-    def _high_lvl_learning(self, true_label: torch.Tensor, prediction: torch.Tensor, data: torch.Tensor):
+    def _high_lvl_learning(self, true_label: torch.Tensor, data: torch.Tensor):
         self.__high_level_learning_pruning_hidden_layers()
-
-        # grow the hidden layers to accommodate concept drift when it happens:
-        # -------------------------------------------------------------------
-        if self.drift_detector.detected_change():
-            # stack saved data if there is any onto the current instance to train with both
-            if self.drift_warning_data is not None:
-                data = torch.stack((self.drift_warning_data, data))
-                true_label = torch.stack((self.drift_warning_label, true_label))
-
-            # add layer
-            active_layers_before_adding = self.model.get_keys_of_active_layers().tolist()
-            self.model._add_layer()
-            self.all_results_of_all_hidden_layers_ever = None
-            # update optimizer after adding a layer
-            self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
-
-            # train the layer:
-            # todo: question #69
-                # freeze the parameters not new:
-                    # originaly they create a new network with only one layer and train the weights there
-                    # can we just delete the gradients of all weights not in the new layer?
-                # train by gradient
-            # disable all active layers that were not just added:
-            self.model._disable_layers_for_training(active_layers_before_adding)
-            pred = self.model.forward(data)
-            loss = self.loss_function(pred, true_label)
-
-            # Backpropagation
-            loss.backward()
-            self.optimizer.step()
-            # reactivate all but the newest layer (the newest should already be active):
-            self.model._enable_layers_for_training(active_layers_before_adding)
-            # low level training
-            # todo: comment in low level if implemented
-            # self._low_lvl_learning()
-            pass
-
-        elif self.drift_detector.detected_warning():
-            # store instance
-            # todo: question: #70
-            self.drift_warning_data = data
-            self.drift_warning_label = true_label
-
-        else:
-            # stable phase means deletion of buffered warning instances
-            self.drift_warning_data = None
-            self.drift_warning_label = None
+        self.__high_level_learning_grow_new_hidden_layers(data, true_label)
 
     def __high_level_learning_pruning_hidden_layers(self):
         # prune highly correlated layers:
@@ -339,6 +293,53 @@ class ADLClassifier(Classifier):
 
         # update the optimizer after pruning:
         self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
+
+    def __high_level_learning_grow_new_hidden_layers(self, data: torch.Tensor, true_label: torch.Tensor):
+        # grow the hidden layers to accommodate concept drift when it happens:
+        # -------------------------------------------------------------------
+        if self.drift_detector.detected_change():
+            # stack saved data if there is any onto the current instance to train with both
+            if self.drift_warning_data is not None:
+                data = torch.stack((self.drift_warning_data, data))
+                true_label = torch.stack((self.drift_warning_label, true_label))
+
+            # add layer
+            active_layers_before_adding = self.model.get_keys_of_active_layers().tolist()
+            self.model._add_layer()
+            self.all_results_of_all_hidden_layers_ever = None
+            # update optimizer after adding a layer
+            self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
+
+            # train the layer:
+            # todo: question #69
+            # freeze the parameters not new:
+            # originaly they create a new network with only one layer and train the weights there
+            # can we just delete the gradients of all weights not in the new layer?
+            # train by gradient
+            # disable all active layers that were not just added:
+            self.model._disable_layers_for_training(active_layers_before_adding)
+            pred = self.model.forward(data)
+            loss = self.loss_function(pred, true_label)
+
+            # Backpropagation
+            loss.backward()
+            self.optimizer.step()
+            # reactivate all but the newest layer (the newest should already be active):
+            self.model._enable_layers_for_training(active_layers_before_adding)
+            # low level training
+            # todo: comment in low level if implemented
+            # self._low_lvl_learning()
+
+        elif self.drift_detector.detected_warning():
+            # store instance
+            # todo: question: #70
+            self.drift_warning_data = data
+            self.drift_warning_label = true_label
+
+        else:
+            # stable phase means deletion of buffered warning instances
+            self.drift_warning_data = None
+            self.drift_warning_label = None
 
     def _low_lvl_learning(self):
         raise NotImplementedError
