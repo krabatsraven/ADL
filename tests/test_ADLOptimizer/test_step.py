@@ -10,7 +10,7 @@ from ADLOptimizer import create_adl_optimizer
 from AutoDeepLearner import AutoDeepLearner
 from tests.resources import optimizer_choices, trainings_steps, learning_rate_combinations, random_initialize_model
 
-
+@pytest.mark.skip(reason="deprecated class ADL Optimizer")
 @pytest.mark.parametrize('optimizer_choice', optimizer_choices)
 class TestOptimizerStep:
     @pytest.fixture(scope='class')

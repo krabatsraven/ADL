@@ -13,7 +13,7 @@ from tests.resources import random_initialize_model, optimizer_choices
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
 from tests.test_AutoDeepLearner.test_normalise_voting_weights import has_normalised_voting_weights
 
-
+@pytest.mark.skip(reason="deprecated class ADL Optimizer")
 class TestAdjustWeights:
     @pytest.fixture(scope="class")
     def float_precision_tolerance(self):
