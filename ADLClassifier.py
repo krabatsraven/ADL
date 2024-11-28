@@ -27,7 +27,8 @@ class ADLClassifier(Classifier):
             evaluator: Optional[ClassificationEvaluator] = None,
             drift_detector: BaseDriftDetector = ADWIN(delta=0.001),
             drift_criterion: str = "accuracy",
-            mci_threshold_for_layer_pruning: float = 0.05
+            mci_threshold_for_layer_pruning: float = 0.05,
+            nr_of_results_kept_for_covariance_calculation: int = 10
     ):
 
         super().__init__(schema, random_seed)
@@ -60,7 +61,8 @@ class ADLClassifier(Classifier):
         self.drift_warning_label: Optional[torch.Tensor] = None
 
         self.mci_threshold_for_layer_pruning = mci_threshold_for_layer_pruning
-        self.all_results_of_all_hidden_layers_ever: Optional[torch.Tensor] = None
+        self.results_of_all_hidden_layers_kept_for_cov_calc: Optional[torch.Tensor] = None
+        self.nr_of_results_kept_for_covariance_calculation = nr_of_results_kept_for_covariance_calculation
         self.total_time_in_loop = 0
 
     def __str__(self):
@@ -99,6 +101,7 @@ class ADLClassifier(Classifier):
         loss = self.loss_function(pred, y)
 
         # Backpropagation
+        # todo: q: winning layer training? when?
         loss.backward()
         self.optimizer.step()
 
@@ -108,7 +111,7 @@ class ADLClassifier(Classifier):
         self._adjust_weights(true_label=y, step_size=self.learning_rate)
         # todo: # 71
         # todo: # 72
-        self._high_lvl_learning(true_label=y, prediction=pred, data=X)
+        self._high_lvl_learning(true_label=y, data=X)
         # low lvl
         self.optimizer.zero_grad()
 
@@ -219,18 +222,27 @@ class ADLClassifier(Classifier):
         current_results = self.model.layer_results.flatten().reshape(-1, n * m).transpose(0,1)
 
         # todo: # 82 
-        if self.all_results_of_all_hidden_layers_ever is not None:
-            self.all_results_of_all_hidden_layers_ever = torch.cat((self.all_results_of_all_hidden_layers_ever, current_results), dim=1)
+        if self.results_of_all_hidden_layers_kept_for_cov_calc is not None:
+            # concat all results of all hidden layers
+            self.results_of_all_hidden_layers_kept_for_cov_calc = torch.cat(
+                tensors=(self.results_of_all_hidden_layers_kept_for_cov_calc, current_results), 
+                dim=1
+            )
+            # only keep the self.nr_of_results_kept_for_covariance_calculation last results
+            self.results_of_all_hidden_layers_kept_for_cov_calc = self.results_of_all_hidden_layers_kept_for_cov_calc[
+                                                         self.results_of_all_hidden_layers_kept_for_cov_calc.size(dim=0)
+                                                         - self.nr_of_results_kept_for_covariance_calculation:,
+                                                         :]
         else:
-            self.all_results_of_all_hidden_layers_ever = current_results
+            self.results_of_all_hidden_layers_kept_for_cov_calc = current_results
 
-        if self.model.get_keys_of_active_layers().size(dim=0) < 2 or self.all_results_of_all_hidden_layers_ever.size(dim=-1) == 1:
+        if self.model.get_keys_of_active_layers().size(dim=0) < 2 or self.results_of_all_hidden_layers_kept_for_cov_calc.size(dim=-1) == 1:
             # if there are less than 2 active layers we cannot find a correlated layer
             # also if there are less than 2 different results for all layers (right after changing of a layer) 
             # we would divide by 0 (corrected statistical covariance)
             return
 
-        all_covariances_matrix = torch.cov(self.all_results_of_all_hidden_layers_ever)
+        all_covariances_matrix = torch.cov(self.results_of_all_hidden_layers_kept_for_cov_calc)
         variances = torch.diag(all_covariances_matrix)
         mci_values = -1 * torch.ones((n, n, m))
 
@@ -289,7 +301,7 @@ class ADLClassifier(Classifier):
                     # we prune j if voting_weight(i) == voting_weight(j)
                     self.model._prune_layer_by_vote_removal(index_of_layer_j)
 
-                self.all_results_of_all_hidden_layers_ever = None
+                self.results_of_all_hidden_layers_kept_for_cov_calc = None
 
         # update the optimizer after pruning:
         self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
@@ -306,7 +318,7 @@ class ADLClassifier(Classifier):
             # add layer
             active_layers_before_adding = self.model.get_keys_of_active_layers().tolist()
             self.model._add_layer()
-            self.all_results_of_all_hidden_layers_ever = None
+            self.results_of_all_hidden_layers_kept_for_cov_calc = None
             # update optimizer after adding a layer
             self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
 
@@ -342,6 +354,15 @@ class ADLClassifier(Classifier):
             self.drift_warning_label = None
 
     def _low_lvl_learning(self):
+        # just take mse as bias^2 and track mean, variance and min of mean and variance for each active layer over each instance
+
+        # if criterion 1: bias >= min_bias?
+        # what does meanstditer do?, how is bias calculated?, what min_bias
+        # add node, where? winning layer?
+        # if criterion 2: not grown this turn, and mean > min_mean?
+        # what min_bias
+        # then prune node
+        # least contributing?
         raise NotImplementedError
 
     def __drift_criterion(self, true_label: torch.Tensor, prediction: torch.Tensor) -> float:
