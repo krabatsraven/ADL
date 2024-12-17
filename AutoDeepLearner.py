@@ -71,6 +71,12 @@ class AutoDeepLearner(nn.Module):
         # therefore it is necessary to save the last prediction
         self.last_prediction: Optional[torch.Tensor] = None
 
+        # mean and standard deviation of data seen:
+        # those are needed to decide if nodes are to be pruned or added during the (low level)-training
+        self.mean_of_data: Optional[torch.Tensor] = None
+        self.standard_deviation_of_data: Optional[torch.Tensor] = None
+        self.__nr_of_instances_in_statistical_variables: int = 0
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         returns the classification from self.output_size many classes stemming from the data input x
@@ -87,31 +93,6 @@ class AutoDeepLearner(nn.Module):
         else:
             assert x.size()[0] == self.input_size, \
                 f"Given batch of data has {x.size()[0]} many features, expected where {self.input_size}"
-
-        # if exclude_layer_indicies_in_training is not None:
-        #     # check whether the indicies provided to be excluded from training are valid:
-        #     # todo: test this part
-        #     assert all((isinstance(elem, int) for elem in exclude_layer_indicies_in_training)), \
-        #         (f"the provided list of indicies to exclude in training does not consist of only ints: "
-        #          f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-        #     assert all((0 <= index < len(self.layers) for index in exclude_layer_indicies_in_training)), \
-        #         ("The provided list of indicies to exclude in training does not consist only of indicies,"
-        #          "that are valid for the list of hidden layers"
-        #          f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-        #     assert all((self.output_layer_with_index_exists(index) for index in exclude_layer_indicies_in_training)), \
-        #         (f"Not all provided indicies are valid output layer indices, "
-        #          f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-        #     # assert all(self.layers[index].requires_grad for index in exclude_layer_indicies_in_training), \
-        #     #     (f"Not all layers that where listed to be excluded from training are enabled,"
-        #     #      f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-        #     # assert all(self.get_output_layer(index).requires_grad for index in exclude_layer_indicies_in_training),\
-        #     #     (f"Not all output layers that where listed to be excluded from training are enabled,"
-        #     #      f"exclude_layer_indicies_in_training={exclude_layer_indicies_in_training}")
-        #
-        #     # set requires grad to False
-        #     for excluded_index in exclude_layer_indicies_in_training:
-        #         self.layers[excluded_index].requires_grad_(requires_grad=False)
-        #         self.get_output_layer(excluded_index).requires_grad_(requires_grad=False)
 
         # calculate all h^{l} = \sigma(W^{l} h^{(l-1)} + b^{l}), h^{(0)} = x
         hidden_layers: List[torch.Tensor] = [x := nn.Sigmoid()(layer(x)) for layer in self.layers]
@@ -136,13 +117,44 @@ class AutoDeepLearner(nn.Module):
         total_weighted_class_probability = torch.mul(layer_results, betas).sum(dim=0)
         self.last_prediction = torch.argmax(total_weighted_class_probability)
 
-        # if exclude_layer_indicies_in_training is not None:
-        #     # set requires grad to True/ re-enable them
-        #     for excluded_index in exclude_layer_indicies_in_training:
-        #         self.layers[excluded_index].requires_grad_(requires_grad=True)
-        #         self.get_output_layer(excluded_index).requires_grad_(requires_grad=True)
-
         return total_weighted_class_probability
+
+    def add_data_to_statistical_variables(self, x: torch.Tensor) -> None:
+        """
+        update the statistical mean and standard deviation of the input data
+        :param x: a batch of data
+        """
+        # todo: write test function
+        if x.requires_grad:
+            x.requires_grad_(False)
+
+        if len(x.squeeze().size()) == 1:
+            x = x.unsqueeze(0)
+        assert (len(x.squeeze().size()) != 2), \
+            f"""unsupported dimension of data input{x.squeeze().size()}, 
+            please make sure that input is delivered as [batch size, nr of features]"""
+
+        batch_size = x.squeeze().size(0)
+        mean_of_batch = x.squeeze().mean(dim=0, dtype=torch.float)
+        var_of_batch = x.squeeze().var(dim=0)
+
+        if self.mean_of_data is None and batch_size > 0:
+            self.mean_of_data = mean_of_batch
+            self.standard_deviation_of_data = torch.sqrt(var_of_batch)
+            self.__nr_of_instances_in_statistical_variables = batch_size
+            return
+
+        else:
+            # for multi-sets A and B
+            # |A| \approx |B|: use a for this edge case numerical stable formula
+            # µ_{A\cup B} = \frac{|A| µ_A + |B| µ_B}{|A| + |B|}
+            new_mean = (self.__nr_of_instances_in_statistical_variables * self.mean_of_data + batch_size * mean_of_batch) / (batch_size + self.__nr_of_instances_in_statistical_variables)
+
+        # \sigma_{A\cup B} = \frac{(|A| - 1) \sigma_A^2 + (|B| - 1) \sigma_B^2 + |A||B|(µ_B - µ_A)^2(A + B)}{|A| + |B| - 1}
+        new_var: torch.Tensor = ((self.__nr_of_instances_in_statistical_variables - 1) * self.standard_deviation_of_data ** 2 + (batch_size - 1) * var_of_batch + batch_size * self.__nr_of_instances_in_statistical_variables * (batch_size + self.__nr_of_instances_in_statistical_variables) * (mean_of_batch - self.mean_of_data) ** 2) / (self.__nr_of_instances_in_statistical_variables + batch_size - 1)
+        self.__nr_of_instances_in_statistical_variables += batch_size
+        self.mean_of_data = new_mean
+        self.standard_deviation_of_data = torch.sqrt(new_var)
 
     def _disable_layers_for_training(self, layer_indicies: List[int]):
         assert all((isinstance(elem, int) for elem in layer_indicies)), \

@@ -96,6 +96,9 @@ class ADLClassifier(Classifier):
         # set the device and add a dimension to the tensor
         X, y = torch.unsqueeze(X.to(self.device), 0), torch.unsqueeze(y.to(self.device),0)
 
+        # add data to tracked_statistical variables:
+        self.model.add_data_to_statistical_variables(X)
+
         # Compute prediction error
         pred = self.model(X)
         loss = self.loss_function(pred, y)
@@ -112,7 +115,7 @@ class ADLClassifier(Classifier):
         # todo: # 71
         # todo: # 72
         self._high_lvl_learning(true_label=y, data=X)
-        # low lvl
+        self._low_lvl_learning(true_label=y, prediction=pred, winning_layer=0)
         self.optimizer.zero_grad()
 
     def predict(self, instance):
@@ -221,7 +224,7 @@ class ADLClassifier(Classifier):
         # meaning: (layer_1_class_1_prob, layer_1_class_2_prob, ..., layer_1_class_m_prob, layer_2_class_1_prob, ...), (2. instance)
         current_results = self.model.layer_results.flatten().reshape(-1, n * m).transpose(0,1)
 
-        # todo: # 82 
+        # todo: # 82
         if self.results_of_all_hidden_layers_kept_for_cov_calc is not None:
             # concat all results of all hidden layers
             self.results_of_all_hidden_layers_kept_for_cov_calc = torch.cat(
@@ -353,8 +356,10 @@ class ADLClassifier(Classifier):
             self.drift_warning_data = None
             self.drift_warning_label = None
 
-    def _low_lvl_learning(self):
-        # just take mse as bias^2 and track mean, variance and min of mean and variance for each active layer over each instance
+    def _low_lvl_learning(self, true_label: torch.Tensor, prediction: torch.Tensor, winning_layer: int):
+        # get true prediction
+        true_prediction = torch.zeros(self.model.output_size)
+        true_prediction[true_label] = 1
 
         # if criterion 1: bias >= min_bias?
         # what does meanstditer do?, how is bias calculated?, what min_bias
@@ -363,7 +368,7 @@ class ADLClassifier(Classifier):
         # what min_bias
         # then prune node
         # least contributing?
-        raise NotImplementedError
+        # raise NotImplementedError
 
     def __drift_criterion(self, true_label: torch.Tensor, prediction: torch.Tensor) -> float:
         match self.__drift_criterion_switch:
