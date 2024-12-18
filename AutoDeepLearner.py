@@ -119,6 +119,44 @@ class AutoDeepLearner(nn.Module):
 
         return total_weighted_class_probability
 
+    def get_expected_value_and_expected_squared_value_for_layer(self, layer_index: int):
+        # todo: comment string
+        assert self.output_layer_with_index_exists(layer_index=layer_index), "can only calculate the expected value for an active layer"
+        tmp = self.mean_of_data / (torch.sqrt(1 + torch.pi / 8 * self.standard_deviation_of_data.matmul(self.standard_deviation_of_data)))
+        with torch.no_grad():
+            expected_value, hidden_layer_results = self.__get_output_from_start_layer_to_stop_layer_j(tmp, start_layer_index=0, stop_layer_idx=layer_index)
+
+            if layer_index == 0:
+                expected_squared_value = hidden_layer_results[0] ** 2
+            else:
+                expected_squared_value, hidden_layer_results_squared = self.__get_output_from_start_layer_to_stop_layer_j(hidden_layer_results[0] ** 2, start_layer_index=1, stop_layer_idx=layer_index)
+
+        index_of_minimum_expected_value_of_winning_hidden_layer = torch.argmin(hidden_layer_results[-1])
+
+        return expected_value, expected_squared_value, index_of_minimum_expected_value_of_winning_hidden_layer
+
+    def __get_output_from_start_layer_to_stop_layer_j(self, x:torch.Tensor, start_layer_index: int = 0, stop_layer_idx: Optional[int] = None):
+        if stop_layer_idx is None:
+            stop_layer_idx = len(self.layers) - 1
+
+        # check if x is of right dimension (sanity check)
+        if len(x.size()) > 1:
+            assert x.size()[1] == self.input_size, \
+                f"Given batch of data has {x.size()[1]} many features, expected where {self.input_size}"
+        else:
+            assert x.size()[0] == self.input_size, \
+                f"Given batch of data has {x.size()[0]} many features, expected where {self.input_size}"
+
+        assert 0 <= start_layer_index <= len(self.layers) - 1, f"the start layer{start_layer_index} has to be index of the hidden layers [0,{len(self.layers) - 1}]"
+        assert start_layer_index <= stop_layer_idx, "the start index has to be smaller or equal to the stop index"
+        assert 0 <= stop_layer_idx <= len(self.layers) - 1, f"the stop layer {stop_layer_idx} has to be index of the hidden layers [0,{len(self.layers) - 1}]"
+        assert self.output_layer_with_index_exists(layer_index=stop_layer_idx), "can only calculate the output value for an active layer"
+
+        hidden_layers: List[torch.Tensor] = [x := nn.Sigmoid()(layer(x)) for layer in self.layers[start_layer_index:stop_layer_idx+1]]
+
+        output_of_stop_layer = nn.Softmax(dim=-1)(self.get_output_layer(stop_layer_idx)(hidden_layers[-1]))
+        return output_of_stop_layer, hidden_layers
+
     def add_data_to_statistical_variables(self, x: torch.Tensor) -> None:
         """
         update the statistical mean and standard deviation of the input data
@@ -128,15 +166,15 @@ class AutoDeepLearner(nn.Module):
         if x.requires_grad:
             x.requires_grad_(False)
 
-        if len(x.squeeze().size()) == 1:
+        if len(x.size()) == 1:
             x = x.unsqueeze(0)
-        assert (len(x.squeeze().size()) != 2), \
+        assert (len(x.size()) == 2), \
             f"""unsupported dimension of data input{x.squeeze().size()}, 
             please make sure that input is delivered as [batch size, nr of features]"""
 
-        batch_size = x.squeeze().size(0)
-        mean_of_batch = x.squeeze().mean(dim=0, dtype=torch.float)
-        var_of_batch = x.squeeze().var(dim=0)
+        batch_size = x.size(0)
+        mean_of_batch = x.mean(dim=0, dtype=torch.float)
+        var_of_batch = x.var(dim=0) if x.size(0) > 1 else x.var(dim=0, correction=0)
 
         if self.mean_of_data is None and batch_size > 0:
             self.mean_of_data = mean_of_batch
@@ -406,19 +444,25 @@ class AutoDeepLearner(nn.Module):
         :param layer_index: the index of the hidden layer in the self.layers list
         :return: linear layer of dim (out of hidden layer, number of classes)
         """
-        return self.voting_linear_layers[f'output layer {layer_index}']
+        return self.voting_linear_layers[self.__get_output_layer_key(layer_index)]
 
     def __set_output_layer(self, layer_index: int, new_output_layer) -> None:
-        self.voting_linear_layers[f'output layer {layer_index}'] = new_output_layer
+        self.voting_linear_layers[self.__get_output_layer_key(layer_index)] = new_output_layer
 
     def __pop_output_layer(self, layer_index: int) -> None:
-        self.voting_linear_layers.pop(f'output layer {layer_index}')
+        self.voting_linear_layers.pop(self.__get_output_layer_key(layer_index))
 
     def output_layer_with_index_exists(self, layer_index: int) -> bool:
         """
         :returns whether the layer with the given index has an output layer associated with it
         """
-        return f'output layer {layer_index}' in self.voting_linear_layers.keys()
+        return self.__get_output_layer_key(layer_index) in self.voting_linear_layers.keys()
+
+    def get_winning_layer(self) -> int:
+        """
+        :return: the index of the active hidden layer with the highest voting weight
+        """
+        return self.__get_layer_index_from_voting_key(max(self.voting_weights, key=self.voting_weights.get))
 
     def get_voting_weight(self, layer_index: int) -> float:
         """
@@ -427,20 +471,48 @@ class AutoDeepLearner(nn.Module):
         :return: factor between 0 and 1, weights the result of the i-th output layer
         """
 
-        return self.voting_weights[str(int(layer_index))]
+        return self.voting_weights[self.__get_voting_key_from_index((int(layer_index)))]
+
+    @staticmethod
+    def __get_output_layer_key(layer_index: int) -> str:
+        """
+        generates the key for the output layer dictionary
+        :param layer_index: index of the layer, this function does not check whether the int is valid
+        :return: key string that is of the correct format to be used as key in the dictionaries
+        """
+        return f'output layer {layer_index}'
+
+    @staticmethod
+    def __get_layer_index_from_voting_key(voting_weight_key: str) -> int:
+        """
+        extracts the index of the index of the key string assuming the provided string is of the correct format,
+        which this function does not check
+        :param voting_weight_key: a string expected to be in the format of a voting_weight or weight_correction_factor key
+        :return: an integer contained in the string at the predetermined place
+        """
+        return int(voting_weight_key)
+
+    @staticmethod
+    def __get_voting_key_from_index(layer_index: int) -> str:
+        """
+        generates the key for the adaptive voting weight and weight correction factor dictionaries
+        :param layer_index: index of the layer, this function does not check whether the int is valid
+        :return: key string that is of the correct format to be used as key in the dictionaries
+        """
+        return str(layer_index)
 
     def __set_voting_weight(self, layer_index: int, new_weight: float) -> None:
         assert isinstance(layer_index, int)
-        self.voting_weights[str(layer_index)] = new_weight
+        self.voting_weights[self.__get_voting_key_from_index((int(layer_index)))] = new_weight
 
     def __pop_voting_weight(self, layer_index: int) -> float:
-        return self.voting_weights.pop(str(int(layer_index)))
+        return self.voting_weights.pop(self.__get_voting_key_from_index((int(layer_index))))
 
     def voting_weight_with_index_exists(self, layer_index: int) -> bool:
         """
         :returns whether the layer with the given index has a voting weight associated with it
         """
-        return str(int(layer_index)) in self.voting_weights.keys()
+        return self.__get_voting_key_from_index((int(layer_index))) in self.voting_weights.keys()
 
     def get_keys_of_active_layers(self) -> torch.Tensor:
         """
@@ -449,7 +521,7 @@ class AutoDeepLearner(nn.Module):
         -> (i, w_i) in zip(get_voting_weight_keys(), get_voting_weight_values())
         :return: 1-dim tensor that contains all the indicies of all layers in self.layers with an voting weight
         """
-        return torch.tensor(list(map(int, self.voting_weights.keys())), dtype=torch.int)
+        return torch.tensor(list(map(self.__get_layer_index_from_voting_key, self.voting_weights.keys())), dtype=torch.int)
 
     def get_voting_weight_values(self) -> torch.Tensor:
         """
