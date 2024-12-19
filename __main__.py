@@ -56,7 +56,7 @@ if __name__ == "__main__":
     plot_windowed_results(results_ht, metric= "accuracy")
 
     print(f"the learner has {len(adl_classifier.model.layers)} hidden layers and {len(adl_classifier.model.voting_linear_layers)} output layers")
-
+    print(f"the active hidden layers of the model have {dict((adl_classifier.model.transform_layer_index_to_output_layer_key(i), tuple(adl_classifier.model.layers[i].weight.size())) for i in adl_classifier.model.active_layer_keys())} shaped weight matricies")
 
     # # drift detection testing:
     # # -------------------------

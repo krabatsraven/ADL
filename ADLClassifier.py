@@ -27,7 +27,7 @@ class ADLClassifier(Classifier):
             evaluator: Optional[ClassificationEvaluator] = None,
             drift_detector: BaseDriftDetector = ADWIN(delta=0.001),
             drift_criterion: str = "accuracy",
-            mci_threshold_for_layer_pruning: float = 0.05,
+            mci_threshold_for_layer_pruning: float = 10**-7,
             nr_of_results_kept_for_covariance_calculation: int = 10
     ):
 
@@ -57,13 +57,37 @@ class ADLClassifier(Classifier):
         self.drift_detector: BaseDriftDetector = drift_detector
         self.__drift_criterion_switch = drift_criterion
 
+        # data and label which triggered a drift warning in the past
         self.drift_warning_data: Optional[torch.Tensor] = None
         self.drift_warning_label: Optional[torch.Tensor] = None
 
+        # user chosen threshold for the mci value that guards the layer pruning
         self.mci_threshold_for_layer_pruning = mci_threshold_for_layer_pruning
+
+        # result data that are kept to calculate the covariance matrix of output nodes of different output layers
+        # todo: eliminate
         self.results_of_all_hidden_layers_kept_for_cov_calc: Optional[torch.Tensor] = None
         self.nr_of_results_kept_for_covariance_calculation = nr_of_results_kept_for_covariance_calculation
+
+        # values that are tracking the bias and variance of the model to inform node growing/pruning decisions
+        self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance: torch.Tensor = torch.tensor(0, dtype=torch.int, requires_grad=False)
+
+        self.mean_of_bias_squared: Optional[torch.Tensor] = None
+        self.sum_of_bias_squared_residuals_squared: Optional[torch.Tensor] = None
+        self.standard_deviation_of_bias_squared: Optional[torch.Tensor] = None
+
+        self.mean_of_variance_squared_squared: Optional[torch.Tensor] = None
+        self.sum_of_variance_squared_residuals_squared: Optional[torch.Tensor] = None
+        self.standard_deviation_of_variance_squared_squared: Optional[torch.Tensor] = None
+
+        self.minimum_of_mean_of_bias_squared: Optional[torch.Tensor] = None
+        self.minimum_of_standard_deviation_of_bias_squared: Optional[torch.Tensor] = None
+        self.minimum_of_mean_of_variance_squared_squared: Optional[torch.Tensor] = None
+        self.minimum_of_standard_deviation_of_variance_squared_squared: Optional[torch.Tensor] = None
+
         self.total_time_in_loop = 0
+
+
 
     def __str__(self):
         return "ADLClassifier"
@@ -85,7 +109,6 @@ class ADLClassifier(Classifier):
                 nr_of_features = moa_instance.get_num_attributes(),
                 nr_of_classes = moa_instance.get_num_classes()
             ).to(self.device)
-
 
     def train(self, instance):
         if self.model is None:
@@ -115,7 +138,7 @@ class ADLClassifier(Classifier):
         # todo: # 71
         # todo: # 72
         self._high_lvl_learning(true_label=y, data=X)
-        self._low_lvl_learning(true_label=y, prediction=pred, winning_layer=0)
+        self._low_lvl_learning(true_label=y)
         self.optimizer.zero_grad()
 
     def predict(self, instance):
@@ -217,29 +240,31 @@ class ADLClassifier(Classifier):
         # compare the predictions of the layer pairwise
         # layer_results are the stacked result_i, where result_i stems from output layer i
         # meaning the shape is (nr_of_layers, nr_of_classes)
-        n = self.model.get_keys_of_active_layers().size(dim=0)
+        n = self.model.active_layer_keys().size(dim=0)
         m = self.model.output_size
         # to get all covariance values at once we reshape to (nr_of_layers * nr_of_classes, x),
         # where x is the nr of instances seen
         # meaning: (layer_1_class_1_prob, layer_1_class_2_prob, ..., layer_1_class_m_prob, layer_2_class_1_prob, ...), (2. instance)
-        current_results = self.model.layer_results.flatten().reshape(-1, n * m).transpose(0,1)
+        current_results = self.model.layer_results.flatten().reshape(-1, n * m).transpose(0,1).detach()
+        current_results.requires_grad_(False)
 
         # todo: # 82
         if self.results_of_all_hidden_layers_kept_for_cov_calc is not None:
             # concat all results of all hidden layers
             self.results_of_all_hidden_layers_kept_for_cov_calc = torch.cat(
-                tensors=(self.results_of_all_hidden_layers_kept_for_cov_calc, current_results), 
+                tensors=(self.results_of_all_hidden_layers_kept_for_cov_calc.clone(), current_results),
                 dim=1
             )
             # only keep the self.nr_of_results_kept_for_covariance_calculation last results
             self.results_of_all_hidden_layers_kept_for_cov_calc = self.results_of_all_hidden_layers_kept_for_cov_calc[
-                                                         self.results_of_all_hidden_layers_kept_for_cov_calc.size(dim=0)
-                                                         - self.nr_of_results_kept_for_covariance_calculation:,
-                                                         :]
+                                                                  :,
+                                                                  self.results_of_all_hidden_layers_kept_for_cov_calc.size(dim=1)
+                                                                  - self.nr_of_results_kept_for_covariance_calculation:
+                                                                  ]
         else:
             self.results_of_all_hidden_layers_kept_for_cov_calc = current_results
 
-        if self.model.get_keys_of_active_layers().size(dim=0) < 2 or self.results_of_all_hidden_layers_kept_for_cov_calc.size(dim=-1) == 1:
+        if self.model.active_layer_keys().size(dim=0) < 2 or self.results_of_all_hidden_layers_kept_for_cov_calc.size(dim=-1) == 1:
             # if there are less than 2 active layers we cannot find a correlated layer
             # also if there are less than 2 different results for all layers (right after changing of a layer) 
             # we would divide by 0 (corrected statistical covariance)
@@ -288,10 +313,11 @@ class ADLClassifier(Classifier):
                             )
 
         # prune them
+        active_layers_at_the_start = self.model.active_layer_keys().clone()
         for index_tensor_of_layer_i, index_tensor_of_layer_j in correlated_pairs:
             # transform the relative indices of correlated_pairs to the absolute indices of the active layers:
-            index_of_layer_i = self.model.get_keys_of_active_layers()[index_tensor_of_layer_i].item()
-            index_of_layer_j = self.model.get_keys_of_active_layers()[index_tensor_of_layer_j].item()
+            index_of_layer_i = active_layers_at_the_start[index_tensor_of_layer_i].item()
+            index_of_layer_j = active_layers_at_the_start[index_tensor_of_layer_j].item()
             # todo: issue #80
             if self.model.output_layer_with_index_exists(index_of_layer_i) and self.model.output_layer_with_index_exists(index_of_layer_j):
                 # if both layers still exist:
@@ -319,7 +345,7 @@ class ADLClassifier(Classifier):
                 true_label = torch.stack((self.drift_warning_label, true_label))
 
             # add layer
-            active_layers_before_adding = self.model.get_keys_of_active_layers().tolist()
+            active_layers_before_adding = self.model.active_layer_keys().tolist()
             self.model._add_layer()
             self.results_of_all_hidden_layers_kept_for_cov_calc = None
             # update optimizer after adding a layer
@@ -328,7 +354,7 @@ class ADLClassifier(Classifier):
             # train the layer:
             # todo: question #69
             # freeze the parameters not new:
-            # originaly they create a new network with only one layer and train the weights there
+            # originally they create a new network with only one layer and train the weights there
             # can we just delete the gradients of all weights not in the new layer?
             # train by gradient
             # disable all active layers that were not just added:
@@ -342,8 +368,7 @@ class ADLClassifier(Classifier):
             # reactivate all but the newest layer (the newest should already be active):
             self.model._enable_layers_for_training(active_layers_before_adding)
             # low level training
-            # todo: comment in low level if implemented
-            # self._low_lvl_learning()
+            self._low_lvl_learning(true_label=true_label)
 
         elif self.drift_detector.detected_warning():
             # store instance
@@ -356,19 +381,124 @@ class ADLClassifier(Classifier):
             self.drift_warning_data = None
             self.drift_warning_label = None
 
-    def _low_lvl_learning(self, true_label: torch.Tensor, prediction: torch.Tensor, winning_layer: int):
+    def _low_lvl_learning(self, true_label: torch.Tensor):
         # get true prediction
         true_prediction = torch.zeros(self.model.output_size)
         true_prediction[true_label] = 1
+        winning_layer = self.model.get_winning_layer()
 
-        # if criterion 1: bias >= min_bias?
-        # what does meanstditer do?, how is bias calculated?, what min_bias
-        # add node, where? winning layer?
-        # if criterion 2: not grown this turn, and mean > min_mean?
-        # what min_bias
-        # then prune node
-        # least contributing?
-        # raise NotImplementedError
+        expected_value_of_winning_layer, expected_value_winning_layer_squared, idx_of_least_contributing_winning_layer_node = self.model.get_expected_value_expected_squared_value_and_idx_of_least_contributing_node_for_layer(winning_layer)
+
+        # update mean and standard deviation of bias^2 and variance^2 with expected and expected squared value:
+        # new bias^2:
+        bias_of_winning_layer = (true_prediction - expected_value_of_winning_layer)
+        bias_of_winning_layer_squared = (bias_of_winning_layer.matmul(bias_of_winning_layer))
+        # new variance^2:
+        variance_of_winning_layer = expected_value_of_winning_layer ** 2 - expected_value_winning_layer_squared
+        variance_of_winning_layer_squared = variance_of_winning_layer.matmul(variance_of_winning_layer)
+        # update mean, standard deviation and minima of biases and variances so far:
+        self.__update_mu_and_s_of_bias_and_var(bias_of_winning_layer_squared, variance_of_winning_layer_squared)
+
+        # \kappa
+        kappa = 1.3 * torch.exp(-bias_of_winning_layer_squared) + 0.7
+        # if criterion 1: µ_bias + s_bias >= min_µ_bias + \kappa * min_s_bias
+        if (self.mean_of_bias_squared + self.standard_deviation_of_bias_squared 
+                >= self.minimum_of_mean_of_bias_squared + kappa * self.minimum_of_standard_deviation_of_bias_squared):
+            # add node to winning layer
+            self.model._add_node(winning_layer)
+            # return: we don't add and shrink in the same turn
+            return
+
+        # \chi
+        xi = 1.3 * torch.exp(-variance_of_winning_layer_squared) + 0.7
+        # if criterion 2:  µ_var + s_var >= min_µ_var + 2 * \chi * min_s_var
+        if (self.mean_of_variance_squared_squared + self.standard_deviation_of_variance_squared_squared 
+                >= self.minimum_of_mean_of_variance_squared_squared + 2 * xi *self.minimum_of_standard_deviation_of_variance_squared_squared):
+            # remove the least contributing node from the winning layer
+            self.model._delete_node(winning_layer, idx_of_least_contributing_winning_layer_node)
+
+            # if the node is deleted the minima are reset:
+            self.minimum_of_mean_of_bias_squared = self.mean_of_bias_squared
+            self.minimum_of_standard_deviation_of_bias_squared = self.standard_deviation_of_bias_squared
+            self.minimum_of_mean_of_variance_squared_squared = self.mean_of_variance_squared_squared
+            self.minimum_of_standard_deviation_of_variance_squared = self.standard_deviation_of_variance_squared_squared
+
+    def __update_mu_and_s_of_bias_and_var(self, bias_squared: torch.Tensor, variance_squared: torch.Tensor) -> None:
+        if self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance == 0:
+            self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance += 1
+
+            self.mean_of_bias_squared = bias_squared
+            self.standard_deviation_of_bias_squared = torch.tensor(0, dtype=torch.float, requires_grad=False)
+            self.sum_of_bias_squared_residuals_squared = torch.tensor(0, dtype=torch.float, requires_grad=False)
+
+            self.mean_of_variance_squared_squared = variance_squared
+            self.standard_deviation_of_variance_squared_squared = torch.tensor(0, dtype=torch.float, requires_grad=False)
+            self.sum_of_variance_squared_residuals_squared = torch.tensor(0, dtype=torch.float, requires_grad=False)
+
+            self.minimum_of_mean_of_bias_squared = self.mean_of_bias_squared
+            self.minimum_of_standard_deviation_of_bias_squared = self.standard_deviation_of_bias_squared
+            self.minimum_of_mean_of_variance_squared_squared = self.mean_of_variance_squared_squared
+            self.minimum_of_standard_deviation_of_variance_squared_squared = self.standard_deviation_of_variance_squared_squared
+
+            return
+
+        self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance += 1
+
+        # \bar x_n = \bar x_{n-1} + \frac{x_n - \bar x_{n-1}}{n}
+        new_mean_of_bias_squared = (self.mean_of_bias_squared 
+                                    + (
+                                            (bias_squared - self.mean_of_bias_squared) 
+                                            / self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance
+                                    )
+                                    )
+        # M_{2,n} = M_{2, n-1} + (x_n - \bar x_{n})(x_n - \bar x_{n-1})
+        self.sum_of_bias_squared_residuals_squared += (
+                (bias_squared - new_mean_of_bias_squared)
+                * (bias_squared - self.mean_of_bias_squared)
+        )
+        self.mean_of_bias_squared = new_mean_of_bias_squared
+        # s = \sqrt{\frac{M_{2,n}}{n-1}}
+        self.standard_deviation_of_bias_squared = torch.sqrt(
+            self.sum_of_bias_squared_residuals_squared
+            / (self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance - 1)
+        )
+
+        # \bar x_n = \bar x_{n-1} + \frac{x_n - \bar x_{n-1}}{n}
+        new_mean_of_variance_squared = (self.mean_of_variance_squared_squared 
+                                        + (
+                                                (variance_squared - self.mean_of_variance_squared_squared)
+                                                / self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance
+                                        )
+                                        )
+
+        # M_{2,n} = M_{2, n-1} + (x_n - \bar x_{n})(x_n - \bar x_{n-1})
+        self.sum_of_variance_squared_residuals_squared += (
+            (variance_squared - new_mean_of_variance_squared)
+            * (variance_squared - self.mean_of_variance_squared_squared)
+        )
+        self.mean_of_variance_squared_squared = new_mean_of_variance_squared
+        # s = \sqrt{\frac{M_{2,n}}{n-1}}
+        self.standard_deviation_of_variance_squared_squared = torch.sqrt(
+                self.sum_of_variance_squared_residuals_squared 
+                / (self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance - 1)
+        )
+
+        self.minimum_of_mean_of_bias_squared = torch.min(
+            self.minimum_of_mean_of_bias_squared,
+            self.mean_of_bias_squared
+        )
+        self.minimum_of_standard_deviation_of_bias_squared = torch.min(
+            self.minimum_of_standard_deviation_of_bias_squared,
+            self.standard_deviation_of_bias_squared
+        )
+        self.minimum_of_mean_of_variance_squared_squared = torch.min(
+            self.minimum_of_mean_of_variance_squared_squared,
+            self.mean_of_variance_squared_squared
+        )
+        self.minimum_of_standard_deviation_of_variance_squared_squared = torch.min(
+            self.minimum_of_standard_deviation_of_variance_squared_squared,
+            self.standard_deviation_of_variance_squared_squared
+        )
 
     def __drift_criterion(self, true_label: torch.Tensor, prediction: torch.Tensor) -> float:
         match self.__drift_criterion_switch:

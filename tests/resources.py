@@ -26,17 +26,17 @@ def random_initialize_model(model: AutoDeepLearner, iteration_count: int) -> Aut
                 model._normalise_voting_weights()
 
             case 2:
-                layer_choice = int(random.choice(model.get_keys_of_active_layers()))
+                layer_choice = int(random.choice(model.active_layer_keys()))
                 model._add_node(layer_choice)
             case 3:
-                if len(model.get_keys_of_active_layers()) > 2:
-                    layer_choice = int(random.choice(model.get_keys_of_active_layers()))
+                if len(model.active_layer_keys()) > 2:
+                    layer_choice = int(random.choice(model.active_layer_keys()))
                     model._prune_layer_by_vote_removal(layer_choice)
                 else:
                     continue
             case 4:
-                if len(model.get_keys_of_active_layers()) > 2:
-                    layer_choice = int(random.choice(model.get_keys_of_active_layers()))
+                if len(model.active_layer_keys()) > 2:
+                    layer_choice = int(random.choice(model.active_layer_keys()))
                     if model.layers[layer_choice].weight.size()[0] > 2:
                         node_choice = random.choice(range(model.layers[layer_choice].weight.size()[0]))
                         model._delete_node(layer_choice, node_choice)
