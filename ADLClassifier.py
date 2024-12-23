@@ -1,12 +1,12 @@
 import time
-from typing import Union, Optional
+from typing import Optional
 
 import numpy as np
 import torch
 from capymoa.base import Classifier
 from capymoa.drift.base_detector import BaseDriftDetector
 from capymoa.drift.detectors import ADWIN
-from capymoa.evaluation import ClassificationEvaluator, RegressionEvaluator
+from capymoa.evaluation import ClassificationEvaluator
 from capymoa.stream import Schema
 from torch import nn
 from torch.optim import Optimizer
