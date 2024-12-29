@@ -24,7 +24,6 @@ class ADLClassifier(Classifier):
             loss_fn=nn.CrossEntropyLoss(),
             device: str = ("cpu"),
             lr: float = 1e-3,
-            evaluator: Optional[ClassificationEvaluator] = None,
             drift_detector: BaseDriftDetector = ADWIN(delta=0.001),
             drift_criterion: str = "accuracy",
             mci_threshold_for_layer_pruning: float = 10**-7,
@@ -49,10 +48,15 @@ class ADLClassifier(Classifier):
         else:
             self.optimizer = optimizer
 
-        if evaluator is None:
-            self.evaluator = ClassificationEvaluator(self.schema)
-        else:
-            self.evaluator: ClassificationEvaluator = evaluator
+
+        self.evaluator = ClassificationEvaluator(self.schema, window_size=1)
+
+        # keep track of the shape of the model for each seen instance for later evaluation
+        self.record_of_model_shape = {
+            "nr of layers": [],
+            "shape of hidden layers (in, out)": [],
+            "active layers": []
+        }
 
         self.drift_detector: BaseDriftDetector = drift_detector
         self.__drift_criterion_switch = drift_criterion
@@ -114,6 +118,24 @@ class ADLClassifier(Classifier):
         if self.model is None:
             self.set_model(instance)
 
+        self.__update_record_of_model_shape()
+        self.__train(instance)
+
+    def predict(self, instance):
+        return np.argmax(self.predict_proba(instance))
+
+    def predict_proba(self, instance):
+        if self.model is None:
+            self.set_model(instance)
+        X = torch.unsqueeze(torch.tensor(instance.x, dtype=torch.float32).to(self.device), 0)
+        # turn off gradient collection
+        with torch.no_grad():
+            pred = np.asarray(self.model(X).numpy(), dtype=np.double)
+        return pred
+
+    # -----------------
+    # internal functions for training
+    def __train(self, instance):
         X = torch.tensor(instance.x, dtype=torch.float32)
         y = torch.tensor(instance.y_index, dtype=torch.long)
         # set the device and add a dimension to the tensor
@@ -132,7 +154,11 @@ class ADLClassifier(Classifier):
         self.optimizer.step()
 
         self.evaluator.update(y.item(), torch.argmax(pred).item())
+        # self.evaluator.metrics().append(len(self.model.layers))
+        # self.evaluator.result_windows[-1].append(len(self.model.layers))
         self.drift_detector.add_element(self.__drift_criterion(y, pred))
+
+        # todo: these next three lines are part of the evaluation and should not be part of co2 emissions
 
         self._adjust_weights(true_label=y, step_size=self.learning_rate)
         # todo: # 71
@@ -140,21 +166,6 @@ class ADLClassifier(Classifier):
         self._high_lvl_learning(true_label=y, data=X)
         self._low_lvl_learning(true_label=y)
         self.optimizer.zero_grad()
-
-    def predict(self, instance):
-        return np.argmax(self.predict_proba(instance))
-
-    def predict_proba(self, instance):
-        if self.model is None:
-            self.set_model(instance)
-        X = torch.unsqueeze(torch.tensor(instance.x, dtype=torch.float32).to(self.device), 0)
-        # turn off gradient collection
-        with torch.no_grad():
-            pred = np.asarray(self.model(X).numpy(), dtype=np.double)
-        return pred
-
-    # -----------------
-    # internal functions for training
 
     # todo: new name for _adjust_weight()
     def _adjust_weights(self, true_label: torch.Tensor, step_size: float):
@@ -509,3 +520,8 @@ class ADLClassifier(Classifier):
             case "loss":
                 # use the loss to univariant detect concept drift
                 return self.loss_function(true_label, prediction)
+
+    def __update_record_of_model_shape(self):
+        self.record_of_model_shape["nr of layers"].append(len(self.model.layers))
+        self.record_of_model_shape["shape of hidden layers (in, out)"].append([tuple(list(h.weight.size()).__reversed__()) for h in self.model.layers])
+        self.record_of_model_shape["active layers"].append(self.model.active_layer_keys().numpy())

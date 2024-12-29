@@ -1,5 +1,7 @@
 import time
+from pathlib import Path
 
+import pandas as pd
 from capymoa.evaluation.visualization import plot_windowed_results
 
 
@@ -40,5 +42,27 @@ if __name__ == "__main__":
 
     plot_windowed_results(results_ht, metric= "accuracy")
 
+    results_dir_path = Path("results") / f"{elec_stream._filename.split('.')[0]}/"
+    results_dir_path.mkdir(parents=True, exist_ok=True)
+    try:
+        *_, elem = results_dir_path.iterdir()
+        name, running_nr = elem.stem.split("_")
+        results_path = results_dir_path / (name + "_" + str(int(running_nr) + 1))
+    except ValueError:
+        results_path = results_dir_path / "run_1"
+    results_path.mkdir(parents=True, exist_ok=True)
+
+    metrics_at_end = pd.DataFrame([adl_classifier.evaluator.metrics()], columns=adl_classifier.evaluator.metrics_header())
+
+    windowed_results = adl_classifier.evaluator.metrics_per_window()
+
+    for key in adl_classifier.record_of_model_shape.keys():
+        metrics_at_end[key] = str(adl_classifier.record_of_model_shape[key][-1])
+        windowed_results[key] = adl_classifier.record_of_model_shape[key]
+
+    metrics_at_end.to_csv(results_path / "metrics.csv")
+    windowed_results.to_csv(results_path / "metrics_per_window.csv")
+
+    results_ht.write_to_file(results_path.absolute().as_posix())
     print(f"the learner has {len(adl_classifier.model.layers)} hidden layers and {len(adl_classifier.model.voting_linear_layers)} output layers")
     print(f"the active hidden layers of the model have {dict((adl_classifier.model.transform_layer_index_to_output_layer_key(i), tuple(adl_classifier.model.layers[i].weight.size())) for i in adl_classifier.model.active_layer_keys())} shaped weight matricies")
