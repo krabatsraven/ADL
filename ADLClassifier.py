@@ -53,9 +53,9 @@ class ADLClassifier(Classifier):
 
         # keep track of the shape of the model for each seen instance for later evaluation
         self.record_of_model_shape = {
-            "nr of layers": [],
-            "shape of hidden layers (in, out)": [],
-            "active layers": []
+            "nr_of_layers": [],
+            "shape_of_hidden_layers": [],
+            "active_layers": []
         }
 
         self.drift_detector: BaseDriftDetector = drift_detector
@@ -522,6 +522,6 @@ class ADLClassifier(Classifier):
                 return self.loss_function(true_label, prediction)
 
     def __update_record_of_model_shape(self):
-        self.record_of_model_shape["nr of layers"].append(len(self.model.layers))
-        self.record_of_model_shape["shape of hidden layers (in, out)"].append([tuple(list(h.weight.size()).__reversed__()) for h in self.model.layers])
-        self.record_of_model_shape["active layers"].append(self.model.active_layer_keys().numpy())
+        self.record_of_model_shape["nr_of_layers"].append(len(self.model.layers))
+        self.record_of_model_shape["shape_of_hidden_layers"].append([tuple(list(h.weight.size()).__reversed__()) for h in self.model.layers])
+        self.record_of_model_shape["active_layers"].append(self.model.active_layer_keys().numpy())

@@ -1,13 +1,16 @@
 import time
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import pandas as pd
+import seaborn as sns
 from capymoa.stream import Stream
 
 from ADLClassifier import ADLClassifier
 
 from capymoa.datasets import Electricity, ElectricityTiny
 from capymoa.evaluation import prequential_evaluation
+
 
 def evaluate_on_stream(stream_data: Stream, learning_rate: float, threshold_for_layer_pruning: float) -> None:
     adl_classifier = ADLClassifier(schema=stream_data.schema, lr=learning_rate, mci_threshold_for_layer_pruning=threshold_for_layer_pruning)
@@ -47,12 +50,13 @@ def evaluate_on_stream(stream_data: Stream, learning_rate: float, threshold_for_
         metrics_at_end[key] = str(adl_classifier.record_of_model_shape[key][-1])
         windowed_results[key] = adl_classifier.record_of_model_shape[key]
 
-    metrics_at_end.to_csv(results_path / "metrics.csv")
-    windowed_results.to_csv(results_path / "metrics_per_window.csv")
+    metrics_at_end.to_pickle(results_path / "metrics.pickle")
+    windowed_results.to_pickle(results_path / "metrics_per_window.pickle")
 
     results_ht.write_to_file(results_path.absolute().as_posix())
 
-def plot_and_save_result(result_id: int) -> None:
+
+def plot_and_save_result(result_id: int, show: bool=True) -> None:
     results_dir_path = Path(f"results/runID={result_id}")
     if not results_dir_path.exists():
         print(f"runID={result_id}: No results found, returning")
@@ -69,28 +73,62 @@ def plot_and_save_result(result_id: int) -> None:
             continue
 
         for datastream_folder in datastream_folders:
-            metrics_overview_path = datastream_folder / "metrics.csv"
+            metrics_overview_path = datastream_folder / "metrics.pickle"
 
             if not metrics_overview_path.exists():
                 print(f"runID={result_id}: No metrics overview file found for hyperparameter={hyperparameter_folder.name} and datastream={datastream_folder.name}, skipping")
                 continue
 
-            metrics_overview = pd.read_csv(metrics_overview_path)
-            print(metrics_overview.columns)
+            metrics_overview = pd.read_pickle(metrics_overview_path)
 
-            all_metrics_path = datastream_folder / "metrics_per_window.csv"
+            all_metrics_path = datastream_folder / "metrics_per_window.pickle"
             if not all_metrics_path.exists():
                 print(f"runID={result_id}: No metrics file found for hyperparameter={hyperparameter_folder.name} and datastream={datastream_folder.name}, skipping")
                 continue
 
-            results_csv = pd.read_csv(all_metrics_path)
-            print(results_csv.columns)
+            results_csv = pd.read_pickle(all_metrics_path)
+
+            # plotting
+            def _ax_pretty(sns_ax, target_path, special_x_label=None):
+                sns_ax.set_ylabels(sns_ax.ax.get_ylabel().title())
+                sns_ax.set_xlabels(sns_ax.ax.get_xlabel().replace("_", " ").title())
+                plt.suptitle(title_string)
+                plt.title(sub_title_string)
+                if special_x_label is not None:
+                    sns_ax.set_xlabels(special_x_label)
+                else:
+                    sns_ax.set_xlabels(sns_ax.ax.get_xlabel().replace("_", " ").title())
+                sns_ax.tight_layout()
+                plt.savefig(target_path)
+                if show:
+                    plt.show()
+
+            lr, mci_cut = map(lambda s: float(s.split("=")[1]), hyperparameter_folder.name.split("_"))
+            sub_title_string = f"instances={metrics_overview.instances[0]:n}, lr={lr:.2e}, mci-cut-off={mci_cut :.2e},\nmean-accuracy={metrics_overview.accuracy[0]:.2f},\nnr of active layers after training={metrics_overview.active_layers.apply(len)[0]:n}".title()
+            plot_folder = datastream_folder / "plots"
+            plot_folder.mkdir(exist_ok=True)
+
+            title_string = "Instances trained on vs Accuracy".title()
+            ax = sns.relplot(x=results_csv.instances, y=results_csv.accuracy, s=10)
+            _ax_pretty(ax, (plot_folder / title_string))
+
+            ax = sns.relplot(x=results_csv.active_layers.apply(len), y=results_csv.accuracy, s=10)
+            title_string = "Amount of active output layers vs Accuracy".title()
+            _ax_pretty(ax, (plot_folder / title_string))
+
+            ax = sns.relplot(x=results_csv.nr_of_layers, y=results_csv.accuracy, s=10)
+            title_string = "Amount of Hidden Layers vs Accuracy".title()
+            _ax_pretty(ax, (plot_folder / title_string))
+
+            ax = sns.relplot(x=results_csv.shape_of_hidden_layers.apply(lambda lst: sum((tpl[1] for tpl in lst))), y=results_csv.accuracy, s=10)
+            _ax_pretty(ax, (plot_folder / title_string), "Amount of Nodes in Hidden Layers")
+
 
 if __name__ == "__main__":
 
-    no_run = True
+    run = False
 
-    if not no_run:
+    if run:
         streams = [ElectricityTiny()]
         learning_rates = [1e-3]
         mci_thresholds = [1e-7]
