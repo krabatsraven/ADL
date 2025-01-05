@@ -8,6 +8,7 @@ from capymoa.drift.base_detector import BaseDriftDetector
 from capymoa.drift.detectors import ADWIN
 from capymoa.evaluation import ClassificationEvaluator
 from capymoa.stream import Schema
+from codecarbon import track_emissions
 from torch import nn
 from torch.optim import Optimizer
 
@@ -135,6 +136,7 @@ class ADLClassifier(Classifier):
 
     # -----------------
     # internal functions for training
+    @track_emissions(offline=True, country_iso_code="DEU")
     def __train(self, instance):
         X = torch.tensor(instance.x, dtype=torch.float32)
         y = torch.tensor(instance.y_index, dtype=torch.long)

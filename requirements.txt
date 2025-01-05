@@ -36,6 +36,9 @@ pytest
 # --------------
 # ----------------
 
+# code carbon to measure co2 equivalents
+codecarbon
+
 # plots by seaborn:
 seaborn
 
