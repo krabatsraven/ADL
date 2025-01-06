@@ -1,6 +1,8 @@
 import os
 import time
+from functools import reduce
 from pathlib import Path
+from typing import Optional, List, Tuple
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -14,11 +16,11 @@ from capymoa.datasets import Electricity, ElectricityTiny
 from capymoa.evaluation import prequential_evaluation
 
 
-def evaluate_on_stream(stream_data: Stream, learning_rate: float, threshold_for_layer_pruning: float) -> None:
-    adl_classifier = ADLClassifier(schema=stream_data.schema, lr=learning_rate, mci_threshold_for_layer_pruning=threshold_for_layer_pruning)
+def __evaluate_on_stream(stream_data: Stream, learning_rate: float, threshold_for_layer_pruning: float, classifier: type(ADLClassifier) = ADLClassifier) -> None:
+    adl_classifier = classifier(schema=stream_data.schema, lr=learning_rate, mci_threshold_for_layer_pruning=threshold_for_layer_pruning)
 
     name_string_of_stream_data = f"{stream_data._filename.split('.')[0]}/"
-    hyperparameter_part_of_name_string = f"lr={learning_rate}_MCICutOff={threshold_for_layer_pruning}"
+    hyperparameter_part_of_name_string = f"lr={learning_rate}_MCICutOff={threshold_for_layer_pruning}_classifier={adl_classifier}"
     results_dir_path = Path("results/")
     results_dir_path.mkdir(parents=True, exist_ok=True)
     if any(results_dir_path.iterdir()):
@@ -60,8 +62,130 @@ def evaluate_on_stream(stream_data: Stream, learning_rate: float, threshold_for_
 
     results_ht.write_to_file(results_path.absolute().as_posix())
 
+def __ax_pretty(
+        sns_ax,
+        target_path,
+        title_string="",
+        sub_title_string="",
+        show=True,
+        special_x_label=None,
+        special_y_label=None
+):
+    plt.suptitle(title_string)
+    plt.title(sub_title_string)
+    if special_x_label is not None:
+        sns_ax.set_xlabels(special_x_label)
+    else:
+        sns_ax.set_xlabels(sns_ax.ax.get_xlabel().replace("_", " ").title())
+    if special_y_label is not None:
+        sns_ax.set_ylabels(special_y_label)
+    else:
+        sns_ax.set_ylabels(sns_ax.ax.get_ylabel().replace("_", " ").title())
+    sns_ax.tight_layout()
+    plt.savefig(target_path)
+    if show:
+        plt.show()
 
-def plot_and_save_result(result_id: int, show: bool=True) -> None:
+
+def __compare_results_via_plot_and_save(result_paths: List[Path]) -> None:
+    working_folder = Path("results") / "comparisons" / "_VS_".join(map(lambda f: f"{f.parent.parent.name}_{f.parent.name}", result_paths))
+    plot_folder = working_folder / "plots"
+    plot_folder.mkdir(exist_ok=True, parents=True)
+
+    dfs = []
+    df_names = []
+    df_contains_emission_flags = []
+    hyperparameters = []
+
+    for i, result_dir in enumerate(result_paths):
+        metrics_windowed_path, _, *tail = [file for file in result_dir.iterdir() if file.is_file()].__reversed__()
+        run_data = pd.read_pickle(metrics_windowed_path)
+        contains_emissions = False
+        if tail:
+            emissions = pd.read_csv(tail[0])
+            run_data = run_data.merge(emissions, right_index=True, left_index=True)
+            contains_emissions = True
+
+        run_data.name = f"TABLE{i}"
+        df_names.append(f"{result_dir.parent.parent.name}+{result_dir.parent.name.replace('_', '+')}+{result_dir.name}")
+
+        dfs.append(run_data)
+        df_contains_emission_flags.append(contains_emissions)
+
+        hyperparameter_folder = result_dir.parent.resolve()
+        lr, mci_cut, *_ = map(lambda s: s.split("=")[1], hyperparameter_folder.name.split("_"))
+        lr, mci_cut = float(lr), float(mci_cut)
+        hyperparameters.append((lr, mci_cut))
+
+    sub_title_string = ""
+    title_string = ""
+
+    def merge_two_dfs(lhs, rhs):
+        out = pd.merge(lhs, rhs, on="instances", how="outer", suffixes=("_" + lhs.name, "_" + rhs.name))
+        out.name = rhs.name
+        return out
+
+    pd.set_option("display.max_columns", None)
+    pd.set_option("display.max_rows", None)
+    pd.set_option("display.max_seq_items", None)
+
+    data = reduce(merge_two_dfs, dfs)
+
+    plt.show()
+
+    _ax_pretty = lambda *args, **kwargs: __ax_pretty(*args, **kwargs, title_string=title_string, sub_title_string=sub_title_string)
+   
+    title_string = "Instances trained on vs Accuracy".title()
+
+    data_filtered = data.filter(regex="instances|accuracy_.*")
+    dfl = pd.melt(data_filtered, ['instances'])
+    # todo: rename variabble to difference in table names
+
+    ax = sns.relplot(data=dfl, x="instances", y="value", hue="variable", s=10)
+    _ax_pretty(ax, (plot_folder / title_string))
+    
+    # todo: use above on every graph choice
+    # title_string = "Amount of active output layers vs Accuracy".title()
+    # amount_of_active_layers=run_data.active_layers.apply(len)
+    # ax = sns.relplot(x=amount_of_active_layers, y=run_data.accuracy, s=10)
+    # _ax_pretty(ax, (plot_folder / title_string))
+    # 
+    # title_string = "Amount of Hidden Layers vs Accuracy".title()
+    # ax = sns.relplot(x=run_data.nr_of_layers, y=run_data.accuracy, s=10)
+    # _ax_pretty(ax, (plot_folder / title_string), special_x_label="Amount of Hidden Layers")
+    # 
+    # title_string = "Amount of Hidden Nodes vs Accuracy".title()
+    # amount_of_hidden_nodes = run_data.shape_of_hidden_layers.apply(lambda lst: sum((tpl[1] for tpl in lst)))
+    # ax = sns.relplot(x=amount_of_hidden_nodes, y=run_data.accuracy, s=10)
+    # _ax_pretty(ax, (plot_folder / title_string), special_x_label="Amount of Nodes in Hidden Layers")
+    # 
+    # title_string = "Instances vs Amount of Hidden Layers".title()
+    # ax = sns.relplot(x=run_data.instances, y=run_data.nr_of_layers, s=10)
+    # _ax_pretty(ax, (plot_folder / title_string), special_y_label="Amount of Hidden Layers")
+    # 
+    # title_string = "Instances vs Amount of Hidden Nodes".title()
+    # ax = sns.relplot(x=run_data.instances, y=amount_of_hidden_nodes, s=10)
+    # _ax_pretty(ax, (plot_folder/title_string), special_y_label="Amount of Nodes in Hidden Layers")
+    # 
+    # title_string = "Instances vs Amount of Active Layers"
+    # ax = sns.relplot(x=run_data.instances, y=amount_of_active_layers, s=10)
+    # _ax_pretty(ax, (plot_folder/title_string), special_y_label="Amount of Active Layers")
+    # 
+    # if all(df_contains_emission_flags):
+    #     title_string = "Instances vs Emissions".title()
+    #     ax = sns.relplot(x=run_data.instances, y=run_data.emissions, s=10)
+    #     _ax_pretty(ax, (plot_folder/title_string))
+    # 
+    #     title_string = "Amount of Active Layers vs Emissions".title()
+    #     ax = sns.relplot(x=amount_of_active_layers, y=run_data.emissions, s=10)
+    #     _ax_pretty(ax, (plot_folder/title_string))
+    # 
+    #     title_string = "nr of nodes vs emissions".title()
+    #     ax = sns.relplot(x=amount_of_hidden_nodes, y=run_data.emissions, s=10)
+    #     _ax_pretty(ax, (plot_folder/title_string), special_x_label="Amount of Nodes in Hidden Layers")
+
+
+def __plot_and_save_result(result_id: int, show: bool=True) -> None:
     results_dir_path = Path(f"results/runID={result_id}")
     if not results_dir_path.exists():
         print(f"runID={result_id}: No results found, returning")
@@ -92,46 +216,70 @@ def plot_and_save_result(result_id: int, show: bool=True) -> None:
                 continue
 
             results_csv = pd.read_pickle(all_metrics_path)
+            emissions_path = datastream_folder / "emissions.csv"
+            emissions_plotting = False
+            if emissions_path.exists():
+                emissions = pd.read_csv(emissions_path)
+                results_csv = results_csv.merge(emissions, right_index=True, left_index=True)
+                emissions_plotting = True
 
             # plotting
-            def _ax_pretty(sns_ax, target_path, special_x_label=None):
-                sns_ax.set_ylabels(sns_ax.ax.get_ylabel().title())
-                sns_ax.set_xlabels(sns_ax.ax.get_xlabel().replace("_", " ").title())
-                plt.suptitle(title_string)
-                plt.title(sub_title_string)
-                if special_x_label is not None:
-                    sns_ax.set_xlabels(special_x_label)
-                else:
-                    sns_ax.set_xlabels(sns_ax.ax.get_xlabel().replace("_", " ").title())
-                sns_ax.tight_layout()
-                plt.savefig(target_path)
-                if show:
-                    plt.show()
-
-            lr, mci_cut = map(lambda s: float(s.split("=")[1]), hyperparameter_folder.name.split("_"))
+            lr, mci_cut, *_ = map(lambda s: s.split("=")[1], hyperparameter_folder.name.split("_"))
+            lr, mci_cut = float(lr), float(mci_cut)
             sub_title_string = f"instances={metrics_overview.instances[0]:n}, lr={lr:.2e}, mci-cut-off={mci_cut :.2e},\nmean-accuracy={metrics_overview.accuracy[0]:.2f},\nnr of active layers after training={metrics_overview.active_layers.apply(len)[0]:n}".title()
             plot_folder = datastream_folder / "plots"
             plot_folder.mkdir(exist_ok=True)
+            title_string=""
+
+            _ax_pretty = lambda *args, **kwargs: __ax_pretty(*args, **kwargs, title_string=title_string, sub_title_string=sub_title_string, show=show)
 
             title_string = "Instances trained on vs Accuracy".title()
             ax = sns.relplot(x=results_csv.instances, y=results_csv.accuracy, s=10)
             _ax_pretty(ax, (plot_folder / title_string))
 
-            ax = sns.relplot(x=results_csv.active_layers.apply(len), y=results_csv.accuracy, s=10)
             title_string = "Amount of active output layers vs Accuracy".title()
+            amount_of_active_layers=results_csv.active_layers.apply(len)
+            ax = sns.relplot(x=amount_of_active_layers, y=results_csv.accuracy, s=10)
             _ax_pretty(ax, (plot_folder / title_string))
 
-            ax = sns.relplot(x=results_csv.nr_of_layers, y=results_csv.accuracy, s=10)
             title_string = "Amount of Hidden Layers vs Accuracy".title()
-            _ax_pretty(ax, (plot_folder / title_string))
+            ax = sns.relplot(x=results_csv.nr_of_layers, y=results_csv.accuracy, s=10)
+            _ax_pretty(ax, (plot_folder / title_string), special_x_label="Amount of Hidden Layers")
 
-            ax = sns.relplot(x=results_csv.shape_of_hidden_layers.apply(lambda lst: sum((tpl[1] for tpl in lst))), y=results_csv.accuracy, s=10)
-            _ax_pretty(ax, (plot_folder / title_string), "Amount of Nodes in Hidden Layers")
+            title_string = "Amount of Hidden Nodes vs Accuracy".title()
+            amount_of_hidden_nodes = results_csv.shape_of_hidden_layers.apply(lambda lst: sum((tpl[1] for tpl in lst)))
+            ax = sns.relplot(x=amount_of_hidden_nodes, y=results_csv.accuracy, s=10)
+            _ax_pretty(ax, (plot_folder / title_string), special_x_label="Amount of Nodes in Hidden Layers")
+
+            title_string = "Instances vs Amount of Hidden Layers".title()
+            ax = sns.relplot(x=results_csv.instances, y=results_csv.nr_of_layers, s=10)
+            _ax_pretty(ax, (plot_folder / title_string), special_y_label="Amount of Hidden Layers")
+
+            title_string = "Instances vs Amount of Hidden Nodes".title()
+            ax = sns.relplot(x=results_csv.instances, y=amount_of_hidden_nodes, s=10)
+            _ax_pretty(ax, (plot_folder / title_string), special_y_label="Amount of Nodes in Hidden Layers")
+
+            title_string = "Instances vs Amount of Active Layers"
+            ax = sns.relplot(x=results_csv.instances, y=amount_of_active_layers, s=10)
+            _ax_pretty(ax, (plot_folder / title_string), special_y_label="Amount of Active Layers")
+
+            if emissions_plotting:
+                title_string = "Instances vs Emissions".title()
+                ax = sns.relplot(x=results_csv.instances, y=results_csv.emissions, s=10)
+                _ax_pretty(ax, (plot_folder / title_string))
+
+                title_string = "Amount of Active Layers vs Emissions".title()
+                ax = sns.relplot(x=amount_of_active_layers, y=results_csv.emissions, s=10)
+                _ax_pretty(ax, (plot_folder / title_string))
+
+                title_string = "nr of nodes vs emissions".title()
+                ax = sns.relplot(x=amount_of_hidden_nodes, y=results_csv.emissions, s=10)
+                _ax_pretty(ax, (plot_folder / title_string), special_x_label="Amount of Nodes in Hidden Layers")
 
 
 if __name__ == "__main__":
 
-    run = True
+    run = False
 
     if run:
         streams = [ElectricityTiny()]
@@ -141,11 +289,21 @@ if __name__ == "__main__":
         for stream_data in streams:
             for lr in learning_rates:
                 for mci_threshold in mci_thresholds:
-                    evaluate_on_stream(stream_data=stream_data, learning_rate=lr, threshold_for_layer_pruning=mci_threshold)
+                    __evaluate_on_stream(stream_data=stream_data, learning_rate=lr, threshold_for_layer_pruning=mci_threshold)
 
-    plot_and_save_result(1)
-    plot_and_save_result(2)
-    plot_and_save_result(3)
-    plot_and_save_result(4)
-    plot_and_save_result(5)
-    plot_and_save_result(6)
+    # plot_and_save_result(1)
+    # plot_and_save_result(2)
+    # plot_and_save_result(3)
+    # plot_and_save_result(4)
+    # plot_and_save_result(5)
+    # plot_and_save_result(6)
+    # __plot_and_save_result(9)
+
+
+    run_7_7_8_and_9 = [
+        Path("/home/david/PycharmProjects/ADL/results/runID=7/lr=0.001_MCICutOff=1e-07/electricity_tiny"),
+        Path("/home/david/PycharmProjects/ADL/results/runID=7/lr=0.001_MCICutOff=1e-07/electricity_tiny"),
+        Path("/home/david/PycharmProjects/ADL/results/runID=8/lr=0.001_MCICutOff=1e-07/electricity_tiny"),
+        Path("/home/david/PycharmProjects/ADL/results/runID=8/lr=0.001_MCICutOff=1e-07/electricity_tiny")
+    ]
+    __compare_results_via_plot_and_save(run_7_7_8_and_9)

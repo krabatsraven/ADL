@@ -70,7 +70,7 @@ class ADLClassifier(Classifier):
         self.mci_threshold_for_layer_pruning = mci_threshold_for_layer_pruning
 
         # result data that are kept to calculate the covariance matrix of output nodes of different output layers
-        # todo: eliminate
+        # todo: eliminate by recursive calculation of covariant matrix
         self.results_of_all_hidden_layers_kept_for_cov_calc: Optional[torch.Tensor] = None
         self.nr_of_results_kept_for_covariance_calculation = nr_of_results_kept_for_covariance_calculation
 
@@ -90,8 +90,8 @@ class ADLClassifier(Classifier):
         self.minimum_of_mean_of_variance_squared_squared: Optional[torch.Tensor] = None
         self.minimum_of_standard_deviation_of_variance_squared_squared: Optional[torch.Tensor] = None
 
+        # todo: create clean version without evaluation: remove "total time in loop"
         self.total_time_in_loop = 0
-
 
 
     def __str__(self):
@@ -119,6 +119,7 @@ class ADLClassifier(Classifier):
         if self.model is None:
             self.set_model(instance)
 
+        # todo: create clean version without evaluation: remove "record of model shape"
         self.__update_record_of_model_shape()
         self.__train(instance)
 
@@ -136,6 +137,7 @@ class ADLClassifier(Classifier):
 
     # -----------------
     # internal functions for training
+    # todo: create clean version without evaluation: remove "track emissions"
     @track_emissions(offline=True, country_iso_code="DEU")
     def __train(self, instance):
         X = torch.tensor(instance.x, dtype=torch.float32)
