@@ -509,6 +509,34 @@ class AutoDeepLearner(nn.Module):
         """
         return torch.tensor(list(map(self.__get_layer_index_from_voting_key, self.voting_weights.keys())), dtype=torch.int)
 
+    def active_and_learning_layer_keys(self) -> torch.Tensor:
+        """
+        :returns all indicies of all layers in self.layers 
+        that have a voting weight associated with them 
+        and will calculate a gradient in the backward pass
+        as ParamDict is ordered it should hold that if voting weight of layer i w_i exists 
+        -> (i, w_i) in zip(get_voting_weight_keys(), get_voting_weight_values())
+        :return: 1-dim tensor that contains all the indicies of all layers in self.layers with a voting weight and a gradient
+        """
+        active_layer_keys = self.active_layer_keys()
+        return active_layer_keys[[self.__layer_is_learning(idx) for idx in active_layer_keys]]
+
+    def active_and_learning_layer_keys_wo_winning_layer(self) -> torch.Tensor:
+        """
+        :returns all indicies of all layers in self.layers 
+        that have a voting weight associated with them 
+        and will calculate a gradient in the backward pass 
+        and are not the winning layer
+        as ParamDict is ordered it should hold that if voting weight of layer i w_i exists 
+        -> (i, w_i) in zip(get_voting_weight_keys(), get_voting_weight_values())
+        :return: 1-dim tensor that contains all the indicies of all layers in self.layers with a voting weight and a gradient that are not the winning layer 
+        """
+        active_and_learning = self.active_and_learning_layer_keys()
+        return active_and_learning[active_and_learning != self.get_winning_layer()]
+
+    def __layer_is_learning(self, layer_index: int) -> bool:
+        return self.get_output_layer(layer_index).weight.requires_grad
+
     def get_voting_weight_values(self) -> torch.Tensor:
         """
         :returns all voting weights of all layers in self.layers that have one associated with them

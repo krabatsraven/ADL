@@ -2,7 +2,7 @@ import random
 
 import pytest
 
-from AutoDeepLearner import AutoDeepLearner
+from Model import AutoDeepLearner
 from tests.resources import random_initialize_model
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
 

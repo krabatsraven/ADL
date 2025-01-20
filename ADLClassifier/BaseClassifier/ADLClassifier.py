@@ -8,11 +8,10 @@ from capymoa.drift.base_detector import BaseDriftDetector
 from capymoa.drift.detectors import ADWIN
 from capymoa.evaluation import ClassificationEvaluator
 from capymoa.stream import Schema
-from codecarbon import track_emissions
 from torch import nn
 from torch.optim import Optimizer
 
-from AutoDeepLearner import AutoDeepLearner
+from Model import AutoDeepLearner
 
 
 class ADLClassifier(Classifier):
@@ -51,13 +50,6 @@ class ADLClassifier(Classifier):
 
 
         self.evaluator = ClassificationEvaluator(self.schema, window_size=1)
-
-        # keep track of the shape of the model for each seen instance for later evaluation
-        self.record_of_model_shape = {
-            "nr_of_layers": [],
-            "shape_of_hidden_layers": [],
-            "active_layers": []
-        }
 
         self.drift_detector: BaseDriftDetector = drift_detector
         self.__drift_criterion_switch = drift_criterion
@@ -119,9 +111,7 @@ class ADLClassifier(Classifier):
         if self.model is None:
             self.set_model(instance)
 
-        # todo: create clean version without evaluation: remove "record of model shape"
-        self.__update_record_of_model_shape()
-        self.__train(instance)
+        self._train(instance)
 
     def predict(self, instance):
         return np.argmax(self.predict_proba(instance))
@@ -137,9 +127,7 @@ class ADLClassifier(Classifier):
 
     # -----------------
     # internal functions for training
-    # todo: create clean version without evaluation: remove "track emissions"
-    @track_emissions(offline=True, country_iso_code="DEU")
-    def __train(self, instance):
+    def _train(self, instance):
         X = torch.tensor(instance.x, dtype=torch.float32)
         y = torch.tensor(instance.y_index, dtype=torch.long)
         # set the device and add a dimension to the tensor
@@ -150,29 +138,28 @@ class ADLClassifier(Classifier):
 
         # Compute prediction error
         pred = self.model(X)
-        loss = self.loss_function(pred, y)
-
-        # Backpropagation
-        # todo: q: winning layer training? when?
-        loss.backward()
-        self.optimizer.step()
-
-        self.evaluator.update(y.item(), torch.argmax(pred).item())
-        # self.evaluator.metrics().append(len(self.model.layers))
-        # self.evaluator.result_windows[-1].append(len(self.model.layers))
-        self.drift_detector.add_element(self.__drift_criterion(y, pred))
-
-        # todo: these next three lines are part of the evaluation and should not be part of co2 emissions
 
         self._adjust_weights(true_label=y, step_size=self.learning_rate)
+
+        # Backpropagation
+        self._backpropagation(prediction=pred, true_label=y)
+
+        self.drift_detector.add_element(self.__drift_criterion(y, pred))
+
         # todo: # 71
         # todo: # 72
         self._high_lvl_learning(true_label=y, data=X)
         self._low_lvl_learning(true_label=y)
         self.optimizer.zero_grad()
 
+    def _backpropagation(self, prediction: torch.Tensor, true_label: torch.Tensor):
+        loss = self.loss_function(prediction, true_label)
+        loss.backward()
+        self.optimizer.step()
+
     # todo: new name for _adjust_weight()
     def _adjust_weights(self, true_label: torch.Tensor, step_size: float):
+        # forward has to be executed beforehand, else adjust weight cannot determine:
         # find the indices of the results that where correctly predicted
         correctly_predicted_layers_indices = torch.where(torch.argmax(self.model.layer_results, dim = 1) == true_label)
         correctly_predicted_layers_mask = np.zeros(self.model.layer_result_keys.shape, dtype=bool)
@@ -360,7 +347,7 @@ class ADLClassifier(Classifier):
                 true_label = torch.stack((self.drift_warning_label, true_label))
 
             # add layer
-            active_layers_before_adding = self.model.active_layer_keys().tolist()
+            active_layers_before_adding = self.model.active_and_learning_layer_keys().tolist()
             self.model._add_layer()
             self.results_of_all_hidden_layers_kept_for_cov_calc = None
             # update optimizer after adding a layer
@@ -373,8 +360,10 @@ class ADLClassifier(Classifier):
             # can we just delete the gradients of all weights not in the new layer?
             # train by gradient
             # disable all active layers that were not just added:
+
             self.model._disable_layers_for_training(active_layers_before_adding)
             pred = self.model.forward(data)
+            # todo: replace with self.backprop?
             loss = self.loss_function(pred, true_label)
 
             # Backpropagation
@@ -519,13 +508,9 @@ class ADLClassifier(Classifier):
         match self.__drift_criterion_switch:
             case "accuracy":
                 # use accuracy to univariant detect concept drift
+                self.evaluator.update(true_label.item(), torch.argmax(prediction).item())
                 return self.evaluator.accuracy()
 
             case "loss":
                 # use the loss to univariant detect concept drift
                 return self.loss_function(true_label, prediction)
-
-    def __update_record_of_model_shape(self):
-        self.record_of_model_shape["nr_of_layers"].append(len(self.model.layers))
-        self.record_of_model_shape["shape_of_hidden_layers"].append([tuple(list(h.weight.size()).__reversed__()) for h in self.model.layers])
-        self.record_of_model_shape["active_layers"].append(self.model.active_layer_keys().numpy())

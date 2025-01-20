@@ -3,7 +3,7 @@ import pytest
 from typing import List
 import torch
 
-from AutoDeepLearner import AutoDeepLearner
+from Model import AutoDeepLearner
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
 
 

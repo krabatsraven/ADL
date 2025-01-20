@@ -4,7 +4,7 @@ from typing import List
 import pytest
 import torch
 
-from AutoDeepLearner import AutoDeepLearner
+from Model import AutoDeepLearner
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
 
 

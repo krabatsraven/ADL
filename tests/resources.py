@@ -3,7 +3,7 @@ import random
 
 import torch
 
-from AutoDeepLearner import AutoDeepLearner
+from Model import AutoDeepLearner
 
 optimizer_choices = [torch.optim.SGD, torch.optim.Adam]
 learning_rate_combinations = list(combinations([0.0001, 0.01, 0.1, 1], 2))

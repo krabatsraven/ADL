@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from numpy._typing import NDArray
 
-from AutoDeepLearner import AutoDeepLearner
+from Model import AutoDeepLearner
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
 
 

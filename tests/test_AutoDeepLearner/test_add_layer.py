@@ -3,9 +3,8 @@ import math
 import pytest
 import random
 
-from AutoDeepLearner import AutoDeepLearner
+from Model import AutoDeepLearner
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
-from tests.test_AutoDeepLearner.test_normalise_voting_weights import has_normalised_voting_weights
 
 
 def add_layer_test(model, iter, msg):

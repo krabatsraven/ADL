@@ -3,7 +3,7 @@ import random
 
 import pytest
 
-from AutoDeepLearner import AutoDeepLearner
+from Model import AutoDeepLearner
 from tests.test_AutoDeepLearner.test_forward import TestAutoDeepLearnerForward
 from tests.test_AutoDeepLearner.test_normalise_voting_weights import has_normalised_voting_weights
 
