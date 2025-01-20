@@ -1,5 +1,8 @@
 # build on python 3.11, developers do not guarantee 3.12 at the moment
 
+# general packages
+# ----------------
+# ----------------
 # pytorch:
 # --------
 
@@ -16,12 +19,28 @@ torchvision
 torchaudio
 
 # capyMoa
+# -------
 # stream learning
 # dependencies for CapyMoa: Java
 capymoa
 
-# pytest for development:
-pytest
-
 # numpy
 numpy
+
+# packages for development:
+# --------------
+# ----------------
+pytest
+
+# packages for evaluation::
+# --------------
+# ----------------
+
+# code carbon to measure co2 equivalents
+codecarbon
+
+# plots by seaborn:
+seaborn
+
+# dependency of sns/matplotlib for plots:
+matplotlib

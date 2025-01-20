@@ -3,7 +3,7 @@ import random
 import pytest
 import torch
 
-from AutoDeepLearner import AutoDeepLearner
+from Model import AutoDeepLearner
 
 
 class TestAutoDeepLearnerForward:
