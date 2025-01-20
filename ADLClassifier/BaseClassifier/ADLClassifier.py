@@ -48,7 +48,6 @@ class ADLClassifier(Classifier):
         else:
             self.optimizer = optimizer
 
-
         self.evaluator = ClassificationEvaluator(self.schema, window_size=1)
 
         self.drift_detector: BaseDriftDetector = drift_detector

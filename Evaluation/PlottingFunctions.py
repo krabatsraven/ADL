@@ -525,7 +525,7 @@ def __create_df_names(df_parameters: List[Dict[str, str]]) -> Tuple[str, List[st
 
 def __get_plot_folder(sup_title, df_names) -> Path:
     comp_description = (sup_title + "\ncompare: [(" + "), (".join(df_names) + ")]")
-    working_folder = Path("results/runs") / "comparisons"
+    working_folder = Path("results") / "comparisons"
     working_folder.mkdir(exist_ok=True, parents=True)
     if len(list(working_folder.iterdir())) == 0:
         plot_folder = working_folder / "comparison=0" / "plots"

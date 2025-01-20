@@ -7,6 +7,8 @@ from capymoa.evaluation import prequential_evaluation
 from capymoa.stream import Stream
 
 from ADLClassifier import ADLClassifier
+from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_all_of_one_run
+
 
 def __get_run_id() -> int:
     results_dir_path = Path("results/runs/")
@@ -75,3 +77,22 @@ def __evaluate_on_stream(
     windowed_results.to_pickle(results_path / "metrics_per_window.pickle")
 
     results_ht.write_to_file(results_path.absolute().as_posix())
+
+
+def _evaluate_parameters(adl_classifiers, streams, learning_rates, mci_thresholds):
+    run_id = __get_run_id()
+
+    for classifier in adl_classifiers:
+        for stream_data in streams:
+            for lr in learning_rates:
+                for mci_threshold in mci_thresholds:
+                    __evaluate_on_stream(
+                        stream_data=stream_data,
+                        learning_rate=lr,
+                        threshold_for_layer_pruning=mci_threshold,
+                        run_id=run_id,
+                        classifier=classifier
+                    )
+
+    __plot_and_save_result(run_id, show=False)
+    __compare_all_of_one_run(run_id, show=True)
