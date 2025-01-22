@@ -59,6 +59,19 @@ class ADLClassifier(Classifier):
 
         # user chosen threshold for the mci value that guards the layer pruning
         self.mci_threshold_for_layer_pruning = mci_threshold_for_layer_pruning
+        # variables to recursively calculate the covariance of output nodes to each other:
+        # to later calculate the mci for layer removal
+        # n_x_m = amount of output_layers * amount of nodes per output_layers (amount of classes)
+        n_x_m = len(self.model.active_layer_keys()) * self.model.output_size
+        # the covariance matrix of output layer nodes to each other:
+        # todo: can be deleted?
+        self.covariance_of_output_nodes: torch.Tensor = torch.zeros((n_x_m, n_x_m))
+        # the matrix of residual sums
+        self.sum_of_residual_output_probabilities: torch.Tensor = torch.zeros((n_x_m, n_x_m))
+        # the row wise mean of all reshaped layer_results: \vec µ:
+        self.mean_of_output_probabilities: torch.Tensor = torch.zeros(n_x_m, 1)
+        # nr of instances seen in each layer
+        self.nr_of_instances_seen_for_cov = torch.zeros(len(self.model.active_layer_keys()))
 
         # result data that are kept to calculate the covariance matrix of output nodes of different output layers
         # todo: eliminate by recursive calculation of covariant matrix
@@ -249,6 +262,76 @@ class ADLClassifier(Classifier):
         current_results = self.model.layer_results.flatten().reshape(-1, n * m).transpose(0,1).detach()
         current_results.requires_grad_(False)
 
+        # todo: update covariance matrix here
+        def _update_covariance_with_one_row(layer_result: torch.Tensor):
+            assert layer_result.shape == (1, self.model.active_layer_keys(), self.model.output_size), \
+                "updating the covariance with more than one result leads to numerical instability"
+            # covariance matrix: cov = ((layer_x1_class_y1_prob)_{i=x1+y1}, (layer_x2_class_y2_prob)_{j=x2+y2}))_{i, j}
+            # 0 <= x1, x2 < nr_of_active_layers; 0 <= y1, y2 < nr_of_classes
+            # layer_result = (layer_i_class_j_prob)_{ij}
+            # reshape layer_result to vector of shape 1 x (nr_of_active_layers*nr_of_classes): \vec l
+
+            # n += 1
+            self.nr_of_instances_seen_for_cov += 1
+            # dx = x - mean_x (of n-1 instances)
+            residual_w_mean_x_n_minus_1 = layer_result.reshape((len(self.model.active_layer_keys())*self.model.output_size, 1)) - self.mean_of_output_probabilities
+
+            # \bar x_n = \bar {x_{n-1}} + \frac{x_n - \bar{x_{n-1}}}{n} = mean_x + dx / n
+            self.mean_of_output_probabilities = (
+                    self.mean_of_output_probabilities 
+                    +
+                    (
+                            residual_w_mean_x_n_minus_1
+                            /
+                            (
+                                self.nr_of_instances_seen_for_cov
+                                .unsqueeze(1)
+                                .expand(-1, self.model.output_size)
+                                .reshape((-1, 1))
+                            )
+                    )
+            )
+            # meany += (y - meany) / n
+            # C += dx * (y - meany)
+            # C_n   := sum_{i=1}^n(x_i - \bar{x_n})(y_i - \bar{y_n})
+            #       = C_{n-1} + (x_n - \bar{x_n})(y_n - \bar{y_{n - 1}})
+            #       = C_{n-1} + (x_{n} - \bar{x_{n - 1}})(y_n - \bar{y_{n}})
+            self.sum_of_residual_output_probabilities = (
+                    self.sum_of_residual_output_probabilities 
+                    +
+                    (
+                        residual_w_mean_x_n_minus_1
+                        .mul(
+                            (
+                                    layer_result.reshape(1, len(self.model.active_layer_keys()) * self.model.output_size) 
+                                    -
+                                    self.mean_of_output_probabilities.reshape(1, -1)
+                            )
+                        )
+                    )
+            )
+
+        def _covariance_of_output_nodes():
+            # todo: implement
+            # C_n   := sum_{i=1}^n(x_i - \bar{x_n})(y_i - \bar{y_n})
+            #       = C_{n-1} + (x_n - \bar{x_n})(y_n - \bar{y_{n - 1}})
+            #       = C_{n-1} + (x_{n} - \bar{x_{n - 1}})(y_n - \bar{y_{n}})
+            # sample_cov(x,y) = \frac{C_n}{n - 1}
+            # todo: bechel correction if n = 1?
+            # the matrix of all sample_cov(x,y)_{i,j} = \frac{(C_n)_{i,j}}{n - 1}
+            pass
+
+        def _add_layer_to_covariance_matrix():
+            # todo: new layers are added: add a column and a row of zeros to the end of cov matrix
+            pass
+
+        def _remove_layer_from_covariance_matrix(layer_idx: int):
+            # todo: if layer x is removed: remove rows i and columns j between x * nr_of_classes <= i, j < (x + 1) * nr_of_classes
+            pass
+
+        for row in self.model.layer_results:
+            _update_covariance_with_one_row(row.unsqueeze(0))
+
         # todo: # 82
         if self.results_of_all_hidden_layers_kept_for_cov_calc is not None:
             # concat all results of all hidden layers
@@ -278,6 +361,8 @@ class ADLClassifier(Classifier):
         this_loop_start = time.time_ns()
         # Calculate MCI for each pair of layers
         # todo: # 81
+        # current idea: reshape cov to n X n x m, calculate with vectors of length m
+        # get combinations through a view instead of the 2 outer for loops?
         for layer_i_idx in range(n):
             for layer_j_idx in range(layer_i_idx + 1, n):
                 for class_o_idx in range(m):

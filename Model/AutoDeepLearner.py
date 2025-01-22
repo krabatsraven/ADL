@@ -106,7 +106,7 @@ class AutoDeepLearner(nn.Module):
         # todo: change to support shape=(x,N,M) where N = nr of hidden layers, M = nr of classes and x = nr of instances
         # todo: currently it is assumed that x is 1, but:
         # todo: currently expected a bug if more than one instances is fed into the network at once
-        self.layer_results = layer_results.flatten(end_dim=1)
+        self.layer_results = layer_results.movedim(0, 1).squeeze()
 
         # add n empty dimensions at the end of betas dimensionality to allow for multiplying with the layer results:
         # e.g.: beta.size = (layers) -> beta.size = (layers, 1, 1) or beta.size = (layers, 1) if batch size is 1
@@ -121,6 +121,7 @@ class AutoDeepLearner(nn.Module):
 
     def get_expected_value_expected_squared_value_and_idx_of_least_contributing_node_for_layer(self, layer_index: int):
         # todo: comment string
+        # todo: test
         assert self.output_layer_with_index_exists(layer_index=layer_index), "can only calculate the expected value for an active layer"
         tmp = self.mean_of_data / (torch.sqrt(1 + torch.pi / 8 * self.standard_deviation_of_data.matmul(self.standard_deviation_of_data)))
         with torch.no_grad():
@@ -181,6 +182,7 @@ class AutoDeepLearner(nn.Module):
         self.standard_deviation_of_data = torch.sqrt(new_var)
 
     def _disable_layers_for_training(self, layer_indicies: List[int]):
+        # todo: write test
         assert all((isinstance(elem, int) for elem in layer_indicies)), \
             (f"the provided list of indicies to exclude in training does not consist of only ints: "
              f"exclude_layer_indicies_in_training={layer_indicies}")
@@ -208,6 +210,7 @@ class AutoDeepLearner(nn.Module):
             self.get_output_layer(excluded_index).requires_grad_(requires_grad=False)
 
     def _enable_layers_for_training(self, layer_indicies: List[int]):
+        # todo: write test
         assert all((isinstance(elem, int) for elem in layer_indicies)), \
             (f"the provided list of indicies to exclude in training does not consist of only ints: "
              f"exclude_layer_indicies_in_training={layer_indicies}")

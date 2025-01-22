@@ -365,7 +365,7 @@ class TestAutoDeepLearnerDeleteNode:
 
     def test_delete_node_raises_on_too_big_node_index(self, model):
         layer_index = random.randint(0, len(model.layers) - 1)
-        node_index = model.layers[layer_index].weight.record_of_model_shape[0]
+        node_index = model.layers[layer_index].weight.shape[0]
         error_str = (f"cannot remove the node with index {node_index} from the layer with the index {layer_index}, "
                      f"as it has no node with index {node_index}")
         with pytest.raises(Exception) as exec_info:
@@ -376,7 +376,7 @@ class TestAutoDeepLearnerDeleteNode:
 
     def test_delete_node_raises_on_no_voting_linear_layer(self, model, nr_of_layers):
         layer_index = random.randint(0, nr_of_layers - 1)
-        node_index = random.randint(0, model.layers[layer_index].weight.record_of_model_shape[0] - 1)
+        node_index = random.randint(0, model.layers[layer_index].weight.shape[0] - 1)
         model._AutoDeepLearner__pop_output_layer(layer_index)
         error_str = (f"cannot remove a node from the layer with the index {layer_index}, "
                      f"as it is not a layer that will projected onto a vote")
