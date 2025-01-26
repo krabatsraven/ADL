@@ -9,15 +9,21 @@ from Evaluation import __get_run_id, __evaluate_on_stream, __plot_and_save_resul
     __compare_results_via_plot_and_save
 from Evaluation.EvaluationFunctions import _evaluate_parameters
 
+
 def _test_example(run: bool):
 
     if run:
         streams = [
-            # ElectricityTiny(),
-            Electricity()
+            ElectricityTiny(),
+            # Electricity()
         ]
-        learning_rates = [5e-2, 1e-2, 1e-3, 1e-4]
-        mci_thresholds = [1e3, 1e-10, 1e-20, 1e-50]
+        learning_rates = [
+            # 5e-2, 1e-2,
+            1e-3,
+            # 1e-4
+            ]
+        # anything above -15 is above the precision of python float
+        mci_thresholds = [1e3, 5e-2, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12, 1e-13, 1e-14, 1e-15, 1e-50]
         classifiers = [WinningLayerADLClassifierWithGraphRecord, ADLClassifierWithGraphRecord]
 
         _evaluate_parameters(
@@ -28,19 +34,5 @@ def _test_example(run: bool):
         )
 
 
-
 if __name__ == "__main__":
     _test_example(True)
-    cov = EmpiricalCovariance()
-
-    stream = Electricity()
-    while stream.has_more_instances():
-        instance = stream.next_instance()
-        X = torch.tensor(instance.x, dtype=torch.float32)
-        y = torch.tensor(instance.y_index, dtype=torch.long)
-        # set the device and add a dimension to the tensor
-        X, y = torch.unsqueeze(X, 0), torch.unsqueeze(y,0)
-
-        cov = cov.fit(X)
-        print(cov.covariance_)
-        print(cov.n_features_in_)

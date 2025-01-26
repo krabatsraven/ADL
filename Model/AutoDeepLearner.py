@@ -103,10 +103,7 @@ class AutoDeepLearner(nn.Module):
         layer_results = torch.stack([nn.Softmax(dim=-1)(self.get_output_layer(i)(hidden_layers[i]))
                                           for i in self.layer_result_keys])
 
-        # todo: change to support shape=(x,N,M) where N = nr of hidden layers, M = nr of classes and x = nr of instances
-        # todo: currently it is assumed that x is 1, but:
-        # todo: currently expected a bug if more than one instances is fed into the network at once
-        self.layer_results = layer_results.movedim(0, 1).squeeze()
+        self.layer_results = layer_results.detach().movedim(0, 1)
 
         # add n empty dimensions at the end of betas dimensionality to allow for multiplying with the layer results:
         # e.g.: beta.size = (layers) -> beta.size = (layers, 1, 1) or beta.size = (layers, 1) if batch size is 1

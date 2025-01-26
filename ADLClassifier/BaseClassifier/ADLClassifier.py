@@ -173,74 +173,73 @@ class ADLClassifier(Classifier):
     def _adjust_weights(self, true_label: torch.Tensor, step_size: float):
         # forward has to be executed beforehand, else adjust weight cannot determine:
         # find the indices of the results that where correctly predicted
-        correctly_predicted_layers_indices = torch.where(torch.argmax(self.model.layer_results, dim = 1) == true_label)
-        correctly_predicted_layers_mask = np.zeros(self.model.layer_result_keys.shape, dtype=bool)
-        correctly_predicted_layers_mask[correctly_predicted_layers_indices] = True
+        correctly_predicted_layers_mask_on_batch = torch.argmax(self.model.layer_results, dim = 2) == true_label
 
         weight_correction_factor_values = self.model.get_weight_correction_factor_values()
         step_size_tensor = torch.tensor(step_size, dtype=torch.float)
 
-        # if layer predicted correctly increase weight correction factor p^(l) by step_size "zeta"
-        # p^(l) = p^(l) + step_size
-        weight_correction_factor_values[correctly_predicted_layers_mask] += step_size_tensor
-        # if layer predicted erroneous decrease weight correction factor p^(l) by step size
-        # p^(l) = p^(l) - step_size
-        weight_correction_factor_values[~correctly_predicted_layers_mask] -= step_size_tensor
+        for corrects_on_data_point in correctly_predicted_layers_mask_on_batch:
+            # if layer predicted correctly increase weight correction factor p^(l) by step_size "zeta"
+            # p^(l) = p^(l) + step_size
+            weight_correction_factor_values[corrects_on_data_point] += step_size_tensor
+            # if layer predicted erroneous decrease weight correction factor p^(l) by step size
+            # p^(l) = p^(l) - step_size
+            weight_correction_factor_values[~corrects_on_data_point] -= step_size_tensor
 
-        # assure that epsilon <= p^(l) <= 1
-        weight_correction_factor_values = torch.where(
-            weight_correction_factor_values > self.model.upper_weigth_correction_factor_boarder,
-            self.model.upper_weigth_correction_factor_boarder,
-            weight_correction_factor_values
-        )
-        weight_correction_factor_values = torch.where(
-            weight_correction_factor_values < self.model.lower_weigth_correction_factor_boarder,
-            self.model.lower_weigth_correction_factor_boarder,
-            weight_correction_factor_values
-        )
-
-        # create mapping of values and update parameter dict of network
-        weight_correction_factor_items = {
-            key: value.item()
-            for key, value in zip(
-                self.model.weight_correction_factor.keys(),
+            # assure that epsilon <= p^(l) <= 1
+            weight_correction_factor_values = torch.where(
+                weight_correction_factor_values > self.model.upper_weigth_correction_factor_boarder,
+                self.model.upper_weigth_correction_factor_boarder,
                 weight_correction_factor_values
             )
-        }
-        self.model.weight_correction_factor.update(weight_correction_factor_items)
+            weight_correction_factor_values = torch.where(
+                weight_correction_factor_values < self.model.lower_weigth_correction_factor_boarder,
+                self.model.lower_weigth_correction_factor_boarder,
+                weight_correction_factor_values
+            )
 
-        # adjust voting weight of layer l:
-        voting_weight_values = self.model.get_voting_weight_values()
+            # create mapping of values and update parameter dict of network
+            weight_correction_factor_items = {
+                key: value.item()
+                for key, value in zip(
+                    self.model.weight_correction_factor.keys(),
+                    weight_correction_factor_values
+                )
+            }
+            self.model.weight_correction_factor.update(weight_correction_factor_items)
 
-        # if layer l was correct increase beta:
-        # beta^(l) = (1 + p^(l)) * beta^(l)
-        voting_weight_values[correctly_predicted_layers_mask] *= (1 + weight_correction_factor_values[correctly_predicted_layers_mask])
+            # adjust voting weight of layer l:
+            voting_weight_values = self.model.get_voting_weight_values()
 
-        # if layer l was incorrect decrease beta:
-        # beta^(l) = p^(l) * beta^(l)
-        voting_weight_values[~correctly_predicted_layers_mask] *= weight_correction_factor_values[~correctly_predicted_layers_mask]
+            # if layer l was correct increase beta:
+            # beta^(l) = (1 + p^(l)) * beta^(l)
+            voting_weight_values[corrects_on_data_point] *= (1 + weight_correction_factor_values[corrects_on_data_point])
 
-        # while assuring that 0 <= beta^(l) <= 1
-        voting_weight_values = torch.where(
-            voting_weight_values > self.model.upper_voting_weight_boarder,
-            self.model.upper_voting_weight_boarder,
-            voting_weight_values
-        )
-        voting_weight_values = torch.where(
-            voting_weight_values < self.model.lower_voting_weigth_boarder,
-            self.model.lower_voting_weigth_boarder,
-            voting_weight_values
-        )
+            # if layer l was incorrect decrease beta:
+            # beta^(l) = p^(l) * beta^(l)
+            voting_weight_values[~corrects_on_data_point] *= weight_correction_factor_values[~corrects_on_data_point]
 
-        # create mapping of values and update parameter dict of network
-        voting_weight_items = {
-            key: value.item()
-            for key, value in zip(
-                self.model.voting_weights.keys(),
+            # while assuring that 0 <= beta^(l) <= 1
+            voting_weight_values = torch.where(
+                voting_weight_values > self.model.upper_voting_weight_boarder,
+                self.model.upper_voting_weight_boarder,
                 voting_weight_values
             )
-        }
-        self.model.voting_weights.update(voting_weight_items)
+            voting_weight_values = torch.where(
+                voting_weight_values < self.model.lower_voting_weigth_boarder,
+                self.model.lower_voting_weigth_boarder,
+                voting_weight_values
+            )
+
+            # create mapping of values and update parameter dict of network
+            voting_weight_items = {
+                key: value.item()
+                for key, value in zip(
+                    self.model.voting_weights.keys(),
+                    voting_weight_values
+                )
+            }
+            self.model.voting_weights.update(voting_weight_items)
 
     def _high_lvl_learning(self, true_label: torch.Tensor, data: torch.Tensor):
         self.__high_level_learning_pruning_hidden_layers()
@@ -262,99 +261,10 @@ class ADLClassifier(Classifier):
         current_results = self.model.layer_results.flatten().reshape(-1, n * m).transpose(0,1).detach()
         current_results.requires_grad_(False)
 
-        # todo: update covariance matrix here
-        def _update_covariance_with_one_row(layer_result: torch.Tensor):
-            assert layer_result.shape == (1, self.model.active_layer_keys(), self.model.output_size), \
-                "updating the covariance with more than one result leads to numerical instability"
-            # covariance matrix: cov = ((layer_x1_class_y1_prob)_{i=x1+y1}, (layer_x2_class_y2_prob)_{j=x2+y2}))_{i, j}
-            # 0 <= x1, x2 < nr_of_active_layers; 0 <= y1, y2 < nr_of_classes
-            # layer_result = (layer_i_class_j_prob)_{ij}
-            # reshape layer_result to vector of shape 1 x (nr_of_active_layers*nr_of_classes): \vec l
-
-            # n += 1
-            self.nr_of_instances_seen_for_cov += 1
-            # dx = x - mean_x (of n-1 instances)
-            residual_w_mean_x_n_minus_1 = layer_result.reshape((len(self.model.active_layer_keys())*self.model.output_size, 1)) - self.mean_of_output_probabilities
-
-            # \bar x_n = \bar {x_{n-1}} + \frac{x_n - \bar{x_{n-1}}}{n} = mean_x + dx / n
-            self.mean_of_output_probabilities = (
-                    self.mean_of_output_probabilities 
-                    +
-                    (
-                            residual_w_mean_x_n_minus_1
-                            /
-                            (
-                                self.nr_of_instances_seen_for_cov
-                                .unsqueeze(1)
-                                .expand(-1, self.model.output_size)
-                                .reshape((-1, 1))
-                            )
-                    )
-            )
-            # meany += (y - meany) / n
-            # C += dx * (y - meany)
-            # C_n   := sum_{i=1}^n(x_i - \bar{x_n})(y_i - \bar{y_n})
-            #       = C_{n-1} + (x_n - \bar{x_n})(y_n - \bar{y_{n - 1}})
-            #       = C_{n-1} + (x_{n} - \bar{x_{n - 1}})(y_n - \bar{y_{n}})
-            self.sum_of_residual_output_probabilities = (
-                    self.sum_of_residual_output_probabilities 
-                    +
-                    (
-                        residual_w_mean_x_n_minus_1
-                        .mul(
-                            (
-                                    layer_result.reshape(1, len(self.model.active_layer_keys()) * self.model.output_size) 
-                                    -
-                                    self.mean_of_output_probabilities.reshape(1, -1)
-                            )
-                        )
-                    )
-            )
-
-        def _covariance_of_output_nodes():
-            # todo: implement
-            # C_n   := sum_{i=1}^n(x_i - \bar{x_n})(y_i - \bar{y_n})
-            #       = C_{n-1} + (x_n - \bar{x_n})(y_n - \bar{y_{n - 1}})
-            #       = C_{n-1} + (x_{n} - \bar{x_{n - 1}})(y_n - \bar{y_{n}})
-            # sample_cov(x,y) = \frac{C_n}{n - 1}
-            # todo: bechel correction if n = 1?
-            # the matrix of all sample_cov(x,y)_{i,j} = \frac{(C_n)_{i,j}}{n - 1}
-            pass
-
-        def _add_layer_to_covariance_matrix():
-            # todo: new layers are added: add a column and a row of zeros to the end of cov matrix
-            pass
-
-        def _remove_layer_from_covariance_matrix(layer_idx: int):
-            # todo: if layer x is removed: remove rows i and columns j between x * nr_of_classes <= i, j < (x + 1) * nr_of_classes
-            pass
-
         for row in self.model.layer_results:
-            _update_covariance_with_one_row(row.unsqueeze(0))
+            self.__update_covariance_with_one_row(row)
 
-        # todo: # 82
-        if self.results_of_all_hidden_layers_kept_for_cov_calc is not None:
-            # concat all results of all hidden layers
-            self.results_of_all_hidden_layers_kept_for_cov_calc = torch.cat(
-                tensors=(self.results_of_all_hidden_layers_kept_for_cov_calc.clone(), current_results),
-                dim=1
-            )
-            # only keep the self.nr_of_results_kept_for_covariance_calculation last results
-            self.results_of_all_hidden_layers_kept_for_cov_calc = self.results_of_all_hidden_layers_kept_for_cov_calc[
-                                                                  :,
-                                                                  self.results_of_all_hidden_layers_kept_for_cov_calc.size(dim=1)
-                                                                  - self.nr_of_results_kept_for_covariance_calculation:
-                                                                  ]
-        else:
-            self.results_of_all_hidden_layers_kept_for_cov_calc = current_results
-
-        if self.model.active_layer_keys().size(dim=0) < 2 or self.results_of_all_hidden_layers_kept_for_cov_calc.size(dim=-1) == 1:
-            # if there are less than 2 active layers we cannot find a correlated layer
-            # also if there are less than 2 different results for all layers (right after changing of a layer) 
-            # we would divide by 0 (corrected statistical covariance)
-            return
-
-        all_covariances_matrix = torch.cov(self.results_of_all_hidden_layers_kept_for_cov_calc)
+        all_covariances_matrix = self.__covariance_of_output_nodes()
         variances = torch.diag(all_covariances_matrix)
         mci_values = -1 * torch.ones((n, n, m))
 
@@ -409,11 +319,13 @@ class ADLClassifier(Classifier):
                 # if both layers still exist:
                 if self.model.get_voting_weight(index_of_layer_i) < self.model.get_voting_weight(index_of_layer_j):
                     # layer_i has the smaller voting weight and gets pruned
+                    self.__remove_layer_from_covariance_matrix(index_of_layer_i)
                     self.model._prune_layer_by_vote_removal(index_of_layer_i)
                 else:
                     # voting_weight(j) <= voting_weight(i) => prune j
                     # as i <= j is guaranteed by beforehand sorting
                     # we prune j if voting_weight(i) == voting_weight(j)
+                    self.__remove_layer_from_covariance_matrix(index_of_layer_j)
                     self.model._prune_layer_by_vote_removal(index_of_layer_j)
 
                 self.results_of_all_hidden_layers_kept_for_cov_calc = None
@@ -433,6 +345,7 @@ class ADLClassifier(Classifier):
             # add layer
             active_layers_before_adding = self.model.active_and_learning_layer_keys().tolist()
             self.model._add_layer()
+            self.__add_layer_to_covariance_matrix()
             self.results_of_all_hidden_layers_kept_for_cov_calc = None
             # update optimizer after adding a layer
             self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
@@ -514,24 +427,24 @@ class ADLClassifier(Classifier):
     def __update_mu_and_s_of_bias_and_var(self, bias_squared: torch.Tensor, variance_squared: torch.Tensor) -> None:
         if self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance == 0:
             self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance += 1
-
+    
             self.mean_of_bias_squared = bias_squared
             self.standard_deviation_of_bias_squared = torch.tensor(0, dtype=torch.float, requires_grad=False)
             self.sum_of_bias_squared_residuals_squared = torch.tensor(0, dtype=torch.float, requires_grad=False)
-
+    
             self.mean_of_variance_squared_squared = variance_squared
             self.standard_deviation_of_variance_squared_squared = torch.tensor(0, dtype=torch.float, requires_grad=False)
             self.sum_of_variance_squared_residuals_squared = torch.tensor(0, dtype=torch.float, requires_grad=False)
-
+    
             self.minimum_of_mean_of_bias_squared = self.mean_of_bias_squared
             self.minimum_of_standard_deviation_of_bias_squared = self.standard_deviation_of_bias_squared
             self.minimum_of_mean_of_variance_squared_squared = self.mean_of_variance_squared_squared
             self.minimum_of_standard_deviation_of_variance_squared_squared = self.standard_deviation_of_variance_squared_squared
-
+    
             return
-
+    
         self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance += 1
-
+    
         # \bar x_n = \bar x_{n-1} + \frac{x_n - \bar x_{n-1}}{n}
         new_mean_of_bias_squared = (self.mean_of_bias_squared 
                                     + (
@@ -550,7 +463,7 @@ class ADLClassifier(Classifier):
             self.sum_of_bias_squared_residuals_squared
             / (self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance - 1)
         )
-
+    
         # \bar x_n = \bar x_{n-1} + \frac{x_n - \bar x_{n-1}}{n}
         new_mean_of_variance_squared = (self.mean_of_variance_squared_squared 
                                         + (
@@ -558,7 +471,7 @@ class ADLClassifier(Classifier):
                                                 / self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance
                                         )
                                         )
-
+    
         # M_{2,n} = M_{2, n-1} + (x_n - \bar x_{n})(x_n - \bar x_{n-1})
         self.sum_of_variance_squared_residuals_squared += (
             (variance_squared - new_mean_of_variance_squared)
@@ -570,7 +483,7 @@ class ADLClassifier(Classifier):
                 self.sum_of_variance_squared_residuals_squared 
                 / (self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance - 1)
         )
-
+    
         self.minimum_of_mean_of_bias_squared = torch.min(
             self.minimum_of_mean_of_bias_squared,
             self.mean_of_bias_squared
@@ -598,3 +511,140 @@ class ADLClassifier(Classifier):
             case "loss":
                 # use the loss to univariant detect concept drift
                 return self.loss_function(true_label, prediction)
+
+    def __update_covariance_with_one_row(self, layer_result: torch.Tensor):
+        assert layer_result.shape == (len(self.model.active_layer_keys()), self.model.output_size), \
+            (f"updating the covariance with more than one result leads to numerical instability:"
+             f" shape of layer_result: {layer_result.shape}"
+             f" expected shape: {(len(self.model.active_layer_keys()), self.model.output_size)}")
+        # covariance matrix: cov = ((layer_x1_class_y1_prob)_{i=x1+y1}, (layer_x2_class_y2_prob)_{j=x2+y2}))_{i, j}
+        # 0 <= x1, x2 < nr_of_active_layers; 0 <= y1, y2 < nr_of_classes
+        # layer_result = (layer_i_class_j_prob)_{ij}
+        # reshape layer_result to vector of shape 1 x (nr_of_active_layers*nr_of_classes): \vec l
+
+        # n += 1
+        self.nr_of_instances_seen_for_cov += 1
+        # dx = x - mean_x (of n-1 instances)
+        residual_w_mean_x_n_minus_1 = (
+                (
+                    layer_result
+                    .reshape(
+                        (
+                            len(self.model.active_layer_keys())*self.model.output_size,
+                            1
+                        )
+                    )
+                )
+                - self.mean_of_output_probabilities
+        )
+
+        # \bar x_n = \bar {x_{n-1}} + \frac{x_n - \bar{x_{n-1}}}{n} = mean_x + dx / n
+        self.mean_of_output_probabilities = (
+                self.mean_of_output_probabilities
+                +
+                (
+                        residual_w_mean_x_n_minus_1
+                        /
+                        (
+                            self.nr_of_instances_seen_for_cov
+                            .unsqueeze(1)
+                            .expand(-1, self.model.output_size)
+                            .reshape((-1, 1))
+                        )
+                )
+        )
+        # meany += (y - meany) / n
+        # C += dx * (y - meany)
+        # C_n   := sum_{i=1}^n(x_i - \bar{x_n})(y_i - \bar{y_n})
+        #       = C_{n-1} + (x_n - \bar{x_n})(y_n - \bar{y_{n - 1}})
+        #       = C_{n-1} + (x_{n} - \bar{x_{n - 1}})(y_n - \bar{y_{n}})
+        self.sum_of_residual_output_probabilities = (
+                self.sum_of_residual_output_probabilities
+                +
+                (
+                    residual_w_mean_x_n_minus_1
+                    .mul(
+                        (
+                                layer_result.reshape(1, len(self.model.active_layer_keys()) * self.model.output_size)
+                                -
+                                self.mean_of_output_probabilities.reshape(1, -1)
+                        )
+                    )
+                )
+        )
+
+    def __covariance_of_output_nodes(self):
+        # C_n   := sum_{i=1}^n(x_i - \bar{x_n})(y_i - \bar{y_n})
+        #       = C_{n-1} + (x_n - \bar{x_n})(y_n - \bar{y_{n - 1}})
+        #       = C_{n-1} + (x_{n} - \bar{x_{n - 1}})(y_n - \bar{y_{n}})
+        #
+        # bechel correction if n = 1:
+        # that means x_1 = \bar x => C_1 = 0 => cov = 0 without bechel correction
+        #
+        # sample_cov(x,y) = \frac{C_n}{n - 1}
+        # the matrix of all sample_cov(x,y)_{i,j} = \frac{(C_n)_{i,j}}{n - 1}
+        nr_of_instances_stretched = (
+            self.nr_of_instances_seen_for_cov
+            .unsqueeze(1)
+            .expand(-1, self.model.output_size)
+            .reshape((-1, 1))
+        )
+        return (
+            (self.sum_of_residual_output_probabilities / (nr_of_instances_stretched - 1))
+            .where(nr_of_instances_stretched > 1, 0)
+        )
+
+    def __add_layer_to_covariance_matrix(self):
+        # new layers are added: add columns and rows of zeros to the end of cov matrix for each class:
+        self.sum_of_residual_output_probabilities = torch.cat(
+            (
+                torch.cat(
+                    (
+                        self.sum_of_residual_output_probabilities,
+                        torch.zeros(self.model.output_size, self.sum_of_residual_output_probabilities.shape[1])
+                    ),
+                    dim=0
+                ),
+                torch.zeros(self.sum_of_residual_output_probabilities.shape[0] + self.model.output_size, self.model.output_size)
+            ),
+            dim=1
+        )
+        # and to instances/mean seen:
+        self.nr_of_instances_seen_for_cov = torch.cat((self.nr_of_instances_seen_for_cov, torch.zeros(1)))
+        self.mean_of_output_probabilities = torch.cat((self.mean_of_output_probabilities, torch.zeros(self.model.output_size, 1)))
+
+    def __remove_layer_from_covariance_matrix(self, layer_idx: int):
+        assert self.model.output_layer_with_index_exists(layer_idx), "we can only remove a layer from the covariance that still has an output layer"
+        # if layer x is removed: remove rows i and columns j between x * nr_of_classes <= i, j < (x + 1) * nr_of_classes
+        # the index x of the layer to remove is the position of the layer_id in relation to the other active layers
+        idx_to_remove_relative_to_matrix = torch.nonzero(self.model.active_layer_keys() == layer_idx).item()
+        first_index_to_remove_form_matrix = idx_to_remove_relative_to_matrix * self.model.output_size
+        first_index_to_not_remove_anymore_form_matrix = (idx_to_remove_relative_to_matrix + 1) * self.model.output_size
+        # remove the row
+        self.sum_of_residual_output_probabilities = torch.cat(
+            (
+                self.sum_of_residual_output_probabilities[:first_index_to_remove_form_matrix],
+                self.sum_of_residual_output_probabilities[first_index_to_not_remove_anymore_form_matrix:]
+            )
+        )
+        # remove the column
+        self.sum_of_residual_output_probabilities = torch.cat(
+            (
+                self.sum_of_residual_output_probabilities[:, :first_index_to_remove_form_matrix],
+                self.sum_of_residual_output_probabilities[:, first_index_to_not_remove_anymore_form_matrix:]
+            ),
+            dim=1
+        )
+        # and to instances/mean seen:
+        self.nr_of_instances_seen_for_cov = torch.cat(
+            (
+                self.nr_of_instances_seen_for_cov[:idx_to_remove_relative_to_matrix],
+                self.nr_of_instances_seen_for_cov[idx_to_remove_relative_to_matrix + 1:]
+            )
+        )
+        self.mean_of_output_probabilities = torch.cat(
+            (
+                self.mean_of_output_probabilities[:first_index_to_remove_form_matrix],
+                self.mean_of_output_probabilities[first_index_to_not_remove_anymore_form_matrix:]
+            )
+        )
