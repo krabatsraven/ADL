@@ -1,6 +1,7 @@
 import os
 import time
 from pathlib import Path
+from typing import Dict, List, Union, Any
 
 import pandas as pd
 from capymoa.evaluation import prequential_evaluation
@@ -72,6 +73,8 @@ def __evaluate_on_stream(
         metrics_at_end.insert(loc=0, column=key, value=[adl_classifier.record_of_model_shape[key][-1]])
         # metrics_at_end[key] = adl_classifier.record_of_model_shape[key][-1]
         windowed_results[key] = adl_classifier.record_of_model_shape[key]
+    metrics_at_end.insert(loc=0, column="overall time", value=((total_time_end-total_time_start) / 1e9))
+    metrics_at_end.insert(loc=0, column="time in covariant loop", value=(adl_classifier.total_time_in_loop / 1e9))
 
     metrics_at_end.to_pickle(results_path / "metrics.pickle")
     windowed_results.to_pickle(results_path / "metrics_per_window.pickle")
@@ -79,7 +82,43 @@ def __evaluate_on_stream(
     results_ht.write_to_file(results_path.absolute().as_posix())
 
 
-def _evaluate_parameters(adl_classifiers, streams, learning_rates, mci_thresholds):
+def __write_summary(run_id: int, user_added_hyperparameter: Dict[str, List[Any]]) -> None:
+    runs_folder = Path(f"results/runs/runID={run_id}")
+    summary = pd.DataFrame(
+        columns=[
+            "accuracy", "nr_of_layers", "instances", "overall time", "time in covariant loop",
+            "amount of active layers",
+            "runID", "stream",
+            "lr", "MCICutOff", "classifier",
+        ]
+    )
+
+    rename = {
+        "nr_of_layers": "amount of hidden layers",
+        "instances": "amount of instances",
+        "lr": "learning rate",
+        "runID": "run id",
+        "MCICutOff": "mci"
+    }
+    i = 0
+    for root, dirs, files in os.walk(runs_folder):
+        if "metrics.pickle" in files:
+            runIdStr, hyperparameter_string, stream_name = root.split("/")[2:]
+            hyperparameter_dict_from_string = {key: value for key, value in [pair_string.split("=") for pair_string in hyperparameter_string.split("_")]}
+
+            metrics = pd.read_pickle(Path(root) / "metrics.pickle")
+            tmp_dict = {key: list(value.values())[0] for key, value in metrics.filter(summary.columns).to_dict().items()}
+            tmp_dict.update(user_added_hyperparameter)
+            tmp_dict.update({"stream": stream_name, "runID": run_id, "amount of active layers": len(metrics.loc[:, "active_layers"].iloc[0])})
+            tmp_dict.update(hyperparameter_dict_from_string)
+            summary.loc[i] = tmp_dict
+            i += 1
+
+    summary = summary.rename(columns=rename)
+    summary.to_csv(runs_folder / "summary.csv", sep="\t")
+
+
+def _evaluate_parameters(adl_classifiers, streams, learning_rates, mci_thresholds, user_added_parameters = None):
     run_id = __get_run_id()
 
     for classifier in adl_classifiers:
@@ -96,3 +135,6 @@ def _evaluate_parameters(adl_classifiers, streams, learning_rates, mci_threshold
 
     __plot_and_save_result(run_id, show=False)
     __compare_all_of_one_run(run_id, show=False)
+
+    user_added_parameters = {} if user_added_parameters is None else user_added_parameters
+    __write_summary(run_id, user_added_parameters)
