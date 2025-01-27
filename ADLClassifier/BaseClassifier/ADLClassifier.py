@@ -1,5 +1,5 @@
 import time
-from typing import Optional
+from typing import Optional, Tuple, List
 
 import numpy as np
 import torch
@@ -24,7 +24,7 @@ class ADLClassifier(Classifier):
             loss_fn=nn.CrossEntropyLoss(),
             device: str = ("cpu"),
             lr: float = 1e-3,
-            drift_detector: BaseDriftDetector = ADWIN(delta=0.001),
+            drift_detector: BaseDriftDetector = ADWIN(delta=1e-5),
             drift_criterion: str = "accuracy",
             mci_threshold_for_layer_pruning: float = 10**-7,
             nr_of_results_kept_for_covariance_calculation: int = 10
@@ -59,26 +59,13 @@ class ADLClassifier(Classifier):
 
         # user chosen threshold for the mci value that guards the layer pruning
         self.mci_threshold_for_layer_pruning = mci_threshold_for_layer_pruning
-        # variables to recursively calculate the covariance of output nodes to each other:
-        # to later calculate the mci for layer removal
-        # n_x_m = amount of output_layers * amount of nodes per output_layers (amount of classes)
-        n_x_m = len(self.model.active_layer_keys()) * self.model.output_size
-        # the covariance matrix of output layer nodes to each other:
-        # todo: can be deleted?
-        self.covariance_of_output_nodes: torch.Tensor = torch.zeros((n_x_m, n_x_m))
-        # the matrix of residual sums
-        self.sum_of_residual_output_probabilities: torch.Tensor = torch.zeros((n_x_m, n_x_m))
-        # the row wise mean of all reshaped layer_results: \vec µ:
-        self.mean_of_output_probabilities: torch.Tensor = torch.zeros(n_x_m, 1)
-        # nr of instances seen in each layer
-        self.nr_of_instances_seen_for_cov = torch.zeros(len(self.model.active_layer_keys()))
 
-        # result data that are kept to calculate the covariance matrix of output nodes of different output layers
-        # todo: eliminate by recursive calculation of covariant matrix
-        self.results_of_all_hidden_layers_kept_for_cov_calc: Optional[torch.Tensor] = None
-        self.nr_of_results_kept_for_covariance_calculation = nr_of_results_kept_for_covariance_calculation
+        # instantiate variables to recursively calculate the covariance of output nodes to each other:
+        # ---------------------------
+        self.__init_cov_variables__()
 
         # values that are tracking the bias and variance of the model to inform node growing/pruning decisions
+        #  ---------------------------------------------------------------------------------------------------
         self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance: torch.Tensor = torch.tensor(0, dtype=torch.int, requires_grad=False)
 
         self.mean_of_bias_squared: Optional[torch.Tensor] = None
@@ -97,6 +84,16 @@ class ADLClassifier(Classifier):
         # todo: create clean version without evaluation: remove "total time in loop"
         self.total_time_in_loop = 0
 
+    def __init_cov_variables__(self) -> None:
+        # to later calculate the mci for layer removal
+        # n_x_m = amount of output_layers * amount of nodes per output_layers (amount of classes)
+        n_x_m = len(self.model.active_layer_keys()) * self.model.output_size
+        # the matrix of residual sums
+        self.sum_of_residual_output_probabilities: torch.Tensor = torch.zeros((n_x_m, n_x_m))
+        # the row wise mean of all reshaped layer_results: \vec µ:
+        self.mean_of_output_probabilities: torch.Tensor = torch.zeros(n_x_m, 1)
+        # nr of instances seen in each layer
+        self.nr_of_instances_seen_for_cov = torch.zeros(len(self.model.active_layer_keys()), dtype=torch.int)
 
     def __str__(self):
         return "ADLClassifier"
@@ -245,34 +242,25 @@ class ADLClassifier(Classifier):
         self.__high_level_learning_pruning_hidden_layers()
         self.__high_level_learning_grow_new_hidden_layers(data, true_label)
 
-    def __high_level_learning_pruning_hidden_layers(self):
-        # prune highly correlated layers:
-        # ------------------------------
-
+    def _get_correlated_pairs_of_output_layers(self) -> List[Tuple[int, int]]:
         # find correlated layers:
         # compare the predictions of the layer pairwise
         # layer_results are the stacked result_i, where result_i stems from output layer i
         # meaning the shape is (nr_of_layers, nr_of_classes)
         n = self.model.active_layer_keys().size(dim=0)
         m = self.model.output_size
-        # to get all covariance values at once we reshape to (nr_of_layers * nr_of_classes, x),
-        # where x is the nr of instances seen
-        # meaning: (layer_1_class_1_prob, layer_1_class_2_prob, ..., layer_1_class_m_prob, layer_2_class_1_prob, ...), (2. instance)
-        current_results = self.model.layer_results.flatten().reshape(-1, n * m).transpose(0,1).detach()
-        current_results.requires_grad_(False)
 
         for row in self.model.layer_results:
-            self.__update_covariance_with_one_row(row)
+            self._update_covariance_with_one_row(row)
 
-        all_covariances_matrix = self.__covariance_of_output_nodes()
+        all_covariances_matrix = self._covariance_of_output_nodes()
         variances = torch.diag(all_covariances_matrix)
         mci_values = -1 * torch.ones((n, n, m))
 
         this_loop_start = time.time_ns()
-        # Calculate MCI for each pair of layers
-        # todo: # 81
-        # current idea: reshape cov to n X n x m, calculate with vectors of length m
-        # get combinations through a view instead of the 2 outer for loops?
+        # # Calculate MCI for each pair of layers
+        # # current idea: reshape cov to n X n x m, calculate with vectors of length m
+        # # get combinations through a view instead of the 2 outer for loops?
         for layer_i_idx in range(n):
             for layer_j_idx in range(layer_i_idx + 1, n):
                 for class_o_idx in range(m):
@@ -308,24 +296,29 @@ class ADLClassifier(Classifier):
                             .flip(dims=(0,))
                             )
 
+        return [(self.model.active_layer_keys()[i].item(), self.model.active_layer_keys()[j].item()) for i, j in correlated_pairs]
+
+    def __high_level_learning_pruning_hidden_layers(self):
+        # prune highly correlated layers:
+        # ------------------------------
+
+        # find correlated layers
+        correlated_pairs = self._get_correlated_pairs_of_output_layers()
+
         # prune them
-        active_layers_at_the_start = self.model.active_layer_keys().clone()
-        for index_tensor_of_layer_i, index_tensor_of_layer_j in correlated_pairs:
-            # transform the relative indices of correlated_pairs to the absolute indices of the active layers:
-            index_of_layer_i = active_layers_at_the_start[index_tensor_of_layer_i].item()
-            index_of_layer_j = active_layers_at_the_start[index_tensor_of_layer_j].item()
+        for index_of_layer_i, index_of_layer_j in correlated_pairs:
             # todo: issue #80
             if self.model.output_layer_with_index_exists(index_of_layer_i) and self.model.output_layer_with_index_exists(index_of_layer_j):
                 # if both layers still exist:
                 if self.model.get_voting_weight(index_of_layer_i) < self.model.get_voting_weight(index_of_layer_j):
                     # layer_i has the smaller voting weight and gets pruned
-                    self.__remove_layer_from_covariance_matrix(index_of_layer_i)
+                    self._remove_layer_from_covariance_matrix(index_of_layer_i)
                     self.model._prune_layer_by_vote_removal(index_of_layer_i)
                 else:
                     # voting_weight(j) <= voting_weight(i) => prune j
                     # as i <= j is guaranteed by beforehand sorting
                     # we prune j if voting_weight(i) == voting_weight(j)
-                    self.__remove_layer_from_covariance_matrix(index_of_layer_j)
+                    self._remove_layer_from_covariance_matrix(index_of_layer_j)
                     self.model._prune_layer_by_vote_removal(index_of_layer_j)
 
                 self.results_of_all_hidden_layers_kept_for_cov_calc = None
@@ -344,8 +337,8 @@ class ADLClassifier(Classifier):
 
             # add layer
             active_layers_before_adding = self.model.active_and_learning_layer_keys().tolist()
+            self._add_layer_to_covariance_matrix()
             self.model._add_layer()
-            self.__add_layer_to_covariance_matrix()
             self.results_of_all_hidden_layers_kept_for_cov_calc = None
             # update optimizer after adding a layer
             self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
@@ -427,24 +420,24 @@ class ADLClassifier(Classifier):
     def __update_mu_and_s_of_bias_and_var(self, bias_squared: torch.Tensor, variance_squared: torch.Tensor) -> None:
         if self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance == 0:
             self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance += 1
-    
+
             self.mean_of_bias_squared = bias_squared
             self.standard_deviation_of_bias_squared = torch.tensor(0, dtype=torch.float, requires_grad=False)
             self.sum_of_bias_squared_residuals_squared = torch.tensor(0, dtype=torch.float, requires_grad=False)
-    
+
             self.mean_of_variance_squared_squared = variance_squared
             self.standard_deviation_of_variance_squared_squared = torch.tensor(0, dtype=torch.float, requires_grad=False)
             self.sum_of_variance_squared_residuals_squared = torch.tensor(0, dtype=torch.float, requires_grad=False)
-    
+
             self.minimum_of_mean_of_bias_squared = self.mean_of_bias_squared
             self.minimum_of_standard_deviation_of_bias_squared = self.standard_deviation_of_bias_squared
             self.minimum_of_mean_of_variance_squared_squared = self.mean_of_variance_squared_squared
             self.minimum_of_standard_deviation_of_variance_squared_squared = self.standard_deviation_of_variance_squared_squared
-    
+
             return
-    
+
         self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance += 1
-    
+
         # \bar x_n = \bar x_{n-1} + \frac{x_n - \bar x_{n-1}}{n}
         new_mean_of_bias_squared = (self.mean_of_bias_squared 
                                     + (
@@ -512,7 +505,7 @@ class ADLClassifier(Classifier):
                 # use the loss to univariant detect concept drift
                 return self.loss_function(true_label, prediction)
 
-    def __update_covariance_with_one_row(self, layer_result: torch.Tensor):
+    def _update_covariance_with_one_row(self, layer_result: torch.Tensor):
         assert layer_result.shape == (len(self.model.active_layer_keys()), self.model.output_size), \
             (f"updating the covariance with more than one result leads to numerical instability:"
              f" shape of layer_result: {layer_result.shape}"
@@ -573,7 +566,7 @@ class ADLClassifier(Classifier):
                 )
         )
 
-    def __covariance_of_output_nodes(self):
+    def _covariance_of_output_nodes(self):
         # C_n   := sum_{i=1}^n(x_i - \bar{x_n})(y_i - \bar{y_n})
         #       = C_{n-1} + (x_n - \bar{x_n})(y_n - \bar{y_{n - 1}})
         #       = C_{n-1} + (x_{n} - \bar{x_{n - 1}})(y_n - \bar{y_{n}})
@@ -594,7 +587,7 @@ class ADLClassifier(Classifier):
             .where(nr_of_instances_stretched > 1, 0)
         )
 
-    def __add_layer_to_covariance_matrix(self):
+    def _add_layer_to_covariance_matrix(self):
         # new layers are added: add columns and rows of zeros to the end of cov matrix for each class:
         self.sum_of_residual_output_probabilities = torch.cat(
             (
@@ -613,11 +606,12 @@ class ADLClassifier(Classifier):
         self.nr_of_instances_seen_for_cov = torch.cat((self.nr_of_instances_seen_for_cov, torch.zeros(1)))
         self.mean_of_output_probabilities = torch.cat((self.mean_of_output_probabilities, torch.zeros(self.model.output_size, 1)))
 
-    def __remove_layer_from_covariance_matrix(self, layer_idx: int):
+    def _remove_layer_from_covariance_matrix(self, layer_idx: int):
         assert self.model.output_layer_with_index_exists(layer_idx), "we can only remove a layer from the covariance that still has an output layer"
         # if layer x is removed: remove rows i and columns j between x * nr_of_classes <= i, j < (x + 1) * nr_of_classes
         # the index x of the layer to remove is the position of the layer_id in relation to the other active layers
         idx_to_remove_relative_to_matrix = torch.nonzero(self.model.active_layer_keys() == layer_idx).item()
+
         first_index_to_remove_form_matrix = idx_to_remove_relative_to_matrix * self.model.output_size
         first_index_to_not_remove_anymore_form_matrix = (idx_to_remove_relative_to_matrix + 1) * self.model.output_size
         # remove the row

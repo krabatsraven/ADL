@@ -18,6 +18,8 @@ class AutoDeepLearner(nn.Module):
         self.input_size: int = nr_of_features
         self.output_size: int = nr_of_classes
 
+        # todo: def method -> nr of active layers, (that only recalculates if changed)
+
         # lowest possible value that voting weights and voting weight correction factors can assume
         self._epsilon: float = 10 ** -6
 

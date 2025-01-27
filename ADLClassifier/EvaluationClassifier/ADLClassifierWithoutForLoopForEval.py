@@ -1,0 +1,24 @@
+from ADLClassifier import ADLClassifierWithoutForLoop, WinningLayerADLCLassifierWithoutForLoop
+from ADLClassifier.EvaluationClassifier.EvaluationWrapper import record_network_graph, record_emissions
+
+
+@record_network_graph
+class ADLClassifierWithoutForLoopWithGraphRecord(ADLClassifierWithoutForLoop):
+    pass
+
+
+@record_emissions
+@record_network_graph
+class ADLClassifierWithoutForLoopWithGraphRecordAndEmissionTracking(ADLClassifierWithoutForLoop):
+    pass
+
+
+@record_network_graph
+class WinningLayerADLClassifierWithoutForLoopWithGraphRecord(WinningLayerADLCLassifierWithoutForLoop):
+    pass
+
+
+@record_emissions
+@record_network_graph
+class WinningLayerADLClassifierWithoutForLoopWithGraphRecordAndEmissionTracking(WinningLayerADLCLassifierWithoutForLoop):
+    pass

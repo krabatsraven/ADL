@@ -1,1 +1,2 @@
 from ADLClassifier.ExtendedClassifier.FunctionalityWrapper.train_only_winning_layer import train_only_winning_layer
+from ADLClassifier.ExtendedClassifier.FunctionalityWrapper.eliminate_for_loop import eliminate_for_loop

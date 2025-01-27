@@ -95,4 +95,4 @@ def _evaluate_parameters(adl_classifiers, streams, learning_rates, mci_threshold
                     )
 
     __plot_and_save_result(run_id, show=False)
-    __compare_all_of_one_run(run_id, show=True)
+    __compare_all_of_one_run(run_id, show=False)
