@@ -88,7 +88,7 @@ def __write_summary(run_id: int, user_added_hyperparameter: Dict[str, List[Any]]
         columns=[
             "accuracy", "nr_of_layers", "instances", "overall time", "time in covariant loop",
             "amount of active layers",
-            "runID", "stream",
+            "runID", "stream", "path",
             "lr", "MCICutOff", "classifier",
         ]
     )
@@ -109,7 +109,14 @@ def __write_summary(run_id: int, user_added_hyperparameter: Dict[str, List[Any]]
             metrics = pd.read_pickle(Path(root) / "metrics.pickle")
             tmp_dict = {key: list(value.values())[0] for key, value in metrics.filter(summary.columns).to_dict().items()}
             tmp_dict.update(user_added_hyperparameter)
-            tmp_dict.update({"stream": stream_name, "runID": run_id, "amount of active layers": len(metrics.loc[:, "active_layers"].iloc[0])})
+            tmp_dict.update(
+                {
+                    "stream": stream_name, 
+                    "runID": run_id, 
+                    "amount of active layers": len(metrics.loc[:, "active_layers"].iloc[0]),
+                    "path": Path(root),
+                 }
+            )
             tmp_dict.update(hyperparameter_dict_from_string)
             summary.loc[i] = tmp_dict
             i += 1
@@ -133,8 +140,9 @@ def _evaluate_parameters(adl_classifiers, streams, learning_rates, mci_threshold
                         classifier=classifier
                     )
 
+    user_added_parameters = {} if user_added_parameters is None else user_added_parameters
+    __write_summary(run_id, user_added_parameters)
+
     __plot_and_save_result(run_id, show=False)
     __compare_all_of_one_run(run_id, show=False)
 
-    user_added_parameters = {} if user_added_parameters is None else user_added_parameters
-    __write_summary(run_id, user_added_parameters)
