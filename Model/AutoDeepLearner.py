@@ -79,6 +79,8 @@ class AutoDeepLearner(nn.Module):
         self.standard_deviation_of_data: Optional[torch.Tensor] = None
         self.__nr_of_instances_in_statistical_variables: int = 0
 
+        self.__nr_of_active_layers: int = 1
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         returns the classification from self.output_size many classes stemming from the data input x
@@ -261,6 +263,8 @@ class AutoDeepLearner(nn.Module):
         # add new weight
         self.__set_voting_weight(idx_of_new_layer, self.weight_initializiation_value)
         self.__set_weight_correction_factor(idx_of_new_layer, self.weight_correction_factor_initialization_value)
+        # increment the active layer count
+        self.__nr_of_active_layers += 1
 
     def _prune_layer_by_vote_removal(self, layer_index: int) -> None:
         """
@@ -294,6 +298,8 @@ class AutoDeepLearner(nn.Module):
         self.__pop_weight_correction_factor(layer_index)
         # and re-normalize the voting weights?
         self._normalise_voting_weights()
+        # decrement the active layer count
+        self.__nr_of_active_layers -= 1
 
     def _normalise_voting_weights(self) -> None:
         voting_weights_keys_vector = self.active_layer_keys()
@@ -576,3 +582,7 @@ class AutoDeepLearner(nn.Module):
         :returns whether the layer with the given index has a weight correction factor associated with it
         """
         return str(layer_index) in self.weight_correction_factor.keys()
+
+    @property
+    def nr_of_active_layers(self) -> int:
+        return self.__nr_of_active_layers

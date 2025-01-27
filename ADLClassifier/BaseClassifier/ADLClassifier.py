@@ -87,13 +87,13 @@ class ADLClassifier(Classifier):
     def __init_cov_variables__(self) -> None:
         # to later calculate the mci for layer removal
         # n_x_m = amount of output_layers * amount of nodes per output_layers (amount of classes)
-        n_x_m = len(self.model.active_layer_keys()) * self.model.output_size
+        n_x_m = self.model.nr_of_active_layers * self.model.output_size
         # the matrix of residual sums
         self.sum_of_residual_output_probabilities: torch.Tensor = torch.zeros((n_x_m, n_x_m))
         # the row wise mean of all reshaped layer_results: \vec µ:
         self.mean_of_output_probabilities: torch.Tensor = torch.zeros(n_x_m, 1)
         # nr of instances seen in each layer
-        self.nr_of_instances_seen_for_cov = torch.zeros(len(self.model.active_layer_keys()), dtype=torch.int)
+        self.nr_of_instances_seen_for_cov = torch.zeros(self.model.nr_of_active_layers, dtype=torch.int)
 
     def __str__(self):
         return "ADLClassifier"
@@ -506,10 +506,10 @@ class ADLClassifier(Classifier):
                 return self.loss_function(true_label, prediction)
 
     def _update_covariance_with_one_row(self, layer_result: torch.Tensor):
-        assert layer_result.shape == (len(self.model.active_layer_keys()), self.model.output_size), \
+        assert layer_result.shape == (self.model.nr_of_active_layers, self.model.output_size), \
             (f"updating the covariance with more than one result leads to numerical instability:"
              f" shape of layer_result: {layer_result.shape}"
-             f" expected shape: {(len(self.model.active_layer_keys()), self.model.output_size)}")
+             f" expected shape: {(self.model.nr_of_active_layers, self.model.output_size)}")
         # covariance matrix: cov = ((layer_x1_class_y1_prob)_{i=x1+y1}, (layer_x2_class_y2_prob)_{j=x2+y2}))_{i, j}
         # 0 <= x1, x2 < nr_of_active_layers; 0 <= y1, y2 < nr_of_classes
         # layer_result = (layer_i_class_j_prob)_{ij}
@@ -523,7 +523,7 @@ class ADLClassifier(Classifier):
                     layer_result
                     .reshape(
                         (
-                            len(self.model.active_layer_keys())*self.model.output_size,
+                            self.model.nr_of_active_layers*self.model.output_size,
                             1
                         )
                     )
@@ -558,7 +558,7 @@ class ADLClassifier(Classifier):
                     residual_w_mean_x_n_minus_1
                     .mul(
                         (
-                                layer_result.reshape(1, len(self.model.active_layer_keys()) * self.model.output_size)
+                                layer_result.reshape(1, self.model.nr_of_active_layers * self.model.output_size)
                                 -
                                 self.mean_of_output_probabilities.reshape(1, -1)
                         )

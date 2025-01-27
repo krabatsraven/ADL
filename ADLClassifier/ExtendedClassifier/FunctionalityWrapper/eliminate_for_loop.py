@@ -22,7 +22,7 @@ def eliminate_for_loop(adl_classifier: type(ADLClassifier)) -> type(ADLClassifie
                 self._update_covariance_with_one_row(row)
 
             this_loop_start = time.time_ns()
-            comb = torch.combinations(torch.arange(len(self.model.active_layer_keys())))
+            comb = torch.combinations(torch.arange(self.model.nr_of_active_layers))
             i, j = comb[:, 0], comb[:, 1]
             cov_mat = self._covariance_of_output_nodes()
             var_i, var_j = cov_mat[i, i], cov_mat[j, j]
@@ -47,20 +47,20 @@ def eliminate_for_loop(adl_classifier: type(ADLClassifier)) -> type(ADLClassifie
             # C_n   := sum_{i=1}^n(x_i - \bar{x_n})(y_i - \bar{y_n})
             # of the class probabilities of active layers:
             self.sum_of_output_probability_deviation_products: torch.Tensor = torch.zeros(
-                (len(self.model.active_layer_keys()), len(self.model.active_layer_keys()), self.model.output_size)
+                (self.model.nr_of_active_layers, self.model.nr_of_active_layers, self.model.output_size)
             )
             # the mean class probabilities for each active layer
             self.mean_of_output_probabilities: torch.Tensor = torch.zeros(
-                (len(self.model.active_layer_keys()), self.model.output_size)
+                (self.model.nr_of_active_layers, self.model.output_size)
             )
             # nr of instances seen in each layer
-            self.nr_of_instances_seen_for_cov = torch.zeros(len(self.model.active_layer_keys()), dtype=torch.int)
+            self.nr_of_instances_seen_for_cov = torch.zeros(self.model.nr_of_active_layers, dtype=torch.int)
 
         def _update_covariance_with_one_row(self, layer_result: torch.Tensor):
-            assert layer_result.shape == (len(self.model.active_layer_keys()), self.model.output_size), \
+            assert layer_result.shape == (self.model.nr_of_active_layers, self.model.output_size), \
                 (f"updating the covariance with more than one result leads to numerical instability:"
                  f" shape of layer_result: {layer_result.shape}"
-                 f" expected shape: {(len(self.model.active_layer_keys()), self.model.output_size)}")
+                 f" expected shape: {(self.model.nr_of_active_layers, self.model.output_size)}")
             # covariance matrix: cov = ((layer_x1_class_y1_prob)_{i=x1+y1}, (layer_x2_class_y2_prob)_{j=x2+y2}))_{i, j}
             # 0 <= x1, x2 < nr_of_active_layers; 0 <= y1, y2 < nr_of_classes
             # layer_result = (layer_i_class_j_prob)_{ij}
@@ -125,11 +125,11 @@ def eliminate_for_loop(adl_classifier: type(ADLClassifier)) -> type(ADLClassifie
                     torch.cat(
                         (
                             self.sum_of_output_probability_deviation_products,
-                            torch.zeros((1, len(self.model.active_layer_keys()), self.model.output_size))
+                            torch.zeros((1, self.model.nr_of_active_layers, self.model.output_size))
                         ),
                         dim=0
                     ),
-                    torch.zeros((len(self.model.active_layer_keys()) + 1, 1, self.model.output_size))
+                    torch.zeros((self.model.nr_of_active_layers + 1, 1, self.model.output_size))
                 ),
                 dim=1
             )
