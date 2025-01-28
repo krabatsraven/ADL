@@ -30,7 +30,6 @@ def vectorized_for_loop(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
             for row in self.model.layer_results:
                 self._update_covariance_with_one_row(row)
 
-            this_loop_start = time.time_ns()
             comb = torch.combinations(torch.arange(self.model.nr_of_active_layers))
             i, j = comb[:, 0], comb[:, 1]
             cov_mat = self._covariance_of_output_nodes()
@@ -41,10 +40,6 @@ def vectorized_for_loop(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
             mci_2_max_values = mci_2.max(dim=1).values
             # find the correlated pairs by comparing the max mci for each pairing against a user chosen threshold
             correlated_pairs = comb[(mci_2_max_values < self.mci_threshold_for_layer_pruning).nonzero()]
-
-            this_loop_stop = time.time_ns()
-            time_in_this_loop = this_loop_stop - this_loop_start
-            self.total_time_in_loop += time_in_this_loop
 
             out = [(self.model.active_layer_keys()[pair.squeeze()[0]].item(), self.model.active_layer_keys()[pair.squeeze()[1]].item()) for pair in correlated_pairs]
             return out
