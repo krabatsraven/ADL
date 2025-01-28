@@ -80,9 +80,6 @@ class ADLClassifier(Classifier):
         self.minimum_of_mean_of_variance_squared_squared: Optional[torch.Tensor] = None
         self.minimum_of_standard_deviation_of_variance_squared_squared: Optional[torch.Tensor] = None
 
-        # todo: create clean version without evaluation: remove "total time in loop"
-        self.total_time_in_loop = 0
-
     def __init_cov_variables__(self) -> None:
         # to later calculate the mci for layer removal
         # n_x_m = amount of output_layers * amount of nodes per output_layers (amount of classes)
@@ -155,7 +152,6 @@ class ADLClassifier(Classifier):
         self.drift_detector.add_element(self._drift_criterion(y, pred))
 
         # todo: # 71
-        # todo: # 72
         self._high_lvl_learning(true_label=y, data=X)
         self._low_lvl_learning(true_label=y)
         self.optimizer.zero_grad()
@@ -256,7 +252,6 @@ class ADLClassifier(Classifier):
         variances = torch.diag(all_covariances_matrix)
         mci_values = -1 * torch.ones((n, n, m))
 
-        this_loop_start = time.time_ns()
         # # Calculate MCI for each pair of layers
         # # current idea: reshape cov to n X n x m, calculate with vectors of length m
         # # get combinations through a view instead of the 2 outer for loops?
@@ -278,10 +273,6 @@ class ADLClassifier(Classifier):
 
                     # Store the MCI in array for layer i and layer j
                     mci_values[layer_i_idx, layer_j_idx, class_o_idx] = torch.absolute(mci)
-
-        this_loop_stop = time.time_ns()
-        time_in_this_loop = this_loop_stop - this_loop_start
-        self.total_time_in_loop += time_in_this_loop
 
         # find the correlated pairs by comparing the max mci for each pairing against a user chosen threshold
         mci_max_values = torch.max(mci_values, dim=2).values

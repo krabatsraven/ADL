@@ -55,11 +55,8 @@ def __evaluate_on_stream(
     results_ht = prequential_evaluation(stream=stream_data, learner=adl_classifier, window_size=1, optimise=True, store_predictions=False, store_y=False)
     total_time_end = time.time_ns()
 
-    # todo: delete print statement and time to train as it measures part of the evaluating process and will become obsolete shortly:
     print(stream_data._filename)
-    print(f"total time spend in covariance loop: {adl_classifier.total_time_in_loop:.2E}ns, that equals {adl_classifier.total_time_in_loop / 10 ** 9:.2f}s or {adl_classifier.total_time_in_loop / 10 ** 9 /60:.2}min")
     print(f"total time spend training the network: {(total_time_end - total_time_start):.2E}ns, that equals {(total_time_end - total_time_start) / 10 ** 9:.2E}s or {(total_time_end - total_time_start) / 10 ** 9 /60:.2f}min")
-    print(f"meaning that the covariance loop alone took {adl_classifier.total_time_in_loop / (total_time_end - total_time_start) * 100}% of the training time")
 
     print(f"\n\tAll the cumulative results:")
     print(results_ht.cumulative.metrics_dict())
@@ -74,7 +71,6 @@ def __evaluate_on_stream(
         # metrics_at_end[key] = adl_classifier.record_of_model_shape[key][-1]
         windowed_results[key] = adl_classifier.record_of_model_shape[key]
     metrics_at_end.insert(loc=0, column="overall time", value=((total_time_end-total_time_start) / 1e9))
-    metrics_at_end.insert(loc=0, column="time in covariant loop", value=(adl_classifier.total_time_in_loop / 1e9))
 
     metrics_at_end.to_pickle(results_path / "metrics.pickle")
     windowed_results.to_pickle(results_path / "metrics_per_window.pickle")
@@ -86,7 +82,7 @@ def __write_summary(run_id: int, user_added_hyperparameter: Dict[str, List[Any]]
     runs_folder = Path(f"results/runs/runID={run_id}")
     summary = pd.DataFrame(
         columns=[
-            "accuracy", "nr_of_layers", "instances", "overall time", "time in covariant loop",
+            "accuracy", "nr_of_layers", "instances", "overall time",
             "amount of active layers",
             "runID", "stream", "path",
             "lr", "MCICutOff", "classifier",
