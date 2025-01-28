@@ -6,8 +6,17 @@ import torch
 from ADLClassifier.BaseClassifier import ADLClassifier
 
 
-def eliminate_for_loop(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
+def vectorized_for_loop(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
+    """
+    Vectorizes the triple for loop in the calculation of the mci score to determine correlated pairs of output layers
+     in the given/decorated class of ADLClassifier
+    :param adl_classifier: the class of ADLClassifier, whose mci score calculation should be vectorized
+    :return: a class of ADLClassifier, whose mci score calculation is vectorized
+    """
     class WithoutForLoopWrapper(adl_classifier):
+        """
+        A class of ADLClassifier with a vectorized mci score calculation
+        """
 
         def __str__(self):
             return f"{super().__str__()}WithoutForLoop"

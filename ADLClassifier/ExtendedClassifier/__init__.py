@@ -1,2 +1,1 @@
-from ADLClassifier.ExtendedClassifier.ADLClassifierWithWinningLayerTraining import ADLClassifierWithWinningLayerTraining
-from ADLClassifier.ExtendedClassifier.ADLCLassifierWithoutForLoop import ADLClassifierWithoutForLoop, WinningLayerADLCLassifierWithoutForLoop
+from ADLClassifier.ExtendedClassifier.ExtendedADLClassifier import *

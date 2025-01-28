@@ -3,8 +3,19 @@ import torch
 from ADLClassifier.BaseClassifier import ADLClassifier
 
 
-def train_only_winning_layer(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
+def winning_layer_training(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
+    """
+    Changes the training/backpropagation of the decorated/passed class of ADLClassifier to only change the winning layer
+    the winning layer is the layer with the highest voting weight
+    after the weights are changed according to the correctness of the prediction on the current instance
+    :param adl_classifier: the class of ADLClassifier that should be changed
+    :return: a class of ADLClassifier that only trains the winning layer
+    """
     class WithWinningLayerTrainingWrapper(adl_classifier):
+        """
+        A class of ADLClassifier that only trains the winning layer
+        """
+
         def __str__(self):
             return f"{super().__str__()}WithWinningLayerTraining"
 

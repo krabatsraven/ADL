@@ -122,6 +122,7 @@ def __write_summary(run_id: int, user_added_hyperparameter: Dict[str, List[Any]]
             i += 1
 
     summary = summary.rename(columns=rename)
+    runs_folder.mkdir(exist_ok=True, parents=True)
     summary.to_csv(runs_folder / "summary.csv", sep="\t")
 
 

@@ -458,13 +458,13 @@ def __plot_and_save_result(result_id: int, show: bool = True) -> None:
     if not results_dir_path.exists():
         print(f"runID={result_id}: No results found, returning")
         return
-    hyperparameter_folders = list(results_dir_path.iterdir())
+    hyperparameter_folders = [d for d in results_dir_path.iterdir() if d.is_dir()]
     if not any(hyperparameter_folders):
         print(f"runID={result_id}: No test run with hyperparameters found, returning")
         return
 
     for hyperparameter_folder in hyperparameter_folders:
-        datastream_folders = list(hyperparameter_folder.iterdir())
+        datastream_folders = [d for d in hyperparameter_folder.iterdir() if d.is_dir()]
         if not any(datastream_folders):
             print(
                 f"runID={result_id}: No test run with a datastream found for hyperparameter={hyperparameter_folder.name}, skipping")
@@ -596,7 +596,7 @@ def __compare_all_of_one_run(run_id: int, show: bool) -> None:
     if not results_dir_path.exists():
         print(f"runID={run_id}: No results found, returning")
         return
-    hyperparameter_folders = list(results_dir_path.iterdir())
+    hyperparameter_folders = [d for d in results_dir_path.iterdir() if d.is_dir()]
     if not any(hyperparameter_folders):
         print(f"runID={run_id}: No test run with hyperparameters found, returning")
         return

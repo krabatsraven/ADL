@@ -1,7 +1,7 @@
 from ADLClassifier.BaseClassifier import ADLClassifier
 
 
-def global_grace_period(adl_classifier: type(ADLClassifier), duration: int) -> type(ADLClassifier):
+def global_grace_period(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
     """
     Adds a grace period to the decorated/passed class of ADLClassifier
     for the grace period no changes will be applied.
@@ -16,14 +16,16 @@ def global_grace_period(adl_classifier: type(ADLClassifier), duration: int) -> t
         ADLClassifier with a Global Grace Period
         """
 
-        def __init__(self, *args, **kwargs):
+        def __init__(self, duration: int = 1000, *args, **kwargs):
+            assert duration > 0, (f"grace period has to be a positive number, "
+                                  f"if you want to disable the grace period consider using {adl_classifier} instead")
             super().__init__(*args, **kwargs)
-            self.duration: int = duration
+            self.__duration: int = duration
             self.time_since_last_change: int = 0
             self.model_changed_this_iteration: bool = False
 
         def __str__(self):
-            return f"{super().__str__()}WithGlobalGracePeriodOf{self.duration}Instances"
+            return f"{super().__str__()}WithGlobalGracePeriodOf{self.__duration}Instances"
 
         def train(self, instance):
             self.model_changed_this_iteration = False
@@ -32,27 +34,35 @@ def global_grace_period(adl_classifier: type(ADLClassifier), duration: int) -> t
                 self.time_since_last_change += 1
 
         def _delete_layer(self, layer_index: int) -> None:
-            if self.time_since_last_change > self.duration:
+            if self.time_since_last_change > self.__duration:
                 super()._delete_layer(layer_index)
                 self.model_changed_this_iteration = True
                 self.time_since_last_change = 0
 
         def _add_layer(self) -> None:
-            if self.time_since_last_change > self.duration:
+            if self.time_since_last_change > self.__duration:
                 super()._add_layer()
                 self.model_changed_this_iteration = True
                 self.time_since_last_change = 0
 
         def _add_node(self, layer_index: int) -> None:
-            if self.time_since_last_change > self.duration:
+            if self.time_since_last_change > self.__duration:
                 super()._add_node(layer_index)
                 self.model_changed_this_iteration = True
                 self.time_since_last_change = 0
 
         def _delete_node(self, layer_index: int, node_index: int) -> None:
-            if self.time_since_last_change > self.duration:
+            if self.time_since_last_change > self.__duration:
                 super()._delete_node(layer_index, node_index)
                 self.model_changed_this_iteration = True
                 self.time_since_last_change = 0
+
+        @property
+        def duration(self) -> int:
+            """
+            The duration of the grace period
+            :return: the nr of instances for which no changes are to be applied to the models layer since the last change
+            """
+            return self.__duration
 
     return GlobalGracePeriodWrapper

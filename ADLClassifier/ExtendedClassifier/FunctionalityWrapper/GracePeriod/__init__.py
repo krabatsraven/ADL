@@ -1,2 +1,2 @@
-from global_grace_period import global_grace_period
-from grace_period_per_layer import grace_period_per_layer
+from ADLClassifier.ExtendedClassifier.FunctionalityWrapper.GracePeriod.global_grace_period import global_grace_period
+from ADLClassifier.ExtendedClassifier.FunctionalityWrapper.GracePeriod.grace_period_per_layer import grace_period_per_layer
