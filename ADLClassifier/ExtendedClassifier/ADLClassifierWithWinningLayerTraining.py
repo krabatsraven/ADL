@@ -1,7 +1,7 @@
 from ADLClassifier.BaseClassifier.ADLClassifier import ADLClassifier
-from ADLClassifier.ExtendedClassifier.FunctionalityWrapper import train_only_winning_layer
+from ADLClassifier.ExtendedClassifier.FunctionalityWrapper import winning_layer_training
 
 
-@train_only_winning_layer
+@winning_layer_training
 class ADLClassifierWithWinningLayerTraining(ADLClassifier):
     pass

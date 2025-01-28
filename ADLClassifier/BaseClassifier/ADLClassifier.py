@@ -22,12 +22,11 @@ class ADLClassifier(Classifier):
             nn_model: Optional[AutoDeepLearner] = None,
             optimizer: Optional[Optimizer] = None,
             loss_fn=nn.CrossEntropyLoss(),
-            device: str = ("cpu"),
+            device: str = "cpu",
             lr: float = 1e-3,
             drift_detector: BaseDriftDetector = ADWIN(delta=1e-5),
             drift_criterion: str = "accuracy",
-            mci_threshold_for_layer_pruning: float = 10**-7,
-            nr_of_results_kept_for_covariance_calculation: int = 10
+            mci_threshold_for_layer_pruning: float = 10**-7
     ):
 
         super().__init__(schema, random_seed)
@@ -66,7 +65,7 @@ class ADLClassifier(Classifier):
 
         # values that are tracking the bias and variance of the model to inform node growing/pruning decisions
         #  ---------------------------------------------------------------------------------------------------
-        self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance: torch.Tensor = torch.tensor(0, dtype=torch.int, requires_grad=False)
+        self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance: torch.Tensor = torch.tensor(0, dtype=torch.int)
 
         self.mean_of_bias_squared: Optional[torch.Tensor] = None
         self.sum_of_bias_squared_residuals_squared: Optional[torch.Tensor] = None
@@ -153,7 +152,7 @@ class ADLClassifier(Classifier):
         # Backpropagation
         self._backpropagation(prediction=pred, true_label=y)
 
-        self.drift_detector.add_element(self.__drift_criterion(y, pred))
+        self.drift_detector.add_element(self._drift_criterion(y, pred))
 
         # todo: # 71
         # todo: # 72
@@ -291,7 +290,7 @@ class ADLClassifier(Classifier):
         # the maximal mci for a layer pair has to be smaller than the users threshold
         correlated_pairs = ((torch.logical_and(0 <= mci_max_values, mci_max_values < self.mci_threshold_for_layer_pruning))
                             .nonzero()
-                            .sort(dim = -1)[0]
+                            .sort()[0]
                             .unique(dim=0, sorted=True, return_counts=False, return_inverse=False)
                             .flip(dims=(0,))
                             )
@@ -312,16 +311,13 @@ class ADLClassifier(Classifier):
                 # if both layers still exist:
                 if self.model.get_voting_weight(index_of_layer_i) < self.model.get_voting_weight(index_of_layer_j):
                     # layer_i has the smaller voting weight and gets pruned
-                    self._remove_layer_from_covariance_matrix(index_of_layer_i)
-                    self.model._prune_layer_by_vote_removal(index_of_layer_i)
+                    self._delete_layer(index_of_layer_i)
                 else:
                     # voting_weight(j) <= voting_weight(i) => prune j
                     # as i <= j is guaranteed by beforehand sorting
                     # we prune j if voting_weight(i) == voting_weight(j)
-                    self._remove_layer_from_covariance_matrix(index_of_layer_j)
-                    self.model._prune_layer_by_vote_removal(index_of_layer_j)
+                    self._delete_layer(index_of_layer_j)
 
-                self.results_of_all_hidden_layers_kept_for_cov_calc = None
 
         # update the optimizer after pruning:
         self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
@@ -337,9 +333,7 @@ class ADLClassifier(Classifier):
 
             # add layer
             active_layers_before_adding = self.model.active_and_learning_layer_keys().tolist()
-            self._add_layer_to_covariance_matrix()
-            self.model._add_layer()
-            self.results_of_all_hidden_layers_kept_for_cov_calc = None
+            self._add_layer()
             # update optimizer after adding a layer
             self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
 
@@ -391,7 +385,7 @@ class ADLClassifier(Classifier):
         variance_of_winning_layer = expected_value_of_winning_layer ** 2 - expected_value_winning_layer_squared
         variance_of_winning_layer_squared = variance_of_winning_layer.matmul(variance_of_winning_layer)
         # update mean, standard deviation and minima of biases and variances so far:
-        self.__update_mu_and_s_of_bias_and_var(bias_of_winning_layer_squared, variance_of_winning_layer_squared)
+        self._update_mu_and_s_of_bias_and_var(bias_of_winning_layer_squared, variance_of_winning_layer_squared)
 
         # \kappa
         kappa = 1.3 * torch.exp(-bias_of_winning_layer_squared) + 0.7
@@ -399,7 +393,7 @@ class ADLClassifier(Classifier):
         if (self.mean_of_bias_squared + self.standard_deviation_of_bias_squared 
                 >= self.minimum_of_mean_of_bias_squared + kappa * self.minimum_of_standard_deviation_of_bias_squared):
             # add node to winning layer
-            self.model._add_node(winning_layer)
+            self._add_node(winning_layer)
             # return: we don't add and shrink in the same turn
             return
 
@@ -409,7 +403,7 @@ class ADLClassifier(Classifier):
         if (self.mean_of_variance_squared_squared + self.standard_deviation_of_variance_squared_squared 
                 >= self.minimum_of_mean_of_variance_squared_squared + 2 * xi *self.minimum_of_standard_deviation_of_variance_squared_squared):
             # remove the least contributing node from the winning layer
-            self.model._delete_node(winning_layer, idx_of_least_contributing_winning_layer_node)
+            self._delete_node(winning_layer, idx_of_least_contributing_winning_layer_node)
 
             # if the node is deleted the minima are reset:
             self.minimum_of_mean_of_bias_squared = self.mean_of_bias_squared
@@ -417,7 +411,7 @@ class ADLClassifier(Classifier):
             self.minimum_of_mean_of_variance_squared_squared = self.mean_of_variance_squared_squared
             self.minimum_of_standard_deviation_of_variance_squared = self.standard_deviation_of_variance_squared_squared
 
-    def __update_mu_and_s_of_bias_and_var(self, bias_squared: torch.Tensor, variance_squared: torch.Tensor) -> None:
+    def _update_mu_and_s_of_bias_and_var(self, bias_squared: torch.Tensor, variance_squared: torch.Tensor) -> None:
         if self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance == 0:
             self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance += 1
 
@@ -456,7 +450,7 @@ class ADLClassifier(Classifier):
             self.sum_of_bias_squared_residuals_squared
             / (self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance - 1)
         )
-    
+
         # \bar x_n = \bar x_{n-1} + \frac{x_n - \bar x_{n-1}}{n}
         new_mean_of_variance_squared = (self.mean_of_variance_squared_squared 
                                         + (
@@ -464,7 +458,7 @@ class ADLClassifier(Classifier):
                                                 / self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance
                                         )
                                         )
-    
+
         # M_{2,n} = M_{2, n-1} + (x_n - \bar x_{n})(x_n - \bar x_{n-1})
         self.sum_of_variance_squared_residuals_squared += (
             (variance_squared - new_mean_of_variance_squared)
@@ -476,7 +470,7 @@ class ADLClassifier(Classifier):
                 self.sum_of_variance_squared_residuals_squared 
                 / (self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance - 1)
         )
-    
+
         self.minimum_of_mean_of_bias_squared = torch.min(
             self.minimum_of_mean_of_bias_squared,
             self.mean_of_bias_squared
@@ -494,7 +488,7 @@ class ADLClassifier(Classifier):
             self.standard_deviation_of_variance_squared_squared
         )
 
-    def __drift_criterion(self, true_label: torch.Tensor, prediction: torch.Tensor) -> float:
+    def _drift_criterion(self, true_label: torch.Tensor, prediction: torch.Tensor) -> float:
         match self.__drift_criterion_switch:
             case "accuracy":
                 # use accuracy to univariant detect concept drift
@@ -642,3 +636,17 @@ class ADLClassifier(Classifier):
                 self.mean_of_output_probabilities[first_index_to_not_remove_anymore_form_matrix:]
             )
         )
+
+    def _delete_layer(self, layer_index: int) -> None:
+        self._remove_layer_from_covariance_matrix(layer_index)
+        self.model._prune_layer_by_vote_removal(layer_index)
+
+    def _add_layer(self) -> None:
+        self._add_layer_to_covariance_matrix()
+        self.model._add_layer()
+
+    def _add_node(self, layer_index: int) -> None:
+        self.model._add_node(layer_index)
+
+    def _delete_node(self, layer_index: int, node_index: int) -> None:
+        self.model._delete_node(layer_index, node_index)

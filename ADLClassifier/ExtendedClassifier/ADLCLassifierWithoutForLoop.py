@@ -1,12 +1,12 @@
 from ADLClassifier import ADLClassifier
-from ADLClassifier.ExtendedClassifier.FunctionalityWrapper import eliminate_for_loop, train_only_winning_layer
+from ADLClassifier.ExtendedClassifier.FunctionalityWrapper import vectorized_for_loop, winning_layer_training
 
 
-@eliminate_for_loop
+@vectorized_for_loop
 class ADLClassifierWithoutForLoop(ADLClassifier):
     pass
 
-@train_only_winning_layer
-@eliminate_for_loop
+@winning_layer_training
+@vectorized_for_loop
 class WinningLayerADLCLassifierWithoutForLoop(ADLClassifier):
     pass
