@@ -347,12 +347,7 @@ class ADLClassifier(Classifier):
 
             self.model._disable_layers_for_training(active_layers_before_adding)
             pred = self.model.forward(data)
-            # todo: replace with self.backprop?
-            loss = self.loss_function(pred, true_label)
-
-            # Backpropagation
-            loss.backward()
-            self.optimizer.step()
+            self._backpropagation(pred, true_label)
             # reactivate all but the newest layer (the newest should already be active):
             self.model._enable_layers_for_training(active_layers_before_adding)
             # low level training

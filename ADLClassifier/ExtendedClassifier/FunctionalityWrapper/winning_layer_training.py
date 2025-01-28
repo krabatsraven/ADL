@@ -25,4 +25,5 @@ def winning_layer_training(adl_classifier: type(ADLClassifier)) -> type(ADLClass
             super()._backpropagation(prediction=prediction, true_label=true_label)
             self.model._enable_layers_for_training(layers_to_disable)
 
+    WithWinningLayerTrainingWrapper.__name__ = f"WinningLayer{adl_classifier.__name__}"
     return WithWinningLayerTrainingWrapper

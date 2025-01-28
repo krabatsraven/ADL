@@ -1,135 +1,22 @@
-from ADLClassifier.ExtendedClassifier import *
+from collections.abc import Callable
+
+from ADLClassifier.ExtendedClassifier import extended_classifier
 from ADLClassifier.BaseClassifier import ADLClassifier
 from ADLClassifier.EvaluationClassifier.EvaluationWrapper import record_emissions, record_network_graph
 
 
-@record_network_graph
-class ADLClassifierWithGraphRecord(ADLClassifier):
-    pass
+def extend_classifier_for_evaluation(
+        *decorators: Callable[[type(ADLClassifier)], type(ADLClassifier)],
+        with_emissions: bool = False
+) -> type(ADLClassifier):
+    """
+    creates a ADLClassifier Class with the given decorators for evaluation purposes
+    :param decorators: ADLClass decorators
+    :param with_emissions: if true the emissions of the classifier will be tracked as well
+    :return: ADLClassifier decorated with decorators and with graph network/emission tracking
+    """
 
-
-@record_emissions
-@record_network_graph
-class ADLClassifierWithGraphRecordAndEmissionTracking(ADLClassifier):
-    pass
-
-
-@record_network_graph
-class ADLClassifierWithoutForLoopWithGraphRecord(ADLClassifierWithoutForLoop):
-    pass
-
-
-@record_emissions
-@record_network_graph
-class ADLClassifierWithoutForLoopWithGraphRecordAndEmissionTracking(ADLClassifierWithoutForLoop):
-    pass
-
-
-@record_network_graph
-class WinningLayerADLClassifierWithoutForLoopWithGraphRecord(WinningLayerADLCLassifierWithoutForLoop):
-    pass
-
-
-@record_emissions
-@record_network_graph
-class WinningLayerADLClassifierWithoutForLoopWithGraphRecordAndEmissionTracking(WinningLayerADLCLassifierWithoutForLoop):
-    pass
-
-
-@record_network_graph
-class WinningLayerADLClassifierWithGraphRecord(WinningLayerADLClassifier):
-    pass
-
-
-@record_emissions
-@record_network_graph
-class WinningLayerADLClassifierWithGraphRecordAndEmissionTracking(WinningLayerADLClassifier):
-    pass
-
-
-@record_network_graph
-class ADLClassifierWithGlobalGracePeriodWithGraphRecord(ADLClassifierWithGlobalGracePeriod):
-    pass
-
-
-@record_emissions
-@record_network_graph
-class ADLClassifierWithGlobalGracePeriodWithGraphRecordAndEmissionTracking(ADLClassifierWithGlobalGracePeriod):
-    pass
-
-
-@record_network_graph
-class ADLClassifierWithGracePeriodPerLayerAWithGraphRecord(ADLClassifierWithGracePeriodPerLayer):
-    pass
-
-
-@record_emissions
-@record_network_graph
-class ADLClassifierWithGracePeriodPerLayerWithGraphRecordAAndEmissionTracking(ADLClassifierWithGracePeriodPerLayer):
-    pass
-
-
-@record_network_graph
-class ADLClassifierWithGlobalGracePeriodWithoutForLoopWithGraphRecord(ADLClassifierWithGlobalGracePeriodWithoutForLoop):
-    pass
-
-
-@record_emissions
-@record_network_graph
-class ADLClassifierWithGlobalGracePeriodWithoutForLoopWithGraphRecordAndEmissionTracking(ADLClassifierWithGlobalGracePeriodWithoutForLoop):
-    pass
-
-
-@record_network_graph
-class ADLClassifierWithGracePeriodPerLayerWithoutForLoopWithGraphRecord(ADLClassifierWithGracePeriodPerLayerWithoutForLoop):
-    pass
-
-
-@record_emissions
-@record_network_graph
-class ADLClassifierWithGracePeriodPerLayerWithoutForLoopWithGraphRecordAndEmissionTracking(ADLClassifierWithGracePeriodPerLayerWithoutForLoop):
-    pass
-
-
-@record_network_graph
-class WinningLayerADLClassifierWithGlobalGracePeriodWithGraphRecord(WinningLayerADLClassifierWithGlobalGracePeriod):
-    pass
-
-
-@record_emissions
-@record_network_graph
-class WinningLayerADLClassifierWithGlobalGracePeriodWithGraphRecordAndEmissionTracking(WinningLayerADLClassifierWithGlobalGracePeriod):
-    pass
-
-
-@record_network_graph
-class WinningLayerADLClassifierWithGracePeriodPerLayerWithGraphRecord(WinningLayerADLClassifierWithGracePeriodPerLayer):
-    pass
-
-
-@record_emissions
-@record_network_graph
-class WinningLayerADLClassifierWithGracePeriodPerLayerWithGraphRecordAndEmissionTracking(WinningLayerADLClassifierWithGracePeriodPerLayer):
-    pass
-
-
-@record_network_graph
-class WinningLayerADLClassifierWithGlobalGraceWithoutForLoopWithGraphRecord(WinningLayerADLClassifierWithGlobalGracePeriodWithoutForLoop):
-    pass
-
-
-@record_emissions
-@record_network_graph
-class WinningLayerADLClassifierWithGlobalGraceWithoutForLoopWithGraphRecordAndEmissionTracking(WinningLayerADLClassifierWithGlobalGracePeriodWithoutForLoop):
-    pass
-
-
-@record_network_graph
-class WinningLayerADLClassifierWithGracePeriodPerLayerWithoutForLoopWithGraphRecord(WinningLayerADLClassifierWithGracePeriodPerLayerWithoutForLoop):
-    pass
-
-
-@record_emissions
-@record_network_graph
-class WinningLayerADLClassifierWithGracePeriodPerLayerWithoutForLoopWithGraphRecordAndEmissionTracking(WinningLayerADLClassifierWithGracePeriodPerLayerWithoutForLoop):
-    pass
+    if with_emissions:
+        return record_emissions(record_network_graph(extended_classifier(*decorators)))
+    else:
+        return record_network_graph(extended_classifier(*decorators))

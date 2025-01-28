@@ -1,9 +1,15 @@
+from typing import Callable
+
 import torch
 
 from ADLClassifier.BaseClassifier import ADLClassifier
 
 
-def grace_period_per_layer(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
+def grace_period_per_layer(duration: int = 1000) -> Callable[[type(ADLClassifier)], type(ADLClassifier)]:
+    return lambda adl_class: _grace_period_per_layer(adl_class, duration)
+
+
+def _grace_period_per_layer(adl_classifier: type(ADLClassifier), duration: int) -> type(ADLClassifier):
     """
     Adds a grace period to the decorated/passed class of ADLClassifier
     for the grace period of a layer no changes to the layer will be applied
@@ -13,12 +19,12 @@ def grace_period_per_layer(adl_classifier: type(ADLClassifier)) -> type(ADLClass
     :param duration: the number of instances of data seen for which no change is to be applied to a layer
     :return: a class of ADLClassifier that has a grace period per layer added
     """
-    class GracePeriodPerLayerWrapper(adl_classifier):
+    class GracePeriodPerLayerWrapper(ADLClassifier):
         """
         ADLClassifier with a Grace Period per Layer
         """
 
-        def __init__(self, duration: int = 1000, *args, **kwargs):
+        def __init__(self, *args, **kwargs):
             assert duration > 0, (f"grace period has to be a positive number, "
                                   f"if you want to disable the grace period consider using {adl_classifier} instead")
             super().__init__(*args, **kwargs)
@@ -34,29 +40,40 @@ def grace_period_per_layer(adl_classifier: type(ADLClassifier)) -> type(ADLClass
             super().train(instance)
             self.time_since_last_change[~self.model_changed_this_iteration] += 1
 
+        def _backpropagation(self, prediction: torch.Tensor, true_label: torch.Tensor):
+            if len(self.model.active_and_learning_layer_keys()) == 0:
+                return
+            super()._backpropagation(prediction, true_label)
+
         def _delete_layer(self, layer_index: int) -> None:
-            if self.time_since_last_change[layer_index] > self.__duration:
+            output_layer_index = self._output_layer_index(layer_index)
+            if self.time_since_last_change[output_layer_index] > self.__duration:
                 super()._delete_layer(layer_index)
-                self.time_since_last_change = torch.concat((self.time_since_last_change[:layer_index], self.time_since_last_change[layer_index + 1:]))
-                self.model_changed_this_iteration = torch.concat((self.model_changed_this_iteration[:layer_index], self.model_changed_this_iteration[layer_index + 1:]))
+                self.time_since_last_change = torch.concat((self.time_since_last_change[:output_layer_index], self.time_since_last_change[output_layer_index + 1:]))
+                self.model_changed_this_iteration = torch.concat((self.model_changed_this_iteration[:output_layer_index], self.model_changed_this_iteration[output_layer_index + 1:]))
 
         def _add_layer(self) -> None:
             if self.time_since_last_change[-1] > self.__duration:
                 super()._add_layer()
                 self.model_changed_this_iteration = torch.concat((self.model_changed_this_iteration, torch.ones(1, dtype=torch.bool)))
-                self.time_since_last_change = torch.concat((self.model_changed_this_iteration, torch.zeros(1, dtype=torch.int)))
+                self.time_since_last_change = torch.concat((self.time_since_last_change, torch.zeros(1, dtype=torch.int)))
 
         def _add_node(self, layer_index: int) -> None:
-            if self.time_since_last_change[layer_index] > self.__duration:
+            output_layer_index = self._output_layer_index(layer_index)
+            if self.time_since_last_change[output_layer_index] > self.__duration:
                 super()._add_node(layer_index)
-                self.model_changed_this_iteration[layer_index] = True
-                self.time_since_last_change[layer_index] = 0
+                self.model_changed_this_iteration[output_layer_index] = True
+                self.time_since_last_change[output_layer_index] = 0
 
         def _delete_node(self, layer_index: int, node_index: int) -> None:
-            if self.time_since_last_change[layer_index] > self.__duration:
+            output_layer_index = self._output_layer_index(layer_index)
+            if self.time_since_last_change[output_layer_index] > self.__duration:
                 super()._delete_node(layer_index, node_index)
-                self.model_changed_this_iteration[layer_index] = True
-                self.time_since_last_change[layer_index] = 0
+                self.model_changed_this_iteration[output_layer_index] = True
+                self.time_since_last_change[output_layer_index] = 0
+
+        def _output_layer_index(self, layer_index: int) -> int:
+            return (self.model.active_layer_keys() == layer_index).nonzero().item()
 
         @property
         def duration(self) -> int:
@@ -66,4 +83,5 @@ def grace_period_per_layer(adl_classifier: type(ADLClassifier)) -> type(ADLClass
             """
             return self.__duration
 
+    GracePeriodPerLayerWrapper.__name__ = f"{adl_classifier.__name__}WithGracePeriodPerLayer"
     return GracePeriodPerLayerWrapper

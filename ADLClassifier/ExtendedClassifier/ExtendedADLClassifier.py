@@ -1,66 +1,16 @@
+from collections.abc import Callable
+
 from ADLClassifier import ADLClassifier
-from ADLClassifier.ExtendedClassifier.FunctionalityWrapper import vectorized_for_loop, winning_layer_training, global_grace_period, grace_period_per_layer
 
 
-@winning_layer_training
-class WinningLayerADLClassifier(ADLClassifier):
-    pass
+def extended_classifier(*decorators: Callable[[type(ADLClassifier)], type(ADLClassifier)]) -> type(ADLClassifier):
+    """
+    creates an ADLClassifier that was decorated with @decorators
+    :param decorators: number of functions to decorate the BaseADLClassifier with
+    :return: 
+    """
+    extended_classifier = ADLClassifier
+    for decorator in decorators:
+        extended_classifier = decorator(extended_classifier)
 
-
-@vectorized_for_loop
-class ADLClassifierWithoutForLoop(ADLClassifier):
-    pass
-
-
-@winning_layer_training
-@vectorized_for_loop
-class WinningLayerADLCLassifierWithoutForLoop(ADLClassifier):
-    pass
-
-
-@global_grace_period
-class ADLClassifierWithGlobalGracePeriod(ADLClassifier):
-    pass
-
-
-@grace_period_per_layer
-class ADLClassifierWithGracePeriodPerLayer(ADLClassifier):
-    pass
-
-
-@winning_layer_training
-@global_grace_period
-class WinningLayerADLClassifierWithGlobalGracePeriod(ADLClassifier):
-    pass
-
-
-@winning_layer_training
-@grace_period_per_layer
-class WinningLayerADLClassifierWithGracePeriodPerLayer(ADLClassifier):
-    pass
-
-
-@vectorized_for_loop
-@global_grace_period
-class ADLClassifierWithGlobalGracePeriodWithoutForLoop(ADLClassifier):
-    pass
-
-
-@vectorized_for_loop
-@grace_period_per_layer
-class ADLClassifierWithGracePeriodPerLayerWithoutForLoop(ADLClassifier):
-    pass
-
-
-@vectorized_for_loop
-@winning_layer_training
-@global_grace_period
-class WinningLayerADLClassifierWithGlobalGracePeriodWithoutForLoop(ADLClassifier):
-    pass
-
-
-@vectorized_for_loop
-@winning_layer_training
-@grace_period_per_layer
-class WinningLayerADLClassifierWithGracePeriodPerLayerWithoutForLoop(ADLClassifier):
-    pass
+    return extended_classifier

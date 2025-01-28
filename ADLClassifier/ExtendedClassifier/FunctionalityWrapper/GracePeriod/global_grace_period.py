@@ -1,7 +1,15 @@
+from collections.abc import Callable
+
+import torch
+
 from ADLClassifier.BaseClassifier import ADLClassifier
 
 
-def global_grace_period(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
+def global_grace_period(duration: int = 1000) -> Callable[[type(ADLClassifier)], type(ADLClassifier)]:
+    return lambda adl_class: _global_grace_period(adl_class, duration)
+
+
+def _global_grace_period(adl_classifier: type(ADLClassifier), duration: int) -> type(ADLClassifier):
     """
     Adds a grace period to the decorated/passed class of ADLClassifier
     for the grace period no changes will be applied.
@@ -11,12 +19,12 @@ def global_grace_period(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
     :return: a class of ADLClassifier that has a global grace period added
     """
 
-    class GlobalGracePeriodWrapper(adl_classifier):
+    class GlobalGracePeriodWrapper(ADLClassifier):
         """
         ADLClassifier with a Global Grace Period
         """
 
-        def __init__(self, duration: int = 1000, *args, **kwargs):
+        def __init__(self, *args, **kwargs):
             assert duration > 0, (f"grace period has to be a positive number, "
                                   f"if you want to disable the grace period consider using {adl_classifier} instead")
             super().__init__(*args, **kwargs)
@@ -32,6 +40,11 @@ def global_grace_period(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
             super().train(instance)
             if not self.model_changed_this_iteration:
                 self.time_since_last_change += 1
+
+        def _backpropagation(self, prediction: torch.Tensor, true_label: torch.Tensor):
+            if len(self.model.active_and_learning_layer_keys()) == 0:
+                return
+            super()._backpropagation(prediction, true_label)
 
         def _delete_layer(self, layer_index: int) -> None:
             if self.time_since_last_change > self.__duration:
@@ -65,4 +78,5 @@ def global_grace_period(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
             """
             return self.__duration
 
+    GlobalGracePeriodWrapper.__name__ = f"{adl_classifier.__name__}WithGlobalGracePeriod"
     return GlobalGracePeriodWrapper

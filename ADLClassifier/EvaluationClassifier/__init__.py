@@ -1,1 +1,1 @@
-from ADLClassifier.EvaluationClassifier.ADLCLassifierForEvaluation import *
+from ADLClassifier.EvaluationClassifier.ADLCLassifierForEvaluation import extend_classifier_for_evaluation

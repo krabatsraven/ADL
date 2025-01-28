@@ -25,7 +25,7 @@ def record_network_graph(adl_classifier: type(ADLClassifier)):
                 self.set_model(instance)
 
             self._update_record_of_model_shape()
-            self._train(instance)
+            super().train(instance)
 
         def _update_record_of_model_shape(self):
             self.record_of_model_shape["nr_of_layers"].append(len(self.model.layers))

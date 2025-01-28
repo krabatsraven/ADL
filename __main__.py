@@ -1,7 +1,7 @@
 from capymoa.datasets import Electricity, ElectricityTiny
 
 from ADLClassifier.EvaluationClassifier import *
-from Evaluation import __plot_and_save_result
+from ADLClassifier.ExtendedClassifier.FunctionalityWrapper import *
 
 from Evaluation.EvaluationFunctions import _evaluate_parameters, __write_summary
 
@@ -28,7 +28,9 @@ def _test_example(run: bool):
             # 1e-15, 1e-50
         ]
         classifiers = [
-            WinningLayerADLClassifierWithoutForLoopWithGraphRecord
+            extend_classifier_for_evaluation(global_grace_period(10), winning_layer_training, vectorized_for_loop),
+            extend_classifier_for_evaluation(grace_period_per_layer(10), winning_layer_training, vectorized_for_loop),
+            extend_classifier_for_evaluation(winning_layer_training, vectorized_for_loop)
         ]
 
         _evaluate_parameters(

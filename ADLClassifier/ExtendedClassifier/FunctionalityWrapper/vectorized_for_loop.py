@@ -186,4 +186,5 @@ def vectorized_for_loop(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
                 )
             )
 
+    WithoutForLoopWrapper.__name__ = f"{adl_classifier.__name__}WithoutForLoop"
     return WithoutForLoopWrapper
