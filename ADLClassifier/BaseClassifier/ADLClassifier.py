@@ -47,7 +47,7 @@ class ADLClassifier(Classifier):
         else:
             self.optimizer = optimizer
 
-        self.evaluator = ClassificationEvaluator(self.schema, window_size=1)
+        self.adl_evaluator = ClassificationEvaluator(self.schema, window_size=1)
 
         self.drift_detector: BaseDriftDetector = drift_detector
         self.__drift_criterion_switch = drift_criterion
@@ -119,7 +119,7 @@ class ADLClassifier(Classifier):
         self._train(instance)
 
     def predict(self, instance):
-        return np.argmax(self.predict_proba(instance))
+        return self.predict_proba(instance).argmax()
 
     def predict_proba(self, instance):
         if self.model is None:
@@ -478,8 +478,8 @@ class ADLClassifier(Classifier):
         match self.__drift_criterion_switch:
             case "accuracy":
                 # use accuracy to univariant detect concept drift
-                self.evaluator.update(true_label.item(), torch.argmax(prediction).item())
-                return self.evaluator.accuracy()
+                self.adl_evaluator.update(true_label.item(), torch.argmax(prediction).item())
+                return self.adl_evaluator.accuracy()
 
             case "loss":
                 # use the loss to univariant detect concept drift

@@ -28,9 +28,7 @@ def _test_example(run: bool):
             # 1e-15, 1e-50
         ]
         classifiers = [
-            extend_classifier_for_evaluation(global_grace_period(10), winning_layer_training, vectorized_for_loop),
             extend_classifier_for_evaluation(grace_period_per_layer(10), winning_layer_training, vectorized_for_loop),
-            extend_classifier_for_evaluation(winning_layer_training, vectorized_for_loop)
         ]
 
         _evaluate_parameters(

@@ -1,4 +1,5 @@
 import torch
+from capymoa.evaluation import ClassificationEvaluator
 
 from ADLClassifier import ADLClassifier
 
@@ -16,6 +17,7 @@ def record_network_graph(adl_classifier: type(ADLClassifier)):
                 "active_layers": [],
                 "winning_layer": []
             }
+            self.evaluator = ClassificationEvaluator(self.schema, window_size=1)
 
         def __str__(self):
             return f"{super().__str__()}WithGraphRecord"
@@ -24,25 +26,23 @@ def record_network_graph(adl_classifier: type(ADLClassifier)):
             if self.model is None:
                 self.set_model(instance)
 
-            self._update_record_of_model_shape()
+            self._test(instance)
             super().train(instance)
+
+        def _test(self, instance):
+            # save the nr of different layers for later evaluations
+            self._update_record_of_model_shape()
+
+            # test the performance of the model before training
+            true_label = torch.tensor(instance.y_index, dtype=torch.long)
+            true_label = torch.unsqueeze(true_label.to(self.device),0)
+            prediction = self.predict(instance)
+            self.evaluator.update(true_label.item(), prediction)
 
         def _update_record_of_model_shape(self):
             self.record_of_model_shape["nr_of_layers"].append(len(self.model.layers))
             self.record_of_model_shape["shape_of_hidden_layers"].append([tuple(list(h.weight.size()).__reversed__()) for h in self.model.layers])
             self.record_of_model_shape["active_layers"].append(self.model.active_layer_keys().numpy())
             self.record_of_model_shape["winning_layer"].append(self.model.get_winning_layer())
-
-        def __drift_criterion(self, true_label: torch.Tensor, prediction: torch.Tensor) -> float:
-            # for evaluation it is necessary to track the statistical features, even if we use another criterion fro the drift
-            self.evaluator.update(true_label.item(), torch.argmax(prediction).item())
-            match self.__drift_criterion_switch:
-                case "accuracy":
-                    # use accuracy to univariant detect concept drift
-                    return self.evaluator.accuracy()
-
-                case "loss":
-                    # use the loss to univariant detect concept drift
-                    return self.loss_function(true_label, prediction)
 
     return NetworkGraphRecorder
