@@ -495,16 +495,13 @@ def __plot_and_save_result(result_id: int, show: bool = True) -> None:
                 emissions_plotting = True
 
             # plotting
-            lr, mci_cut, *_ = map(lambda s: s.split("=")[1], hyperparameter_folder.name.split("_"))
-            lr, mci_cut = float(lr), float(mci_cut)
             sub_title_string_head = f"Instances={metrics_overview.instances[0]:n},\n"
             sub_title_string_tail = f"\nMean-Accuracy={metrics_overview.accuracy[0]:.2f},\nNr Of Active Layers After Training={metrics_overview.active_layers.map(len)[0]:n}"
-            sub_title_string = (sub_title_string_head + f"lr={lr:.2e}, mci-cut-off={mci_cut :.2e}," + sub_title_string_tail).title()
-            if len(_) > 0:
-                hyperparameter_string = hyperparameter_folder.name
-                hyperparameter_dict_from_string = {key.replace(' ', '_'): value.replace(' ', '_') for key, value in [pair_string.split("=") for pair_string in hyperparameter_string.split("_")]}
-                sub_title_string_middle = "\n".join((f"{key}={hyperparameter_dict_from_string[key]}," for key in hyperparameter_dict_from_string if key != "classifier"))
-                sub_title_string = (sub_title_string_head + sub_title_string_middle + sub_title_string_tail)
+
+            hyperparameter_string = hyperparameter_folder.name
+            hyperparameter_dict_from_string = {key.replace(' ', '_'): value.replace(' ', '_') for key, value in [pair_string.split("=") for pair_string in hyperparameter_string.split("_")]}
+            sub_title_string_middle = "\n".join((f"{key}={hyperparameter_dict_from_string[key]}," for key in hyperparameter_dict_from_string if key != "classifier"))
+            sub_title_string = (sub_title_string_head + sub_title_string_middle + sub_title_string_tail)
 
             plot_folder = datastream_folder / "plots"
             plot_folder.mkdir(exist_ok=True)
@@ -524,7 +521,8 @@ def __plot_and_save_result(result_id: int, show: bool = True) -> None:
 
 def __create_df_names(df_parameters: List[Dict[str, str]]) -> Tuple[str, List[str]]:
     common_keys = set(
-        filter(lambda k: len(set(map(lambda df_dict: df_dict[k], df_parameters))) == 1, df_parameters[0].keys()))
+        filter(lambda k: len(set(filter(lambda x: x is not None, map(lambda df_dict: df_dict.get(k, None), df_parameters)))) == 1, df_parameters[0].keys())
+    )
     substring = "\n ".join((f"{key}={df_parameters[0][key]}" for key in common_keys))
     return substring, [
         ", ".join((f"{key}={value}" for key, value in df_parameter_dict.items() if key not in common_keys)) for

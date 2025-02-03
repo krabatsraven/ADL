@@ -94,6 +94,10 @@ class ADLClassifier(Classifier):
     def __str__(self):
         return "ADLClassifier"
 
+    @classmethod
+    def name(cls) -> str:
+        return "ADLClassifier"
+
     def CLI_help(self):
         return str('schema=None, random_seed=1, optimizer=None, loss_fn=nn.CrossEntropyLoss(), device=("cpu"), lr=1e-3 evaluator=ClassificationEvaluator(), drift_detector=ADWIN(delta=0.001), drift_criterion="accuracy"')
 

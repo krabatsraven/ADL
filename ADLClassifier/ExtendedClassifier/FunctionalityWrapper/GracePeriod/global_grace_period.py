@@ -34,6 +34,10 @@ def _global_grace_period(adl_classifier: type(ADLClassifier), duration: int) -> 
 
         def __str__(self):
             return f"{super().__str__()}WithGlobalGracePeriodOf{self.__duration}Instances"
+        
+        @classmethod
+        def name(cls) -> str:
+            return f"{adl_classifier.name()}WithGlobalGracePeriodOf{duration}Instances"
 
         def train(self, instance):
             self.model_changed_this_iteration = False

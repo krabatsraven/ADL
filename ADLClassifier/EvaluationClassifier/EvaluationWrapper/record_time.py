@@ -8,6 +8,10 @@ def record_time(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
         def __str__(self):
             return f"{super().__str__()}WithTimeRecords"
 
+        @classmethod
+        def name(cls) -> str:
+            return f"{adl_classifier.name()}WithTimeRecords"
+
         def __init__(self):
             super().__init__()
 

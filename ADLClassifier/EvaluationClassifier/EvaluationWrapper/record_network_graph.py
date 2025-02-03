@@ -22,6 +22,10 @@ def record_network_graph(adl_classifier: type(ADLClassifier)):
         def __str__(self):
             return f"{super().__str__()}WithGraphRecord"
 
+        @classmethod
+        def name(cls) -> str:
+            return f"{adl_classifier.name()}WithGraphRecord"
+
         def train(self, instance):
             if self.model is None:
                 self.set_model(instance)

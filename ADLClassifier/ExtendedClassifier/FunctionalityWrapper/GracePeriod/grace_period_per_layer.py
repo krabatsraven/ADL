@@ -19,7 +19,7 @@ def _grace_period_per_layer(adl_classifier: type(ADLClassifier), duration: int) 
     :param duration: the number of instances of data seen for which no change is to be applied to a layer
     :return: a class of ADLClassifier that has a grace period per layer added
     """
-    class GracePeriodPerLayerWrapper(ADLClassifier):
+    class GracePeriodPerLayerWrapper(adl_classifier):
         """
         ADLClassifier with a Grace Period per Layer
         """
@@ -34,6 +34,10 @@ def _grace_period_per_layer(adl_classifier: type(ADLClassifier), duration: int) 
 
         def __str__(self):
             return f"{super().__str__()}WithGracePeriodPerLayerOf{self.__duration}Instances"
+
+        @classmethod
+        def name(cls) -> str:
+            return f"{adl_classifier.name()}WithGracePeriodPerLayerOf{duration}Instances"
 
         def train(self, instance):
             self.model_changed_this_iteration = torch.zeros(self.model.nr_of_active_layers, dtype=torch.bool)

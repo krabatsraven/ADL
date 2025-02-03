@@ -21,6 +21,10 @@ def vectorized_for_loop(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
         def __str__(self):
             return f"{super().__str__()}WithoutForLoop"
 
+        @classmethod
+        def name(cls) -> str:
+            return f"{adl_classifier.name()}WithoutForLoop"
+
         def _get_correlated_pairs_of_output_layers(self) -> List[Tuple[int, int]]:
             # find correlated layers:
             # compare the predictions of the layer pairwise

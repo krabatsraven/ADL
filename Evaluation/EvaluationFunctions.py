@@ -2,14 +2,14 @@ import os
 import time
 from copy import deepcopy
 from pathlib import Path
-from typing import Dict, List, Union, Any, Set
+from typing import Dict, List, Union, Any, Set, Optional
 
 import pandas as pd
 from capymoa.drift.detectors import ADWIN
 from capymoa.evaluation import prequential_evaluation
 from capymoa.stream import Stream
 
-from ADLClassifier import ADLClassifier
+from ADLClassifier import ADLClassifier, global_grace_period, grace_period_per_layer
 from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_all_of_one_run
 
 ADWIN_DELTA_STANDIN = "adwin-delta"
@@ -27,32 +27,23 @@ def __get_run_id() -> int:
 
 def __evaluate_on_stream(
         stream_data: Stream,
-        learning_rate: float,
-        threshold_for_layer_pruning: float,
         run_id: int,
-        user_added_parameters: Dict[str, Any],
-        classifier: type(ADLClassifier)
+        adl_parameters: Dict[str, Any],
+        classifier: type(ADLClassifier),
+        rename_values: Dict[str, float]
 ) -> None:
-
-    changed_user_added_parameters = deepcopy(user_added_parameters)
-    new_delta = changed_user_added_parameters.pop(ADWIN_DELTA_STANDIN, None)
-    if new_delta is not None and "drift_detector" not in changed_user_added_parameters:
-        changed_user_added_parameters["drift_detector"] = ADWIN(delta=new_delta)
-
     adl_classifier = classifier(
         schema=stream_data.schema,
-        lr=learning_rate,
-        mci_threshold_for_layer_pruning=threshold_for_layer_pruning,
-        **changed_user_added_parameters
+        **adl_parameters
     )
 
     assert hasattr(adl_classifier, "record_of_model_shape"), f"ADL classifier {adl_classifier} does not keep track of model shape, and cannot be evaluated"
 
     name_string_of_stream_data = f"{stream_data._filename.split('.')[0]}/"
-    hyperparameter_part_of_name_string = f"lr={learning_rate}_MCICutOff={threshold_for_layer_pruning}_classifier={adl_classifier.__str__()}"
-    user_added_parameters_string = "_".join((f"{str(key).replace('_', ' ')}={str(value).replace('_', ' ')}" for key, value in user_added_parameters.items()))
+    hyperparameter_part_of_name_string = "" # f"classifier={adl_classifier.__str__()}"
+    user_added_parameters_string = "_".join((f"{str(key).replace('_', ' ')}={str(value).replace('_', ' ')}" for key, value in rename_values.items()))
     if len(user_added_parameters_string) > 0:
-        hyperparameter_part_of_name_string += "_" + user_added_parameters_string
+        hyperparameter_part_of_name_string = user_added_parameters_string #+ "_" + hyperparameter_part_of_name_string
     results_dir_path = Path("results/runs")
     results_dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -83,6 +74,9 @@ def __evaluate_on_stream(
         windowed_results[key] = adl_classifier.record_of_model_shape[key]
     metrics_at_end.insert(loc=0, column="overall time", value=((total_time_end-total_time_start) / 1e9))
 
+    for key, val in rename_values.items():
+        metrics_at_end.insert(loc=0, column=key, value=[val])
+
     metrics_at_end.to_pickle(results_path / "metrics.pickle")
     windowed_results.to_pickle(results_path / "metrics_per_window.pickle")
 
@@ -92,13 +86,14 @@ def __evaluate_on_stream(
 def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
     runs_folder = Path(f"results/runs/runID={run_id}")
     summary = pd.DataFrame(
-        columns=[
-            "accuracy", "nr_of_layers", "instances", "overall time",
-            "amount of active layers",
-            "runID", "stream", "path",
-            "lr", "MCICutOff", "classifier",
-            *user_added_hyperparameter
-        ]
+        columns=list(
+            {
+                "accuracy", "nr_of_layers", "instances", "overall time",
+                "amount of active layers",
+                "runID", "path",
+                *user_added_hyperparameter
+            }
+        )
     )
 
     rename = {
@@ -133,33 +128,66 @@ def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
     summary.to_csv(runs_folder / "summary.csv", sep="\t")
 
 
-def _evaluate_parameters(adl_classifiers, streams, learning_rates, mci_thresholds, user_added_parameters = None):
+def _evaluate_parameters(
+        adl_classifiers: List[type(ADLClassifier)], 
+        streams: List[Stream],
+        learning_rates: Optional[List[float]] = None,
+        mci_thresholds: Optional[List[float]] = None,
+        adwin_deltas: Optional[List[float]] = None,
+        grace_periods_for_layer: Optional[List[int]] = None,
+        grace_periods_global: Optional[List[int]] = None,
+):
     run_id = __get_run_id()
-
+    added_hyperparameters = {"classifier", "stream"}
     for classifier in adl_classifiers:
+        classifier_to_give = classifier
+        values_of_renames = {
+            "classifier": classifier.name()
+        }
         for stream_data in streams:
-            for lr in learning_rates:
-                for mci_threshold in mci_thresholds:
-                    if user_added_parameters is not None:
-                        assert len(set(len(val) for val in user_added_parameters.values())) == 1, "User added parameters have different lengths"
-                        len_of_loop = len(next(iter(user_added_parameters.values())))
-                    else:
-                        len_of_loop = 1
-                        user_added_parameters = {}
+            for lr in (learning_rates or [None]):
+                for mci_threshold in (mci_thresholds or [None]):
+                    for adwin_delta in (adwin_deltas or [None]):
+                        added_parameters = {}
+                        if adwin_delta is not None:
+                            added_parameters["drift_detector"] = ADWIN(delta=adwin_delta)
+                            values_of_renames[ADWIN_DELTA_STANDIN] = adwin_delta
+                            added_hyperparameters.add(ADWIN_DELTA_STANDIN)
+                        if lr is not None:
+                            added_parameters["lr"] = lr
+                        if mci_threshold is not None:
+                            added_parameters["mci_threshold_for_layer_pruning"] = mci_threshold
+                            values_of_renames["MCICutOff"] = mci_threshold
+                            added_hyperparameters.add("MCICutOff")
+                        for grace_period in (grace_periods_global or [None]):
+                            if grace_period is not None:
+                                classifier_to_give = global_grace_period(grace_period)(classifier)
+                                values_of_renames["globalGracePeriod"] = grace_period
+                                added_hyperparameters.add("globalGracePeriod")
+                            __evaluate_on_stream(
+                                stream_data=stream_data,
+                                run_id=run_id,
+                                classifier=classifier,
+                                adl_parameters=added_parameters,
+                                rename_values=values_of_renames
+                            )
 
-                    for i in range(len_of_loop):
-                        added_parameters = {key: user_added_parameters[key][i] for key in user_added_parameters}
-                        __evaluate_on_stream(
-                            stream_data=stream_data,
-                            learning_rate=lr,
-                            threshold_for_layer_pruning=mci_threshold,
-                            run_id=run_id,
-                            classifier=classifier,
-                            user_added_parameters=added_parameters
-                        )
+                        values_of_renames.pop("globalGracePeriod", None)
 
-    user_added_parameters = set() if user_added_parameters is None else user_added_parameters.keys()
-    __write_summary(run_id, user_added_parameters)
+                        for grace_period in grace_periods_for_layer if grace_periods_for_layer is not None else [] if grace_periods_global is None else [None]:
+                            if grace_period is not None:
+                                classifier_to_give = grace_period_per_layer(grace_period)(classifier)
+                                values_of_renames["gracePeriodPerLayer"] = grace_period
+                                added_hyperparameters.add("gracePeriodPerLayer")
+                            __evaluate_on_stream(
+                                stream_data=stream_data,
+                                run_id=run_id,
+                                classifier=classifier_to_give,
+                                adl_parameters=added_parameters,
+                                rename_values=values_of_renames
+                            )
+
+    __write_summary(run_id, added_hyperparameters)
 
     __plot_and_save_result(run_id, show=False)
     __compare_all_of_one_run(run_id, show=False)
