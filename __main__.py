@@ -19,17 +19,16 @@ def _test_example(run: bool):
             # Electricity()
         ]
         learning_rates = [
-            # 5e-1,
-            # 1e-1,
-            # 5e-2,
-            # 1e-2,
-            # 1e-3,
-            # 1e-4,
             LinearLearningRateProgression(initial_learning_rate=1, decay_alpha=0.01),
             LinearLearningRateProgression(initial_learning_rate=1, decay_alpha=0.001),
             ExponentialLearningRateProgression(initial_learning_rate=1, decay_alpha=0.01),
             ExponentialLearningRateProgression(initial_learning_rate=1, decay_alpha=0.001),
-            # exponential_decay(1)(0.01)
+            5e-1,
+            1e-1,
+            5e-2,
+            1e-2,
+            1e-3,
+            1e-4
             ]
         # anything above -15 is above the precision of python float
         mci_thresholds = [
@@ -39,9 +38,9 @@ def _test_example(run: bool):
             1e-10, 1e-11, 1e-12, 1e-13, 1e-14
         ]
         classifiers = [
+            extend_classifier_for_evaluation(vectorized_for_loop),
             extend_classifier_for_evaluation(winning_layer_training, vectorized_for_loop),
-            # extend_classifier_for_evaluation(vectorized_for_loop),
-            # extend_classifier_for_evaluation(winning_layer_training),
+            extend_classifier_for_evaluation(winning_layer_training),
         ]
 
         adwin_deltas=[
@@ -56,10 +55,10 @@ def _test_example(run: bool):
             adl_classifiers=classifiers,
             streams=streams,
             learning_rates=learning_rates,
-            # mci_thresholds=mci_thresholds,
-            # adwin_deltas=adwin_deltas,
-            # grace_periods_global=grace_periods_global,
-            # grace_periods_for_layer=grace_periods_for_layer,
+            mci_thresholds=mci_thresholds,
+            adwin_deltas=adwin_deltas,
+            grace_periods_global=grace_periods_global,
+            grace_periods_for_layer=grace_periods_for_layer,
         )
 
 

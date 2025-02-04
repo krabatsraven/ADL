@@ -11,6 +11,7 @@ from capymoa.evaluation import prequential_evaluation
 from capymoa.stream import Stream
 
 from ADLClassifier import ADLClassifier, global_grace_period, grace_period_per_layer
+from ADLClassifier.Resources import BaseLearningRateProgression
 from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_all_of_one_run
 
 ADWIN_DELTA_STANDIN = "adwin-delta"
@@ -145,7 +146,7 @@ def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
 def _evaluate_parameters(
         adl_classifiers: List[type(ADLClassifier)],
         streams: List[Stream],
-        learning_rates: Optional[List[float]] = None,
+        learning_rates: Optional[List[Union[float | BaseLearningRateProgression]]] = None,
         mci_thresholds: Optional[List[float]] = None,
         adwin_deltas: Optional[List[float]] = None,
         grace_periods_for_layer: Optional[List[int]] = None,
@@ -158,6 +159,8 @@ def _evaluate_parameters(
         values_of_renames = {
             "classifier": classifier.name()
         }
+        start_time = time.time_ns()
+        start = datetime.now()
         total_nr_of_runs = len(adl_classifiers) * len(streams) * len(learning_rates or [None]) * len(mci_thresholds or [None]) * len(adwin_deltas or [None]) * (len(grace_periods_for_layer or [None]) + len(grace_periods_global or []))
         current_run_index = 1
         for stream_data in streams:
@@ -182,7 +185,7 @@ def _evaluate_parameters(
                                 classifier_to_give = global_grace_period(grace_period)(classifier)
                                 values_of_renames["globalGracePeriod"] = grace_period
                                 added_hyperparameters.add("globalGracePeriod")
-                            print(f"----------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%----------------------------")
+                            print(f"-------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-------------------------")
                             __evaluate_on_stream(
                                 stream_data=stream_data,
                                 run_id=run_id,
@@ -190,6 +193,8 @@ def _evaluate_parameters(
                                 adl_parameters=added_parameters,
                                 rename_values=values_of_renames
                             )
+                            print(f"------------------running since: {start}, for {(time.time_ns() - start_time) / (1e9 * 60) :.2f}min = {(time.time_ns() - start_time) / (1e9 * 60**2) :.2f}h------------------")
+                            print(f"----------------------------expected finish: {start + ((datetime.now() - start) * total_nr_of_runs/current_run_index)} ----------------------------")
                             current_run_index += 1
 
                         values_of_renames.pop("globalGracePeriod", None)
@@ -199,7 +204,7 @@ def _evaluate_parameters(
                                 classifier_to_give = grace_period_per_layer(grace_period)(classifier)
                                 values_of_renames["gracePeriodPerLayer"] = grace_period
                                 added_hyperparameters.add("gracePeriodPerLayer")
-                            print(f"----------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%----------------------------")
+                            print(f"-------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-------------------------")
                             __evaluate_on_stream(
                                 stream_data=stream_data,
                                 run_id=run_id,
@@ -207,6 +212,8 @@ def _evaluate_parameters(
                                 adl_parameters=added_parameters,
                                 rename_values=values_of_renames
                             )
+                            print(f"------------------running since: {start}, for {(time.time_ns() - start_time) / (1e9 * 60) :.2f}min = {(time.time_ns() - start_time) / (1e9 * 60**2) :.2f}h------------------")
+                            print(f"----------------------------expected finish: {start + ((datetime.now() - start) * total_nr_of_runs/current_run_index)} ----------------------------")
                             current_run_index += 1
                         values_of_renames.pop("gracePeriodPerLayer", None)
 
