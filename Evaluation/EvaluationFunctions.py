@@ -81,7 +81,7 @@ def __evaluate_on_stream(
     metrics_at_end.insert(loc=0, column="overall time", value=((total_time_end-total_time_start) / 1e9))
 
     for key, val in rename_values.items():
-        metrics_at_end.insert(loc=0, column=key, value=[val])
+        metrics_at_end.insert(loc=0, column=key, value=[str(val)])
 
     metrics_at_end.to_pickle(results_path / "metrics.pickle")
     windowed_results.to_pickle(results_path / "metrics_per_window.pickle")

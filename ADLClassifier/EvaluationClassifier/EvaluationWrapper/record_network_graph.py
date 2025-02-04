@@ -15,7 +15,8 @@ def record_network_graph(adl_classifier: type(ADLClassifier)):
                 "nr_of_layers": [],
                 "shape_of_hidden_layers": [],
                 "active_layers": [],
-                "winning_layer": []
+                "winning_layer": [],
+                "learning_rate": []
             }
             self.evaluator = ClassificationEvaluator(self.schema, window_size=1)
 
@@ -48,5 +49,6 @@ def record_network_graph(adl_classifier: type(ADLClassifier)):
             self.record_of_model_shape["shape_of_hidden_layers"].append([tuple(list(h.weight.size()).__reversed__()) for h in self.model.layers])
             self.record_of_model_shape["active_layers"].append(self.model.active_layer_keys().numpy())
             self.record_of_model_shape["winning_layer"].append(self.model.get_winning_layer())
+            self.record_of_model_shape['learning_rate'].append(self.learning_rate)
 
     return NetworkGraphRecorder

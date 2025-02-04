@@ -1,5 +1,4 @@
-import time
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Union
 
 import numpy as np
 import torch
@@ -11,6 +10,7 @@ from capymoa.stream import Schema
 from torch import nn
 from torch.optim import Optimizer
 
+from ADLClassifier.Resources import BaseLearningRateProgression
 from Model import AutoDeepLearner
 
 
@@ -23,7 +23,7 @@ class ADLClassifier(Classifier):
             optimizer: Optional[Optimizer] = None,
             loss_fn=nn.CrossEntropyLoss(),
             device: str = "cpu",
-            lr: float = 1e-3,
+            lr: Union[float | BaseLearningRateProgression] = 1e-3,
             drift_detector: BaseDriftDetector = ADWIN(delta=1e-5),
             drift_criterion: str = "accuracy",
             mci_threshold_for_layer_pruning: float = 10**-7
@@ -33,24 +33,9 @@ class ADLClassifier(Classifier):
         self.model: Optional[AutoDeepLearner] = None
         self.optimizer: Optional[Optimizer] = None
         self.loss_function = loss_fn
-        self.learning_rate: float = lr
+        self.__learning_rate: Optional[Union[float | BaseLearningRateProgression]] = None
+        self.learning_rate_progression: Optional[bool] = None
         self.device: str = device
-
-        torch.manual_seed(random_seed)
-
-        if nn_model is None:
-            self.set_model(None)
-        else:
-            self.model = nn_model.to(device)
-        if optimizer is None and self.model is not None:
-            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
-        else:
-            self.optimizer = optimizer
-
-        self.adl_evaluator = ClassificationEvaluator(self.schema, window_size=1)
-
-        self.drift_detector: BaseDriftDetector = drift_detector
-        self.__drift_criterion_switch = drift_criterion
 
         # data and label which triggered a drift warning in the past
         self.drift_warning_data: Optional[torch.Tensor] = None
@@ -59,9 +44,6 @@ class ADLClassifier(Classifier):
         # user chosen threshold for the mci value that guards the layer pruning
         self.mci_threshold_for_layer_pruning = mci_threshold_for_layer_pruning
 
-        # instantiate variables to recursively calculate the covariance of output nodes to each other:
-        # ---------------------------
-        self.__init_cov_variables__()
 
         # values that are tracking the bias and variance of the model to inform node growing/pruning decisions
         #  ---------------------------------------------------------------------------------------------------
@@ -79,6 +61,28 @@ class ADLClassifier(Classifier):
         self.minimum_of_standard_deviation_of_bias_squared: Optional[torch.Tensor] = None
         self.minimum_of_mean_of_variance_squared_squared: Optional[torch.Tensor] = None
         self.minimum_of_standard_deviation_of_variance_squared_squared: Optional[torch.Tensor] = None
+
+
+        self.learning_rate = lr
+        torch.manual_seed(random_seed)
+
+        if nn_model is None:
+            self.set_model(None)
+        else:
+            self.model = nn_model.to(device)
+        if optimizer is None and self.model is not None:
+            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate)
+        else:
+            self.optimizer = optimizer
+
+        self.adl_evaluator = ClassificationEvaluator(self.schema, window_size=1)
+
+        self.drift_detector: BaseDriftDetector = drift_detector
+        self.__drift_criterion_switch = drift_criterion
+
+        # instantiate variables to recursively calculate the covariance of output nodes to each other:
+        # ---------------------------
+        self.__init_cov_variables__()
 
     def __init_cov_variables__(self) -> None:
         # to later calculate the mci for layer removal
@@ -163,6 +167,10 @@ class ADLClassifier(Classifier):
     def _backpropagation(self, prediction: torch.Tensor, true_label: torch.Tensor):
         loss = self.loss_function(prediction, true_label)
         loss.backward()
+
+        if self.learning_rate_progression:
+            self._reset_learning_rate()
+
         self.optimizer.step()
 
     # todo: new name for _adjust_weight()
@@ -640,3 +648,35 @@ class ADLClassifier(Classifier):
 
     def _delete_node(self, layer_index: int, node_index: int) -> None:
         self.model._delete_node(layer_index, node_index)
+
+    def _reset_learning_rate(self):
+        if not self.learning_rate_progression:
+            # if the flag is not set the learning rate does not change
+            return 
+        for group in self.optimizer.param_groups:
+            group["lr"] = self.learning_rate
+
+    @property
+    def learning_rate(self):
+        if self.learning_rate_progression:
+            return self.__learning_rate()
+        else:
+            return self.__learning_rate
+
+    @learning_rate.setter
+    def learning_rate(self, value: Union[float | BaseLearningRateProgression]) -> None:
+        if isinstance(value, float):
+            self.__learning_rate = value
+            self.learning_rate_progression = False
+
+        elif isinstance(value, BaseLearningRateProgression):
+            self.__learning_rate = value
+            self.__learning_rate.classifier = self
+            self.learning_rate_progression = True
+
+        else:
+            raise TypeError(f"the given learning rate {value} is of unsupported type {type(value)}")
+
+    @property
+    def nr_of_instances_seen(self) -> int:
+        return self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance.item()
