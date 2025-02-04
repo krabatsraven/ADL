@@ -453,7 +453,7 @@ def _all_plots(
         )
 
 
-def __plot_and_save_result(result_id: int, show: bool = True) -> None:
+def __plot_and_save_result(result_id: int, show: bool = True, force_replot:bool = False) -> None:
     results_dir_path = Path(f"results/runs/runID={result_id}")
     if not results_dir_path.exists():
         print(f"runID={result_id}: No results found, returning")
@@ -507,7 +507,11 @@ def __plot_and_save_result(result_id: int, show: bool = True) -> None:
             plot_folder.mkdir(exist_ok=True)
 
             contains_winning_layer_column = len(results_csv.filter(regex="^winning_layer$").columns) > 0
+            if any(plot_folder.iterdir()) and not force_replot:
+                print(f"skipping {hyperparameter_folder.name}/{datastream_folder.name} as already plotted (force replot to prevent this)")
+                continue
 
+            print(f"plotting {hyperparameter_folder.name}/{datastream_folder.name}...")
             _all_plots(
                 data=results_csv,
                 plot_folder=plot_folder,

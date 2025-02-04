@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import datetime
 from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Union, Any, Set, Optional
@@ -32,6 +33,10 @@ def __evaluate_on_stream(
         classifier: type(ADLClassifier),
         rename_values: Dict[str, float]
 ) -> None:
+    print("--------------------------------------------------------------------------")
+    print(f"---------------Start time: {datetime.now()}---------------------")
+
+
     adl_classifier = classifier(
         schema=stream_data.schema,
         **adl_parameters
@@ -58,11 +63,12 @@ def __evaluate_on_stream(
     results_ht = prequential_evaluation(stream=stream_data, learner=adl_classifier, window_size=1, optimise=True, store_predictions=False, store_y=False)
     total_time_end = time.time_ns()
 
-    print(stream_data._filename)
+    print(f"summary for training:\nrunId={run_id}\nstream={stream_data._filename}\n" + "\n".join((f"{str(key).replace('_', ' ')}={str(value).replace('_', ' ')}" for key, value in rename_values.items())) + ":")
+    print("------------------------------------------------------------------------------------------------------------------------------------------------------------------")
     print(f"total time spend training the network: {(total_time_end - total_time_start):.2E}ns, that equals {(total_time_end - total_time_start) / 10 ** 9:.2E}s or {(total_time_end - total_time_start) / 10 ** 9 /60:.2f}min")
 
-    print(f"\n\tAll the cumulative results:")
-    print(results_ht.cumulative.metrics_dict())
+    print(f"\n\tThe cumulative results:")
+    print(f"instances={results_ht.cumulative.metrics_dict()['instances']}, accuracy={results_ht.cumulative.metrics_dict()['accuracy']}")
 
     metrics_at_end = pd.DataFrame([adl_classifier.evaluator.metrics()], columns=adl_classifier.evaluator.metrics_header())
 
@@ -81,6 +87,9 @@ def __evaluate_on_stream(
     windowed_results.to_pickle(results_path / "metrics_per_window.pickle")
 
     results_ht.write_to_file(results_path.absolute().as_posix())
+    print(f"---------------End time: {datetime.now()}---------------------")
+    print("-------------------------------------------------------------------------")
+    print()
 
 
 def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
@@ -90,7 +99,7 @@ def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
             {
                 "accuracy", "nr_of_layers", "instances", "overall time",
                 "amount of active layers",
-                "runID", "path",
+                "runID", "path", "stream",
                 *user_added_hyperparameter
             }
         )
@@ -113,8 +122,8 @@ def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
             tmp_dict = {key: list(value.values())[0] for key, value in metrics.filter(summary.columns).to_dict().items()}
             tmp_dict.update(
                 {
-                    "stream": stream_name, 
-                    "runID": run_id, 
+                    "stream": stream_name,
+                    "runID": run_id,
                     "amount of active layers": len(metrics.loc[:, "active_layers"].iloc[0]),
                     "path": Path(root),
                  }
@@ -125,11 +134,16 @@ def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
 
     summary = summary.rename(columns=rename)
     runs_folder.mkdir(exist_ok=True, parents=True)
+    order_of_columns = (
+            [filtered_param if filtered_param not in rename else rename[filtered_param] for filtered_param in [added_parameter for added_parameter in user_added_hyperparameter if added_parameter != "classifier"]]
+            + ["accuracy", "amount of hidden layers", "amount of active layers", "overall time", "classifier", "amount of instances", "run id", "path", "stream"]
+                        )
+    summary = summary.loc[:, order_of_columns]
     summary.to_csv(runs_folder / "summary.csv", sep="\t")
 
 
 def _evaluate_parameters(
-        adl_classifiers: List[type(ADLClassifier)], 
+        adl_classifiers: List[type(ADLClassifier)],
         streams: List[Stream],
         learning_rates: Optional[List[float]] = None,
         mci_thresholds: Optional[List[float]] = None,
@@ -144,6 +158,8 @@ def _evaluate_parameters(
         values_of_renames = {
             "classifier": classifier.name()
         }
+        total_nr_of_runs = len(adl_classifiers) * len(streams) * len(learning_rates or [None]) * len(mci_thresholds or [None]) * len(adwin_deltas or [None]) * (len(grace_periods_for_layer or [None]) + len(grace_periods_global or []))
+        current_run_index = 1
         for stream_data in streams:
             for lr in (learning_rates or [None]):
                 for mci_threshold in (mci_thresholds or [None]):
@@ -155,15 +171,18 @@ def _evaluate_parameters(
                             added_hyperparameters.add(ADWIN_DELTA_STANDIN)
                         if lr is not None:
                             added_parameters["lr"] = lr
+                            values_of_renames["lr"] = lr
+                            added_hyperparameters.add("lr")
                         if mci_threshold is not None:
                             added_parameters["mci_threshold_for_layer_pruning"] = mci_threshold
                             values_of_renames["MCICutOff"] = mci_threshold
                             added_hyperparameters.add("MCICutOff")
-                        for grace_period in (grace_periods_global or [None]):
+                        for grace_period in (grace_periods_global or ([None] if grace_periods_for_layer is None else [])):
                             if grace_period is not None:
                                 classifier_to_give = global_grace_period(grace_period)(classifier)
                                 values_of_renames["globalGracePeriod"] = grace_period
                                 added_hyperparameters.add("globalGracePeriod")
+                            print(f"----------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%----------------------------")
                             __evaluate_on_stream(
                                 stream_data=stream_data,
                                 run_id=run_id,
@@ -171,14 +190,16 @@ def _evaluate_parameters(
                                 adl_parameters=added_parameters,
                                 rename_values=values_of_renames
                             )
+                            current_run_index += 1
 
                         values_of_renames.pop("globalGracePeriod", None)
 
-                        for grace_period in grace_periods_for_layer if grace_periods_for_layer is not None else [] if grace_periods_global is None else [None]:
+                        for grace_period in grace_periods_for_layer or []:
                             if grace_period is not None:
                                 classifier_to_give = grace_period_per_layer(grace_period)(classifier)
                                 values_of_renames["gracePeriodPerLayer"] = grace_period
                                 added_hyperparameters.add("gracePeriodPerLayer")
+                            print(f"----------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%----------------------------")
                             __evaluate_on_stream(
                                 stream_data=stream_data,
                                 run_id=run_id,
@@ -186,6 +207,8 @@ def _evaluate_parameters(
                                 adl_parameters=added_parameters,
                                 rename_values=values_of_renames
                             )
+                            current_run_index += 1
+                        values_of_renames.pop("gracePeriodPerLayer", None)
 
     __write_summary(run_id, added_hyperparameters)
 

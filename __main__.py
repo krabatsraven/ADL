@@ -13,9 +13,11 @@ def _test_example(run: bool):
     if run:
         streams = [
             ElectricityTiny(),
-            # Electricity()
+            Electricity()
         ]
         learning_rates = [
+            5e-1,
+            1e-1,
             5e-2,
             1e-2,
             1e-3,
@@ -24,7 +26,8 @@ def _test_example(run: bool):
             ]
         # anything above -15 is above the precision of python float
         mci_thresholds = [
-            1e-5, 1e-6, 1e-7,
+            1e-5, 1e-6,
+            1e-7,
             1e-8, 1e-9,
             1e-10, 1e-11, 1e-12, 1e-13, 1e-14
         ]
@@ -34,7 +37,11 @@ def _test_example(run: bool):
             extend_classifier_for_evaluation(winning_layer_training),
         ]
 
-        adwin_deltas=[1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8]
+        adwin_deltas=[
+            1e-1, 1e-2, 1e-3, 1e-4,
+                      1e-5,
+            1e-6, 1e-7, 1e-8, 1e-9, 1e-10
+            ]
         grace_periods_global = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
         grace_periods_for_layer = grace_periods_global
 
@@ -51,5 +58,4 @@ def _test_example(run: bool):
 
 if __name__ == "__main__":
     _test_example(True)
-    # __write_summary(49, {"delta"})
     # __plot_and_save_result(49)
