@@ -1,3 +1,5 @@
+import os
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -9,7 +11,7 @@ from ADLClassifier.Resources import *
 from ADLClassifier.ExtendedClassifier.FunctionalityWrapper import *
 from ADLClassifier.Resources.LearningRateProgressions.ExponentialLearningRateProgression import \
     ExponentialLearningRateProgression
-from Evaluation import __compare_results_via_plot_and_save, __plot_and_save_result
+from Evaluation import __compare_results_via_plot_and_save, __plot_and_save_result, __compare_all_of_one_run
 
 from Evaluation.EvaluationFunctions import _evaluate_parameters, __write_summary
 from Evaluation.EvaluationFunctions import __write_summary
@@ -23,10 +25,10 @@ def _test_example(run: bool):
             # Electricity()
         ]
         learning_rates = [
-            LinearLearningRateProgression(initial_learning_rate=1, decay_alpha=0.01),
+            # LinearLearningRateProgression(initial_learning_rate=1, decay_alpha=0.01),
             # LinearLearningRateProgression(initial_learning_rate=1, decay_alpha=0.001),
             # ExponentialLearningRateProgression(initial_learning_rate=1, decay_alpha=0.01),
-            # ExponentialLearningRateProgression(initial_learning_rate=1, decay_alpha=0.001),
+            ExponentialLearningRateProgression(initial_learning_rate=1, decay_alpha=0.001),
             # 5e-1,
             # 1e-1,
             # 5e-2,
@@ -50,12 +52,14 @@ def _test_example(run: bool):
 
         adwin_deltas=[
             # 1e-1, 1e-2, 1e-3, 1e-4,
-                      1e-5,
+                      1e-5
             # 1e-6, 1e-7, 1e-8, 1e-9, 1e-10
             ]
         grace_periods_global = [
-            # 1, 2, 4, 8, 16, 32, 64, 128, 256, 512,
-            1024
+            # 1, 2, 4, 8, 16, 32, 64, 128, 256, 
+            512,
+            1024,
+            # None
         ]
         grace_periods_for_layer = grace_periods_global
 
@@ -64,15 +68,15 @@ def _test_example(run: bool):
             streams=streams,
             learning_rates=learning_rates,
             # mci_thresholds=mci_thresholds,
-            adwin_deltas=adwin_deltas,
+            # adwin_deltas=adwin_deltas,
             grace_periods_global=grace_periods_global,
-            grace_periods_for_layer=grace_periods_for_layer,
+            # grace_periods_for_layer=grace_periods_for_layer,
         )
 
 
 if __name__ == "__main__":
-    # __write_summary(2, {"lr", "MCICutOff", "classifier", "adwin-delta", "globalGracePeriod", "gracePeriodPerLayer"})
-    _test_example(True)
+    # _test_example(True)
+    __compare_all_of_one_run(1, show=False)
     # __plot_and_save_result(2)
     list_of_interest_high_acc = [
         Path("results/runs/runID=2/classifier=ADLClassifierWithoutForLoopWithGraphRecord_adwin-delta=1e-10_lr=0.5_MCICutOff=1e-05_gracePeriodPerLayer=2/electricity_tiny"),

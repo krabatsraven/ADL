@@ -138,7 +138,7 @@ def _all_plots(
         special_y_label="accuracy",
         plot_folder=plot_folder,
         df_names=data_names,
-        show=not_in_development
+        show=in_development
     )
 
     title_string = "Amount of active output layers vs Accuracy".title()
@@ -531,7 +531,7 @@ def __create_df_names(df_parameters: List[Dict[str, str]]) -> Tuple[str, List[st
     shortened_names = [
         ", ".join((f"{key}={value}" for key, value in df_parameter_dict.items() if key not in common_keys)) for
         df_parameter_dict in df_parameters]
-    shortened_names = [name if len(name) > 0 else "Default" for name in shortened_names]
+    shortened_names = [name if len(name) != 0 else "Baseline" for name in shortened_names]
     return substring, shortened_names
 
 
@@ -580,12 +580,13 @@ def __compare_results_via_plot_and_save(result_paths: List[Path], show: bool = T
         df_contains_winning.append(contains_winning_layer_column)
         df_contains_emission_flags.append(contains_emissions)
 
-    def merge_two_dfs(lhs, rhs):
-        out = pd.merge(lhs, rhs, on="instances", how="outer", suffixes=("_" + lhs.name, "_" + rhs.name))
+    def merge_two_dfs(lhs, rhs) -> pd.DataFrame:
+        out = pd.merge(lhs, rhs, on="instances", how="outer", suffixes=("_" + lhs.name, None))
         out.name = rhs.name
         return out
-
-    data = reduce(merge_two_dfs, dfs)
+    data: pd.DataFrame = reduce(merge_two_dfs, dfs)
+    new_mapper = {col_name: f"{col_name}_{data.name}" for col_name in data.drop(data.filter(regex=r"^instances$|^.*(TABLE\d+)$").columns, axis=1).columns}
+    data = data.rename(columns=new_mapper)
     df_parameters = [dict((tuple(part.split("=")) for part in name.split(", "))) for name in df_names]
     sub_title_string, shortened_df_names = __create_df_names(df_parameters)
 

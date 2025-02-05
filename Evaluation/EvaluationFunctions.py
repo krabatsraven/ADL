@@ -46,10 +46,7 @@ def __evaluate_on_stream(
     assert hasattr(adl_classifier, "record_of_model_shape"), f"ADL classifier {adl_classifier} does not keep track of model shape, and cannot be evaluated"
 
     name_string_of_stream_data = f"{stream_data._filename.split('.')[0]}/"
-    hyperparameter_part_of_name_string = "" # f"classifier={adl_classifier.__str__()}"
-    user_added_parameters_string = "_".join((f"{str(key).replace('_', ' ')}={str(value).replace('_', ' ')}" for key, value in rename_values.items()))
-    if len(user_added_parameters_string) > 0:
-        hyperparameter_part_of_name_string = user_added_parameters_string #+ "_" + hyperparameter_part_of_name_string
+    hyperparameter_part_of_name_string = "_".join((f"{str(key).replace('_', ' ')}={str(value).replace('_', ' ')}" for key, value in rename_values.items()))
     results_dir_path = Path("results/runs")
     results_dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -161,7 +158,7 @@ def _evaluate_parameters(
         }
         start_time = time.time_ns()
         start = datetime.now()
-        total_nr_of_runs = len(adl_classifiers) * len(streams) * len(learning_rates or [None]) * len(mci_thresholds or [None]) * len(adwin_deltas or [None]) * (len(grace_periods_for_layer or [None]) + len(grace_periods_global or []))
+        total_nr_of_runs = len(adl_classifiers) * len(streams) * len(learning_rates or [None]) * len(mci_thresholds or [None]) * len(adwin_deltas or [None]) * (max(1, len(grace_periods_for_layer or []) + len(grace_periods_global or [])))
         current_run_index = 1
         for stream_data in streams:
             for lr in (learning_rates or [None]):
@@ -172,19 +169,34 @@ def _evaluate_parameters(
                             added_parameters["drift_detector"] = ADWIN(delta=adwin_delta)
                             values_of_renames[ADWIN_DELTA_STANDIN] = adwin_delta
                             added_hyperparameters.add(ADWIN_DELTA_STANDIN)
+                        else:
+                            added_parameters.pop('drift_detector', None)
+                            values_of_renames.pop(ADWIN_DELTA_STANDIN, None)
+
                         if lr is not None:
                             added_parameters["lr"] = lr
                             values_of_renames["lr"] = lr
                             added_hyperparameters.add("lr")
+                        else:
+                            added_parameters.pop('lr', None)
+                            values_of_renames.pop('lr', None)
+
                         if mci_threshold is not None:
                             added_parameters["mci_threshold_for_layer_pruning"] = mci_threshold
                             values_of_renames["MCICutOff"] = mci_threshold
                             added_hyperparameters.add("MCICutOff")
+                        else:
+                            added_parameters.pop("mci_threshold_for_layer_pruning", None)
+                            values_of_renames.pop("MCICutOff", None)
+
                         for grace_period in (grace_periods_global or ([None] if grace_periods_for_layer is None else [])):
                             if grace_period is not None:
                                 classifier_to_give = global_grace_period(grace_period)(classifier)
                                 values_of_renames["globalGracePeriod"] = grace_period
                                 added_hyperparameters.add("globalGracePeriod")
+                            else:
+                                values_of_renames.pop('globalGracePeriod')
+
                             print(f"---------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
                             __evaluate_on_stream(
                                 stream_data=stream_data,
@@ -204,6 +216,8 @@ def _evaluate_parameters(
                                 classifier_to_give = grace_period_per_layer(grace_period)(classifier)
                                 values_of_renames["gracePeriodPerLayer"] = grace_period
                                 added_hyperparameters.add("gracePeriodPerLayer")
+                            else:
+                                values_of_renames.pop('gracePeriodPerLayer')
                             print(f"--------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
                             __evaluate_on_stream(
                                 stream_data=stream_data,
