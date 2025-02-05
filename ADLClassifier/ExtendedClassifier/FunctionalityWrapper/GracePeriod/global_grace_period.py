@@ -19,7 +19,7 @@ def _global_grace_period(adl_classifier: type(ADLClassifier), duration: int) -> 
     :return: a class of ADLClassifier that has a global grace period added
     """
 
-    class GlobalGracePeriodWrapper(ADLClassifier):
+    class GlobalGracePeriodWrapper(adl_classifier):
         """
         ADLClassifier with a Global Grace Period
         """
@@ -33,8 +33,8 @@ def _global_grace_period(adl_classifier: type(ADLClassifier), duration: int) -> 
             self.model_changed_this_iteration: bool = False
 
         def __str__(self):
-            return f"{super().__str__()}WithGlobalGracePeriodOf{self.__duration}Instances"
-        
+            return f"{super().__str__()}WithGlobalGracePeriodOf{self.duration}Instances"
+
         @classmethod
         def name(cls) -> str:
             return f"{adl_classifier.name()}WithGlobalGracePeriodOf{duration}Instances"
@@ -51,25 +51,25 @@ def _global_grace_period(adl_classifier: type(ADLClassifier), duration: int) -> 
             super()._backpropagation(prediction, true_label)
 
         def _delete_layer(self, layer_index: int) -> None:
-            if self.time_since_last_change > self.__duration:
+            if self.time_since_last_change > self.duration:
                 super()._delete_layer(layer_index)
                 self.model_changed_this_iteration = True
                 self.time_since_last_change = 0
 
         def _add_layer(self) -> None:
-            if self.time_since_last_change > self.__duration:
+            if self.time_since_last_change > self.duration:
                 super()._add_layer()
                 self.model_changed_this_iteration = True
                 self.time_since_last_change = 0
 
         def _add_node(self, layer_index: int) -> None:
-            if self.time_since_last_change > self.__duration:
+            if self.time_since_last_change > self.duration:
                 super()._add_node(layer_index)
                 self.model_changed_this_iteration = True
                 self.time_since_last_change = 0
 
         def _delete_node(self, layer_index: int, node_index: int) -> None:
-            if self.time_since_last_change > self.__duration:
+            if self.time_since_last_change > self.duration:
                 super()._delete_node(layer_index, node_index)
                 self.model_changed_this_iteration = True
                 self.time_since_last_change = 0

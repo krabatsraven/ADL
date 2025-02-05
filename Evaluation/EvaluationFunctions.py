@@ -185,11 +185,11 @@ def _evaluate_parameters(
                                 classifier_to_give = global_grace_period(grace_period)(classifier)
                                 values_of_renames["globalGracePeriod"] = grace_period
                                 added_hyperparameters.add("globalGracePeriod")
-                            print(f"-------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
+                            print(f"---------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
                             __evaluate_on_stream(
                                 stream_data=stream_data,
                                 run_id=run_id,
-                                classifier=classifier,
+                                classifier=classifier_to_give,
                                 adl_parameters=added_parameters,
                                 rename_values=values_of_renames
                             )
@@ -204,7 +204,7 @@ def _evaluate_parameters(
                                 classifier_to_give = grace_period_per_layer(grace_period)(classifier)
                                 values_of_renames["gracePeriodPerLayer"] = grace_period
                                 added_hyperparameters.add("gracePeriodPerLayer")
-                            print(f"-------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
+                            print(f"--------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
                             __evaluate_on_stream(
                                 stream_data=stream_data,
                                 run_id=run_id,

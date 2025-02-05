@@ -1,2 +1,0 @@
-instances,accuracy,kappa,kappa_t,kappa_m,f1_score,f1_score_0,f1_score_1,precision,precision_0,precision_1,recall,recall_0,recall_1
-2000.0,39.6,0.0,-329.89323843416383,-53.29949238578679,nan,nan,56.733524355300865,nan,nan,39.6,50.0,0.0,100.0
