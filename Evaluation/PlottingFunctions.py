@@ -138,7 +138,7 @@ def _all_plots(
         special_y_label="accuracy",
         plot_folder=plot_folder,
         df_names=data_names,
-        show=in_development
+        show=not_in_development
     )
 
     title_string = "Amount of active output layers vs Accuracy".title()

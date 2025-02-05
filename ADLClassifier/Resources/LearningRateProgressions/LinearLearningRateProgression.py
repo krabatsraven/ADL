@@ -15,4 +15,4 @@ class LinearLearningRateProgression(BaseLearningRateProgression):
 
     @property
     def name(self) -> str:
-        return f"LinearLearningRateProgression{self.decay_alpha}"
+        return f"LinearLearningRateProgression({self.initial_learning_rate})({self.decay_alpha})"
