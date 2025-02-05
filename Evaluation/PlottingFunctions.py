@@ -528,9 +528,11 @@ def __create_df_names(df_parameters: List[Dict[str, str]]) -> Tuple[str, List[st
         filter(lambda k: len(set(filter(lambda x: x is not None, map(lambda df_dict: df_dict.get(k, None), df_parameters)))) == 1, df_parameters[0].keys())
     )
     substring = "\n ".join((f"{key}={df_parameters[0][key]}" for key in common_keys))
-    return substring, [
+    shortened_names = [
         ", ".join((f"{key}={value}" for key, value in df_parameter_dict.items() if key not in common_keys)) for
         df_parameter_dict in df_parameters]
+    shortened_names = [name if len(name) > 0 else "Default" for name in shortened_names]
+    return substring, shortened_names
 
 
 def __get_plot_folder(sup_title, df_names) -> Path:
@@ -570,7 +572,7 @@ def __compare_results_via_plot_and_save(result_paths: List[Path], show: bool = T
 
         run_data.name = f"TABLE{i}"
         df_names.append(
-            f"{result_dir.parent.parent.name}, {result_dir.parent.name.replace('_', ', ')}, stream={result_dir.name}")
+            f"{result_dir.parent.name.replace('_', ', ')}, stream={result_dir.name}")
 
         contains_winning_layer_column = len(run_data.filter(regex="^winning_layer$").columns) > 0
 
