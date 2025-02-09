@@ -151,14 +151,14 @@ def _evaluate_parameters(
 ):
     run_id = __get_run_id()
     added_hyperparameters = {"classifier", "stream"}
+    start_time = time.time_ns()
+    start = datetime.now()
+    total_nr_of_runs = len(adl_classifiers) * len(streams) * len(learning_rates or [None]) * len(mci_thresholds or [None]) * len(adwin_deltas or [None]) * (max(1, len(grace_periods_for_layer or []) + len(grace_periods_global or [])))
+    current_run_index = 1
     for classifier in adl_classifiers:
         values_of_renames = {
             "classifier": classifier.name()
         }
-        start_time = time.time_ns()
-        start = datetime.now()
-        total_nr_of_runs = len(adl_classifiers) * len(streams) * len(learning_rates or [None]) * len(mci_thresholds or [None]) * len(adwin_deltas or [None]) * (max(1, len(grace_periods_for_layer or []) + len(grace_periods_global or [])))
-        current_run_index = 1
         for stream_data in streams:
             for lr in (learning_rates or [None]):
                 for mci_threshold in (mci_thresholds or [None]):
@@ -235,5 +235,7 @@ def _evaluate_parameters(
     __write_summary(run_id, added_hyperparameters)
 
     __plot_and_save_result(run_id, show=False)
-    __compare_all_of_one_run(run_id, show=False)
+
+    if total_nr_of_runs <= 10:
+        __compare_all_of_one_run(run_id, show=False)
 

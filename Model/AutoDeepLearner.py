@@ -81,11 +81,11 @@ class AutoDeepLearner(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        returns the classification from self.output_size many classes stemming from the data input x
+        returns the probabilities for the classes from self.output_size many classes stemming from the data input x
         alternative: defines the forward pass through the network
         compare section 4.1 equation 1 of the paper
         :param x: batch of data to be classified with self.input_size many features 
-        :return: classification tensor that contains the index of the class choosen from the multiclass problem
+        :return: probability tensor that contains the probabilities of the classes
         """
 
         # check if x is of right dimension (sanity check)
