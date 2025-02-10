@@ -1,0 +1,2 @@
+from Evaluation.ComparisionDNNClassifier.SimpleDNN import SimpleDNN
+from Evaluation.ComparisionDNNClassifier.SimpleDNN import SimpleDNNClassifier

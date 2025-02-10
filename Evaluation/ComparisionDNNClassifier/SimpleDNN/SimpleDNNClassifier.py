@@ -19,7 +19,7 @@ class SimpleDNNClassifier(Classifier):
             model_structure: List[int],
             random_seed: int = 1,
             type_of_optimizer: str = "SGD",
-            loss_fn=nn.CrossEntropyLoss(),
+            loss_fn=lambda predicted_props, truth: nn.NLLLoss()(torch.log(predicted_props), truth),
             device: str = "cpu",
             lr: float = 1e-3
     ):
@@ -32,7 +32,7 @@ class SimpleDNNClassifier(Classifier):
             nr_of_features=schema.get_num_attributes(),
             nr_of_classes=schema.get_num_classes(),
             nr_of_nodes_in_layers=model_structure,
-        )
+        ).to(self.device)
 
         self._initialize_optimizer(type_of_optimizer, lr)
 
@@ -49,9 +49,8 @@ class SimpleDNNClassifier(Classifier):
     def train(self, instance: LabeledInstance):
         X = torch.tensor(instance.x, dtype=torch.float32)
         y = torch.tensor(instance.y_index, dtype=torch.long)
-        # set the device and add a dimension to the tensor
         X, y = torch.unsqueeze(X.to(self.device), 0), torch.unsqueeze(y.to(self.device),0)
-        # Compute prediction error
+        self.optimizer.zero_grad()
         pred = self.model(X)
         loss = self.loss_fn(pred, y)
         loss.backward()
@@ -62,7 +61,6 @@ class SimpleDNNClassifier(Classifier):
 
     def predict_proba(self, instance: Instance):
         X = torch.unsqueeze(torch.tensor(instance.x, dtype=torch.float32).to(self.device), 0)
-        # turn off gradient collection
         with torch.no_grad():
-            pred = np.asarray(self.model(X).numpy(), dtype=np.double)
+            pred = self.model(X).detach().cpu().numpy()
         return pred

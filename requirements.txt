@@ -36,6 +36,10 @@ pytest
 # --------------
 # ----------------
 
+# hyperparameter tuning:
+# ray tune:
+ray[tune]
+
 # code carbon to measure co2 equivalents
 codecarbon
 

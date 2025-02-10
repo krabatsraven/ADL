@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ADLClassifier.Resources import BaseLearningRateProgression
+from ADLClassifier.Resources.LearningRateProgressions import BaseLearningRateProgression
 
 
 @dataclass

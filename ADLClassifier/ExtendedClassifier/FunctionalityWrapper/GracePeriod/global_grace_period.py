@@ -6,7 +6,7 @@ from ADLClassifier.BaseClassifier import ADLClassifier
 
 
 def global_grace_period(duration: int = 1000) -> Callable[[type(ADLClassifier)], type(ADLClassifier)]:
-    return lambda adl_class: _global_grace_period(adl_class, duration)
+    return lambda adl_class: _global_grace_period(adl_classifier=adl_class, duration=duration)
 
 
 def _global_grace_period(adl_classifier: type(ADLClassifier), duration: int) -> type(ADLClassifier):

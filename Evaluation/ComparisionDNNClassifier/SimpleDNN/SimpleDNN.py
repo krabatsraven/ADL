@@ -30,19 +30,22 @@ class SimpleDNN(nn.Module):
         self.model_structure = nr_of_nodes_in_layers
 
         list_of_all_sizes = [nr_of_features, *nr_of_nodes_in_layers, nr_of_classes]
-        self.hidden_layers = nn.Sequential(
-            *(
-                layer
-                for nr_of_nodes_in_previous, nr_of_nodes_in_current in
-                zip(list_of_all_sizes[:-1], list_of_all_sizes[1:])
-                for layer in (nn.Sigmoid(), nn.Linear(nr_of_nodes_in_previous, nr_of_nodes_in_current))
-            )
-        )
-        self.net = nn.Sequential(
-            nn.Softmax(dim=-1),
-            *self.hidden_layers
-        )
+        layers = [
+            layer
+            for nr_of_nodes_in_previous, nr_of_nodes_in_current in
+            zip(list_of_all_sizes[:-1], list_of_all_sizes[1:])
+            for layer in (nn.Linear(nr_of_nodes_in_previous, nr_of_nodes_in_current), nn.Sigmoid())
+        ]
+        # remove the sigmoid of the output layer
+        layers = layers[:-1]
+        layers.append(nn.Softmax(dim=-1))
+        self.net = nn.Sequential(*layers)
         self.net.apply(self._initialise_weights)
+
+    def _initialise_weights(self, module: nn.Module) -> None:
+        if isinstance(module, nn.Conv2d):
+            torch.nn.init.xavier_normal_(module.weight)
+            torch.nn.init.zeros_(module.bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -53,16 +56,5 @@ class SimpleDNN(nn.Module):
         """
         return self.net(x)
 
-    def get_classification(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        returns the classification for the classes from self.nr_of_classes many classes stemming from the data input x
-        alternative: defines the forward pass through the network for the classification problem
-        :param x: batch of data to be classified with self.input_size many features
-        :return: index of the most likely/predicted class from the multiclass problem
-        """
-        return torch.argmax(self.net(x))
-
-    def _initialise_weights(self, module: nn.Module) -> None:
-        if isinstance(module, nn.Conv2d):
-            torch.nn.init.xavier_uniform_(module.weight)
-            torch.nn.init.zero_(module.bias)
+    def print(self) -> None:
+        print(self.net)

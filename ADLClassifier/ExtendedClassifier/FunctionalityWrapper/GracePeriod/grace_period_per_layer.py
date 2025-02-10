@@ -6,7 +6,7 @@ from ADLClassifier.BaseClassifier import ADLClassifier
 
 
 def grace_period_per_layer(duration: int = 1000) -> Callable[[type(ADLClassifier)], type(ADLClassifier)]:
-    return lambda adl_class: _grace_period_per_layer(adl_class, duration)
+    return lambda adl_class: _grace_period_per_layer(adl_classifier=adl_class, duration=duration)
 
 
 def _grace_period_per_layer(adl_classifier: type(ADLClassifier), duration: int) -> type(ADLClassifier):

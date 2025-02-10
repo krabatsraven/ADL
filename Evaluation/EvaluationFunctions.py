@@ -1,17 +1,19 @@
 import os
+import shutil
 import time
 from datetime import datetime
-from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Union, Any, Set, Optional
 
 import pandas as pd
+import torch
 from capymoa.drift.detectors import ADWIN
 from capymoa.evaluation import prequential_evaluation
 from capymoa.stream import Stream
+from torch import nn
 
-from ADLClassifier import ADLClassifier, global_grace_period, grace_period_per_layer
-from ADLClassifier.Resources import BaseLearningRateProgression
+from ADLClassifier import ADLClassifier, global_grace_period, grace_period_per_layer, extend_classifier_for_evaluation, \
+    winning_layer_training, vectorized_for_loop, BaseLearningRateProgression
 from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_all_of_one_run
 
 ADWIN_DELTA_STANDIN = "adwin-delta"
@@ -40,6 +42,7 @@ def __evaluate_on_stream(
 
     adl_classifier = classifier(
         schema=stream_data.schema,
+        loss_fn=lambda predicted_props, truth: nn.NLLLoss()(torch.log(predicted_props), truth),
         **adl_parameters
     )
 
@@ -239,3 +242,78 @@ def _evaluate_parameters(
     if total_nr_of_runs <= 10:
         __compare_all_of_one_run(run_id, show=False)
 
+
+def _test_example(name: Optional[str] = None):
+
+    streams = [
+        ElectricityTiny(),
+        # simple_agraval_single_drift
+        # Electricity()
+    ]
+    learning_rates = [
+        # LinearLearningRateProgression(initial_learning_rate=1, decay_alpha=0.1),
+        # LinearLearningRateProgression(initial_learning_rate=1, decay_alpha=0.01),
+        # LinearLearningRateProgression(initial_learning_rate=1, decay_alpha=0.001),
+        # LinearLearningRateProgression(initial_learning_rate=0.5, decay_alpha=0.1),
+        # LinearLearningRateProgression(initial_learning_rate=0.5, decay_alpha=0.01),
+        # LinearLearningRateProgression(initial_learning_rate=0.5, decay_alpha=0.001),
+
+        # ExponentialLearningRateProgression(initial_learning_rate=1, decay_alpha=0.1),
+        # ExponentialLearningRateProgression(initial_learning_rate=1, decay_alpha=0.01),
+        # ExponentialLearningRateProgression(initial_learning_rate=1, decay_alpha=0.001),
+        # ExponentialLearningRateProgression(initial_learning_rate=0.5, decay_alpha=0.1),
+        # ExponentialLearningRateProgression(initial_learning_rate=0.5, decay_alpha=0.01),
+        # ExponentialLearningRateProgression(initial_learning_rate=0.5, decay_alpha=0.001),
+        5e-1,
+        # 1e-1,
+        5e-2,
+        # 1e-2,
+        # 1e-3
+    ]
+
+    mci_thresholds = [
+        1e-5,
+        # 1e-6, 
+        1e-7,
+        # 1e-8
+    ]
+    classifiers = [
+        extend_classifier_for_evaluation(winning_layer_training, vectorized_for_loop),
+        # extend_classifier_for_evaluation(winning_layer_training),
+    ]
+
+    adwin_deltas=[
+        # 1e-1, 1e-2,
+        1e-3,
+        # 1e-4,
+        1e-5,
+        # 1e-6,
+        1e-7,
+        # 1e-8, 1e-9, 1e-10
+    ]
+
+    grace_periods_for_layer = [
+        None, 4, 8, 16,
+        # 32
+    ]
+    grace_periods_global = None
+
+    run_id = __get_run_id()
+
+    _evaluate_parameters(
+        adl_classifiers=classifiers,
+        streams=streams,
+        learning_rates=learning_rates,
+        mci_thresholds=mci_thresholds,
+        adwin_deltas=adwin_deltas,
+        grace_periods_global=grace_periods_global,
+        grace_periods_for_layer=grace_periods_for_layer,
+    )
+
+    if name is not None:
+        folder = Path("/home/david/PycharmProjects/ADL/results/experiment_data_selected") / name
+        run_folder = Path(f"/home/david/PycharmProjects/ADL/results/runs/runID={run_id}")
+        comparision_folder = Path("/home/david/PycharmProjects/ADL/results/comparisons/comparison=0")
+
+        shutil.move(run_folder, folder)
+        shutil.move(comparision_folder, folder)
