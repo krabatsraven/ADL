@@ -13,8 +13,11 @@ ADLSearchSpace = {
     ),
     'stream': tune.grid_search(
         [
-            # todo: replace with the others
-            '/home/david/PycharmProjects/ADL/data/electricity_tiny.arff'
+            'electricity_tiny',
+            # 'electricity',
+            # 'simple_agraval_single_drift',
+            # 'simple_agraval_three_drifts',
+            # 'simple_agraval_drift_back_and_forth'
         ]
     ),
     # todo: add progressions
@@ -24,7 +27,7 @@ ADLSearchSpace = {
     'grace_period': tune.choice(
         [
             (grace_period, is_global) if grace_period is not None else None
-            for is_global in ["globel_grace", "layer_grace"]
+            for is_global in ["global_grace", "layer_grace"]
             for grace_period in [None, 4, 8, 16, 32]
         ]
     ),

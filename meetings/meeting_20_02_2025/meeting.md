@@ -1,6 +1,8 @@
 # Notizen:
 1. Wenn Concept Change passiert macht eine Learning Rate Progression nur Sinn wenn sie dann reseted
-2. asdf
+2. Wir haben die flasche Loss function verwendet?
+> laut herrn gpt macht cross entropy bereits elber ein softmax und erwartet reine logits, nlll loss wäre dementsprechend für unsere funktion die bessere loss function wenn wir auf die wsk jeweils den log anwenden
+3. asdf
 
 # Suchraum einschränken:
 ## 1. Versuch: einfach jeweils die drei Parameter nehmen die am besten auf EletricityTiny performed haben und sie auf Electricity testen:
@@ -26,6 +28,6 @@
 - 16?
 - None
 > finding aus der isolation: je höher die grace period desto schlechter das ergebnis
-> und per layer autpoerformed global nach dem ich global auch anwende #-.-  
+> und per layer outpoerformed global nach dem ich global auch anwende #-.-  
 > kann sein, dass auf mehr instancen größere grace periods sinn machen bzw positive sind,
 > weil auf den kleinen datastreams haben wir ja anscheinend nur das problem nicht schnell genug lernen zu können

@@ -7,6 +7,7 @@ from typing import Dict, List, Union, Any, Set, Optional
 
 import pandas as pd
 import torch
+from capymoa.datasets import ElectricityTiny
 from capymoa.drift.detectors import ADWIN
 from capymoa.evaluation import prequential_evaluation
 from capymoa.stream import Stream
@@ -34,7 +35,8 @@ def __evaluate_on_stream(
         run_id: int,
         adl_parameters: Dict[str, Any],
         classifier: type(ADLClassifier),
-        rename_values: Dict[str, float]
+        rename_values: Dict[str, float],
+        stream_name: Optional[str] = None,
 ) -> None:
     print("--------------------------------------------------------------------------")
     print(f"---------------Start time: {datetime.now()}---------------------")
@@ -48,7 +50,7 @@ def __evaluate_on_stream(
 
     assert hasattr(adl_classifier, "record_of_model_shape"), f"ADL classifier {adl_classifier} does not keep track of model shape, and cannot be evaluated"
 
-    name_string_of_stream_data = f"{stream_data._filename.split('.')[0]}/"
+    name_string_of_stream_data = stream_name if stream_name is not None else f"{stream_data._filename.split('.')[0]}/"
     hyperparameter_part_of_name_string = "_".join((f"{str(key).replace('_', ' ')}={str(value).replace('_', ' ')}" for key, value in rename_values.items()))
     results_dir_path = Path("results/runs")
     results_dir_path.mkdir(parents=True, exist_ok=True)
@@ -64,7 +66,7 @@ def __evaluate_on_stream(
     results_ht = prequential_evaluation(stream=stream_data, learner=adl_classifier, window_size=1, optimise=True, store_predictions=False, store_y=False)
     total_time_end = time.time_ns()
 
-    print(f"summary for training:\nrunId={run_id}\nstream={stream_data._filename}\n" + "\n".join((f"{str(key).replace('_', ' ')}={str(value).replace('_', ' ')}" for key, value in rename_values.items())) + ":")
+    print(f"summary for training:\nrunId={run_id}\nstream={name_string_of_stream_data}\n" + "\n".join((f"{str(key).replace('_', ' ')}={str(value).replace('_', ' ')}" for key, value in rename_values.items())) + ":")
     print("--------------------------------------------------------------------------")
     print(f"total time spend training the network: {(total_time_end - total_time_start):.2E}ns, that equals {(total_time_end - total_time_start) / 10 ** 9:.2E}s or {(total_time_end - total_time_start) / 10 ** 9 /60:.2f}min")
 
@@ -201,6 +203,8 @@ def _evaluate_parameters(
                                 values_of_renames.pop('globalGracePeriod', None)
 
                             print(f"---------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
+                            print(f"------running since: {start}, for {(time.time_ns() - start_time) / (1e9 * 60) :.2f}min = {(time.time_ns() - start_time) / (1e9 * 60**2) :.2f}h------")
+                            print(f"---------------expected finish: {start + ((datetime.now() - start) * total_nr_of_runs/current_run_index)} ---------------")
                             __evaluate_on_stream(
                                 stream_data=stream_data,
                                 run_id=run_id,
@@ -208,8 +212,6 @@ def _evaluate_parameters(
                                 adl_parameters=added_parameters,
                                 rename_values=values_of_renames
                             )
-                            print(f"------running since: {start}, for {(time.time_ns() - start_time) / (1e9 * 60) :.2f}min = {(time.time_ns() - start_time) / (1e9 * 60**2) :.2f}h------")
-                            print(f"---------------expected finish: {start + ((datetime.now() - start) * total_nr_of_runs/current_run_index)} ---------------")
                             current_run_index += 1
 
                             values_of_renames.pop("globalGracePeriod", None)
@@ -223,6 +225,8 @@ def _evaluate_parameters(
                                 classifier_to_give = classifier
                                 values_of_renames.pop('gracePeriodPerLayer', None)
                             print(f"--------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
+                            print(f"------running since: {start}, for {(time.time_ns() - start_time) / (1e9 * 60) :.2f}min = {(time.time_ns() - start_time) / (1e9 * 60**2) :.2f}h------")
+                            print(f"---------------expected finish: {start + ((datetime.now() - start) * total_nr_of_runs/current_run_index)} ---------------")
                             __evaluate_on_stream(
                                 stream_data=stream_data,
                                 run_id=run_id,
@@ -230,8 +234,7 @@ def _evaluate_parameters(
                                 adl_parameters=added_parameters,
                                 rename_values=values_of_renames
                             )
-                            print(f"------running since: {start}, for {(time.time_ns() - start_time) / (1e9 * 60) :.2f}min = {(time.time_ns() - start_time) / (1e9 * 60**2) :.2f}h------")
-                            print(f"---------------expected finish: {start + ((datetime.now() - start) * total_nr_of_runs/current_run_index)} ---------------")
+
                             current_run_index += 1
                             values_of_renames.pop("gracePeriodPerLayer", None)
 

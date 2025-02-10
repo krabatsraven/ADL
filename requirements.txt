@@ -39,6 +39,8 @@ pytest
 # hyperparameter tuning:
 # ray tune:
 ray[tune]
+# tensorboardx for visualitzation
+tensorboardx
 
 # code carbon to measure co2 equivalents
 codecarbon
