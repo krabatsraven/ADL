@@ -23,6 +23,7 @@ from Evaluation.RayTuneResources.SimpleDNN import hyperparameter_search_for_Simp
 
 if __name__ == "__main__":
     # _test_example()
-    hyperparameter_search_for_ADL(500, stream_name='electricity')
-    hyperparameter_search_for_ADL(500, stream_name='simple_agraval_drift_back_and_forth')
-    hyperparameter_search_for_SimpleDNN(500, stream_name='simple_agraval_drift_back_and_forth')
+    hyperparameter_search_for_ADL(1000, stream_name='electricity')
+    hyperparameter_search_for_ADL(1000, stream_name='simple_agraval_drift_back_and_forth')
+    hyperparameter_search_for_SimpleDNN(1000, stream_name='electricity')
+    hyperparameter_search_for_SimpleDNN(1000, stream_name='simple_agraval_drift_back_and_forth')

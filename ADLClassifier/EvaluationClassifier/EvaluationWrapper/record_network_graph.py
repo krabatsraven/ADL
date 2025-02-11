@@ -18,6 +18,7 @@ def record_network_graph(adl_classifier: type(ADLClassifier)):
                 "winning_layer": [],
                 "learning_rate": []
             }
+            # tracks only the cumulative results, window size is only the nr of times it saves those
             self.evaluator = ClassificationEvaluator(self.schema, window_size=1)
 
         def __str__(self):
