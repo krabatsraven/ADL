@@ -1,7 +1,10 @@
-from ADLClassifier.BaseClassifier import ADLClassifier
+import torch.nn
+from torch import nn
+
+from ADLClassifier import ADLClassifier
 
 
-def disabeling_deleted_layers(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
+def delete_deleted_layers(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
     """
     extends an existing ADLClassifier class 
     to disable the gradiant calculation for the corresponding hidden layer
@@ -9,22 +12,24 @@ def disabeling_deleted_layers(adl_classifier: type(ADLClassifier)) -> type(ADLCl
     :param adl_classifier: the class of ADL Classifier that should be extended
     :return: the extended ADLClassifier class
     """
+    pass
 
-    class DisabelingDeletedLayersWrapper(adl_classifier):
+    class DeleteDeletedLayersWrapper(adl_classifier):
         """
         :arg class of ADLClassifier that sets requires_grad to False for hidden layers whose output layer has been deleted
         """
 
         def __str__(self):
-            return f"{super().__str__()}WithDisabledDeletedLayers"
+            return f"{super().__str__()}WithDeleteDeletedLayers"
 
         def _delete_layer(self, layer_index: int) -> bool:
+            # not exactly the same output, as we remove a sigmoid function between both layers in the forward stack
             if super()._delete_layer(layer_index):
-                self.model.layers[layer_index].requires_grad_(False)
+                self.model.delete_hidden_layer(layer_index)
                 return True
             else:
                 return False
 
-    DisabelingDeletedLayersWrapper.__name__ = f"{adl_classifier.__name__}WithDisabledDeletedLayers"
+    DeleteDeletedLayersWrapper.__name__ = f"{adl_classifier.__name__}WithDeleteDeletedLayers"
 
-    return DisabelingDeletedLayersWrapper
+    return DeleteDeletedLayersWrapper

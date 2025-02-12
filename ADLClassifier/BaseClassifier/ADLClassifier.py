@@ -324,10 +324,6 @@ class ADLClassifier(Classifier):
                     # we prune j if voting_weight(i) == voting_weight(j)
                     self._delete_layer(index_of_layer_j)
 
-
-        # update the optimizer after pruning:
-        self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
-
     def __high_level_learning_grow_new_hidden_layers(self, data: torch.Tensor, true_label: torch.Tensor):
         # grow the hidden layers to accommodate concept drift when it happens:
         # -------------------------------------------------------------------
@@ -340,9 +336,6 @@ class ADLClassifier(Classifier):
             # add layer
             active_layers_before_adding = self.model.active_and_learning_layer_keys().tolist()
             if self._add_layer():
-                # update optimizer after adding a layer
-                self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
-
                 # train the layer:
                 # todo: question #69
                 # freeze the parameters not new:
@@ -641,19 +634,23 @@ class ADLClassifier(Classifier):
     def _delete_layer(self, layer_index: int) -> bool:
         self._remove_layer_from_covariance_matrix(layer_index)
         self.model._prune_layer_by_vote_removal(layer_index)
+        self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
         return True
 
     def _add_layer(self) -> bool:
         self._add_layer_to_covariance_matrix()
         self.model._add_layer()
+        self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
         return True
 
     def _add_node(self, layer_index: int) -> bool:
         self.model._add_node(layer_index)
+        self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
         return True
 
     def _delete_node(self, layer_index: int, node_index: int) -> bool:
         self.model._delete_node(layer_index, node_index)
+        self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
         return True
 
     def _reset_learning_rate(self):

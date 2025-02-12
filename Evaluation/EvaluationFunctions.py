@@ -12,7 +12,7 @@ from capymoa.evaluation import prequential_evaluation
 from capymoa.stream import Stream
 
 from ADLClassifier import ADLClassifier, global_grace_period, grace_period_per_layer, extend_classifier_for_evaluation, \
-    winning_layer_training, vectorized_for_loop, BaseLearningRateProgression, disabeling_deleted_layers
+    winning_layer_training, vectorized_for_loop, BaseLearningRateProgression, disabeling_deleted_layers, delete_deleted_layers
 from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_all_of_one_run
 from Evaluation._config import MAX_INSTANCES, ADWIN_DELTA_STANDIN
 
@@ -280,7 +280,8 @@ def _test_example(name: Optional[str] = None):
     classifiers = [
         extend_classifier_for_evaluation(vectorized_for_loop),
         extend_classifier_for_evaluation(winning_layer_training, vectorized_for_loop),
-        extend_classifier_for_evaluation(disabeling_deleted_layers, winning_layer_training, vectorized_for_loop)
+        extend_classifier_for_evaluation(disabeling_deleted_layers, winning_layer_training, vectorized_for_loop),
+        extend_classifier_for_evaluation(delete_deleted_layers, winning_layer_training, vectorized_for_loop)
         # extend_classifier_for_evaluation(winning_layer_training),
     ]
 

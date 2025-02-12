@@ -103,7 +103,7 @@ class AutoDeepLearner(nn.Module):
         # that are not currently pruned
         self.layer_result_keys = self.active_layer_keys().numpy()
         layer_results = torch.stack([nn.Softmax(dim=-1)(self.get_output_layer(i)(hidden_layers[i]))
-                                          for i in self.layer_result_keys])
+                                     for i in self.layer_result_keys])
 
         self.layer_results = layer_results.detach().movedim(0, 1)
 
@@ -127,7 +127,7 @@ class AutoDeepLearner(nn.Module):
             expected_value, hidden_layer_results = self.__get_output_from_start_layer_to_stop_layer_j(tmp, start_layer_index=0, stop_layer_idx=layer_index)
 
             if layer_index == 0:
-                expected_squared_value = nn.Softmax(dim=-1)(self.get_output_layer(0)(hidden_layer_results[0] ** 2)) 
+                expected_squared_value = nn.Softmax(dim=-1)(self.get_output_layer(0)(hidden_layer_results[0] ** 2))
             else:
                 expected_squared_value, _ = self.__get_output_from_start_layer_to_stop_layer_j(hidden_layer_results[0] ** 2, start_layer_index=1, stop_layer_idx=layer_index)
 
@@ -283,7 +283,7 @@ class AutoDeepLearner(nn.Module):
         assert self.weight_correction_factor_with_index_exists(layer_index), \
             (f"cannot remove the layer with the index {layer_index}, "
              f"as it is not a layer that has no weight correction factor")
-        assert (any((value != 0) for value in self.get_voting_weight_values()[:layer_index]) 
+        assert (any((value != 0) for value in self.get_voting_weight_values()[:layer_index])
                 or any((value != 0) for value in self.get_voting_weight_values()[layer_index + 1:])), \
             (f"cannot remove the layer with the index {layer_index}, "
              f"as it is the last layer with a non zero voting weight")
@@ -441,8 +441,8 @@ class AutoDeepLearner(nn.Module):
     def __set_output_layer(self, layer_index: int, new_output_layer) -> None:
         self.voting_linear_layers[self.transform_layer_index_to_output_layer_key(layer_index)] = new_output_layer
 
-    def __pop_output_layer(self, layer_index: int) -> None:
-        self.voting_linear_layers.pop(self.transform_layer_index_to_output_layer_key(layer_index))
+    def __pop_output_layer(self, layer_index: int) -> nn.Module:
+        return self.voting_linear_layers.pop(self.transform_layer_index_to_output_layer_key(layer_index))
 
     def output_layer_with_index_exists(self, layer_index: int) -> bool:
         """
@@ -494,7 +494,7 @@ class AutoDeepLearner(nn.Module):
         return str(layer_index)
 
     def __set_voting_weight(self, layer_index: int, new_weight: float) -> None:
-        assert isinstance(layer_index, int)
+        assert np.issubdtype(type(layer_index), int), f"expect int but got {type(layer_index)}"
         self.voting_weights[self.transform_layer_index_to_voting_key((int(layer_index)))] = new_weight
 
     def __pop_voting_weight(self, layer_index: int) -> float:
@@ -570,16 +570,53 @@ class AutoDeepLearner(nn.Module):
         return torch.stack((self.get_weight_correction_factor_keys(), self.get_weight_correction_factor_values()))
 
     def __set_weight_correction_factor(self, layer_index: int, new_weight_correction_factor: float) -> None:
-        self.weight_correction_factor[str(layer_index)] = new_weight_correction_factor
+        self.weight_correction_factor[self.transform_layer_index_to_voting_key(layer_index)] = new_weight_correction_factor
 
     def __pop_weight_correction_factor(self, layer_index: int) -> float:
-        return self.weight_correction_factor.pop(str(layer_index))
+        return self.weight_correction_factor.pop(self.transform_layer_index_to_voting_key(layer_index))
 
     def weight_correction_factor_with_index_exists(self, layer_index: int):
         """
         :returns whether the layer with the given index has a weight correction factor associated with it
         """
-        return str(layer_index) in self.weight_correction_factor.keys()
+        return self.transform_layer_index_to_voting_key(layer_index) in self.weight_correction_factor.keys()
+
+    def delete_hidden_layer(self, layer_index: int) -> None:
+        """
+        deletes a hidden layer whose output layer was deleted beforehand
+        :param layer_index: the index of the hidden layer to delete
+        """
+        # make sure that there is another layer
+        assert len(self.layers) > 1, "there needs to be at least another layer to delete a hidden layer"
+        assert not self.output_layer_with_index_exists(layer_index), "cannot delete a hidden layer of an active output layer"
+
+        layer_to_delete: nn.Module = self.layers[layer_index]
+        # merge two layers and take the place of the second layer:
+        if layer_index == len(self.layers) - 1:
+            # if last layer is deleted just delete the layer, no need to merge anything
+            pass
+
+        else:
+            # if not first layer is deleted merge with layer in after it
+            layer_to_merge_with: nn.Module = self.layers[layer_index + 1]
+            new_weight = nn.Parameter(layer_to_merge_with.weight.matmul(layer_to_delete.weight))
+            new_bias = nn.Parameter(layer_to_merge_with.bias + layer_to_merge_with.weight.matmul(layer_to_delete.bias))
+            new_layer = nn.Linear(layer_to_delete.in_features, layer_to_merge_with.out_features)
+            new_layer.weight = new_weight
+            new_layer.bias = new_bias
+            self.layers[layer_index + 1] = new_layer
+
+        # remove now merged layer
+        self.layers.pop(layer_index)
+
+        # update all keys of all weights, all output keys and all weight_correction_factors
+        # for all active layers that follow the deleted layer:
+        for active_key in self.active_layer_keys()[self.active_layer_keys() > layer_index].detach().numpy().astype(int):
+            self.__set_output_layer(active_key - 1, self.__pop_output_layer(active_key))
+            self.__set_voting_weight(active_key - 1, self.__pop_voting_weight(active_key))
+            self.__set_weight_correction_factor(active_key - 1, self.__pop_weight_correction_factor(active_key))
+
+
 
     @property
     def nr_of_active_layers(self) -> int:
