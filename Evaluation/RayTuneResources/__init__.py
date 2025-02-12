@@ -1,3 +1,2 @@
-from Evaluation.RayTuneResources.SimpleDNN import *
-from Evaluation.RayTuneResources.ADL import *
-from Evaluation.RayTuneResources._config import *
+from Evaluation.RayTuneResources.SimpleDNN import hyperparameter_search_for_SimpleDNN
+from Evaluation.RayTuneResources.ADL import hyperparameter_search_for_ADL

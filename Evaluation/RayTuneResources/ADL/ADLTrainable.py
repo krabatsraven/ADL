@@ -8,7 +8,7 @@ from ADLClassifier import extend_classifier_for_evaluation
 from ADLClassifier.BaseClassifier import ADLClassifier
 from Evaluation.SynteticStreams.SynteticStreams import simple_agraval_single_drift, simple_agraval_three_drifts, simple_agraval_drift_back_and_forth
 from Evaluation.EvaluationFunctions import __write_summary, __get_run_id, __evaluate_on_stream, __plot_and_save_result
-from Evaluation.RayTuneResources._config import MAX_INSTANCES, ADWIN_DELTA_STANDIN
+from Evaluation._config import MAX_INSTANCES, ADWIN_DELTA_STANDIN
 from ADLClassifier.ExtendedClassifier.FunctionalityWrapper import vectorized_for_loop, winning_layer_training, grace_period_per_layer, global_grace_period
 
 
@@ -72,7 +72,7 @@ def config_to_stream(stream_name: str) -> type(Stream):
             raise ValueError(f"unknown stream: {stream_name}")
 
 
-def evaluate_config(config):
+def evaluate_adl_run_config(config):
     classifier = config_to_learner(*config['learner'], grace_period=config['grace_period'])
     added_params = {
         "mci_threshold_for_layer_pruning": config['mci'],

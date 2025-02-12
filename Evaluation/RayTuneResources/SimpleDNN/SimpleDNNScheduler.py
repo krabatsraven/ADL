@@ -1,6 +1,6 @@
 from ray.tune.schedulers import ASHAScheduler
 
-from Evaluation.RayTuneResources._config import MAX_INSTANCES, MIN_INSTANCES
+from Evaluation._config import MAX_INSTANCES, MIN_INSTANCES
 
 SimpleDNNScheduler = ASHAScheduler(
     time_attr='instances_seen',
