@@ -18,6 +18,10 @@ def disabeling_deleted_layers(adl_classifier: type(ADLClassifier)) -> type(ADLCl
         def __str__(self):
             return f"{super().__str__()}WithDisabledDeletedLayers"
 
+        @classmethod
+        def name(cls) -> str:
+            return f"{adl_classifier.name()}WithDisabledDeletedLayers"
+
         def _delete_layer(self, layer_index: int) -> bool:
             if super()._delete_layer(layer_index):
                 self.model.layers[layer_index].requires_grad_(False)
@@ -26,5 +30,4 @@ def disabeling_deleted_layers(adl_classifier: type(ADLClassifier)) -> type(ADLCl
                 return False
 
     DisabelingDeletedLayersWrapper.__name__ = f"{adl_classifier.__name__}WithDisabledDeletedLayers"
-
     return DisabelingDeletedLayersWrapper

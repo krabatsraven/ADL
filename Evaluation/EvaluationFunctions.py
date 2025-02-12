@@ -280,7 +280,7 @@ def _test_example(name: Optional[str] = None):
     classifiers = [
         extend_classifier_for_evaluation(vectorized_for_loop),
         extend_classifier_for_evaluation(winning_layer_training, vectorized_for_loop),
-        extend_classifier_for_evaluation(disabeling_deleted_layers, winning_layer_training, vectorized_for_loop),
+        extend_classifier_for_evaluation(winning_layer_training, vectorized_for_loop, disabeling_deleted_layers),
         extend_classifier_for_evaluation(delete_deleted_layers, winning_layer_training, vectorized_for_loop)
         # extend_classifier_for_evaluation(winning_layer_training),
     ]
