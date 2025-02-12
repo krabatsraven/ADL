@@ -14,7 +14,7 @@ from capymoa.stream import Stream
 from torch import nn
 
 from ADLClassifier import ADLClassifier, global_grace_period, grace_period_per_layer, extend_classifier_for_evaluation, \
-    winning_layer_training, vectorized_for_loop, BaseLearningRateProgression
+    winning_layer_training, vectorized_for_loop, BaseLearningRateProgression, disabeling_deleted_layers
 from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_all_of_one_run
 
 ADWIN_DELTA_STANDIN = "adwin-delta"
@@ -269,7 +269,7 @@ def _test_example(name: Optional[str] = None):
         # ExponentialLearningRateProgression(initial_learning_rate=0.5, decay_alpha=0.001),
         5e-1,
         # 1e-1,
-        5e-2,
+        # 5e-2,
         # 1e-2,
         # 1e-3
     ]
@@ -277,26 +277,30 @@ def _test_example(name: Optional[str] = None):
     mci_thresholds = [
         1e-5,
         # 1e-6, 
-        1e-7,
+        # 1e-7,
         # 1e-8
     ]
     classifiers = [
+        extend_classifier_for_evaluation(vectorized_for_loop),
         extend_classifier_for_evaluation(winning_layer_training, vectorized_for_loop),
+        extend_classifier_for_evaluation(disabeling_deleted_layers, winning_layer_training, vectorized_for_loop)
         # extend_classifier_for_evaluation(winning_layer_training),
     ]
 
     adwin_deltas=[
         # 1e-1, 1e-2,
-        1e-3,
+        # 1e-3,
         # 1e-4,
-        1e-5,
-        # 1e-6,
-        1e-7,
+        # 1e-5,
+        1e-6,
+        # 1e-7,
         # 1e-8, 1e-9, 1e-10
     ]
 
     grace_periods_for_layer = [
-        None, 4, 8, 16,
+        # None,
+        4,
+        # 8, 16,
         # 32
     ]
     grace_periods_global = None

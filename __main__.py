@@ -14,6 +14,6 @@ from Evaluation.RayTuneResources.SimpleDNN import hyperparameter_search_for_Simp
 
 
 if __name__ == "__main__":
-    # _test_example()
-    hyperparameter_search_for_ADL(200)
+    _test_example()
+    # hyperparameter_search_for_ADL(200)
     # hyperparameter_search_for_SimpleDNN(10)

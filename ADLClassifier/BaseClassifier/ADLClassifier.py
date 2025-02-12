@@ -164,7 +164,10 @@ class ADLClassifier(Classifier):
         self._low_lvl_learning(true_label=y)
         self.optimizer.zero_grad()
 
-    def _backpropagation(self, prediction: torch.Tensor, true_label: torch.Tensor):
+    def _backpropagation(self, prediction, true_label):
+        self.__backpropagation(prediction, true_label)
+
+    def __backpropagation(self, prediction: torch.Tensor, true_label: torch.Tensor):
         loss = self.loss_function(prediction, true_label)
         loss.backward()
 
@@ -336,24 +339,24 @@ class ADLClassifier(Classifier):
 
             # add layer
             active_layers_before_adding = self.model.active_and_learning_layer_keys().tolist()
-            self._add_layer()
-            # update optimizer after adding a layer
-            self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
+            if self._add_layer():
+                # update optimizer after adding a layer
+                self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
 
-            # train the layer:
-            # todo: question #69
-            # freeze the parameters not new:
-            # originally they create a new network with only one layer and train the weights there
-            # can we just delete the gradients of all weights not in the new layer?
-            # train by gradient
-            # disable all active layers that were not just added:
+                # train the layer:
+                # todo: question #69
+                # freeze the parameters not new:
+                # originally they create a new network with only one layer and train the weights there
+                # can we just delete the gradients of all weights not in the new layer?
+                # train by gradient
+                # disable all active layers that were not just added:
 
-            self.model._disable_layers_for_training(active_layers_before_adding)
-            pred = self.model.forward(data)
-            self._backpropagation(pred, true_label)
-            # reactivate all but the newest layer (the newest should already be active):
-            self.model._enable_layers_for_training(active_layers_before_adding)
-            # low level training
+                self.model._disable_layers_for_training(active_layers_before_adding)
+                pred = self.model.forward(data)
+                self.__backpropagation(pred, true_label)
+                # reactivate all but the newest layer (the newest should already be active):
+                self.model._enable_layers_for_training(active_layers_before_adding)
+                # low level training
             self._low_lvl_learning(true_label=true_label)
 
         elif self.drift_detector.detected_warning():
@@ -635,19 +638,23 @@ class ADLClassifier(Classifier):
             )
         )
 
-    def _delete_layer(self, layer_index: int) -> None:
+    def _delete_layer(self, layer_index: int) -> bool:
         self._remove_layer_from_covariance_matrix(layer_index)
         self.model._prune_layer_by_vote_removal(layer_index)
+        return True
 
-    def _add_layer(self) -> None:
+    def _add_layer(self) -> bool:
         self._add_layer_to_covariance_matrix()
         self.model._add_layer()
+        return True
 
-    def _add_node(self, layer_index: int) -> None:
+    def _add_node(self, layer_index: int) -> bool:
         self.model._add_node(layer_index)
+        return True
 
-    def _delete_node(self, layer_index: int, node_index: int) -> None:
+    def _delete_node(self, layer_index: int, node_index: int) -> bool:
         self.model._delete_node(layer_index, node_index)
+        return True
 
     def _reset_learning_rate(self):
         if not self.learning_rate_progression:

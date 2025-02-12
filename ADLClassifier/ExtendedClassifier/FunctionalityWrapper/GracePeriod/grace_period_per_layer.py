@@ -49,32 +49,40 @@ def _grace_period_per_layer(adl_classifier: type(ADLClassifier), duration: int) 
                 return
             super()._backpropagation(prediction, true_label)
 
-        def _delete_layer(self, layer_index: int) -> None:
+        def _delete_layer(self, layer_index: int) -> bool:
+            out = False
             output_layer_index = self._output_layer_index(layer_index)
             if self.time_since_last_change[output_layer_index] > self.__duration:
-                super()._delete_layer(layer_index)
+                out = super()._delete_layer(layer_index)
                 self.time_since_last_change = torch.concat((self.time_since_last_change[:output_layer_index], self.time_since_last_change[output_layer_index + 1:]))
                 self.model_changed_this_iteration = torch.concat((self.model_changed_this_iteration[:output_layer_index], self.model_changed_this_iteration[output_layer_index + 1:]))
+            return out
 
-        def _add_layer(self) -> None:
+        def _add_layer(self) -> bool:
+            out = False
             if self.time_since_last_change[-1] > self.__duration:
-                super()._add_layer()
+                out = super()._add_layer()
                 self.model_changed_this_iteration = torch.concat((self.model_changed_this_iteration, torch.ones(1, dtype=torch.bool)))
                 self.time_since_last_change = torch.concat((self.time_since_last_change, torch.zeros(1, dtype=torch.int)))
+            return out
 
-        def _add_node(self, layer_index: int) -> None:
+        def _add_node(self, layer_index: int) -> bool:
+            out = False
             output_layer_index = self._output_layer_index(layer_index)
             if self.time_since_last_change[output_layer_index] > self.__duration:
-                super()._add_node(layer_index)
+                out = super()._add_node(layer_index)
                 self.model_changed_this_iteration[output_layer_index] = True
                 self.time_since_last_change[output_layer_index] = 0
+            return out
 
-        def _delete_node(self, layer_index: int, node_index: int) -> None:
+        def _delete_node(self, layer_index: int, node_index: int) -> bool:
+            out = False
             output_layer_index = self._output_layer_index(layer_index)
             if self.time_since_last_change[output_layer_index] > self.__duration:
-                super()._delete_node(layer_index, node_index)
+                out = super()._delete_node(layer_index, node_index)
                 self.model_changed_this_iteration[output_layer_index] = True
                 self.time_since_last_change[output_layer_index] = 0
+            return out
 
         def _output_layer_index(self, layer_index: int) -> int:
             return (self.model.active_layer_keys() == layer_index).nonzero().item()
