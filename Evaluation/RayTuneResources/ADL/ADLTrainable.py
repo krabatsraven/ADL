@@ -1,5 +1,4 @@
-from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 from capymoa.drift.detectors import ADWIN
 from capymoa.stream import ARFFStream, Stream
@@ -7,8 +6,9 @@ from ray import train
 
 from ADLClassifier import extend_classifier_for_evaluation
 from ADLClassifier.BaseClassifier import ADLClassifier
-from Evaluation import simple_agraval_single_drift, simple_agraval_three_drifts, simple_agraval_drift_back_and_forth
-from Evaluation.RayTuneResources._config import MAX_INSTANCES
+from Evaluation.SynteticStreams.SynteticStreams import simple_agraval_single_drift, simple_agraval_three_drifts, simple_agraval_drift_back_and_forth
+from Evaluation.EvaluationFunctions import __write_summary, __get_run_id, __evaluate_on_stream, __plot_and_save_result
+from Evaluation.RayTuneResources._config import MAX_INSTANCES, ADWIN_DELTA_STANDIN
 from ADLClassifier.ExtendedClassifier.FunctionalityWrapper import vectorized_for_loop, winning_layer_training, grace_period_per_layer, global_grace_period
 
 
@@ -70,3 +70,42 @@ def config_to_stream(stream_name: str) -> type(Stream):
             return simple_agraval_drift_back_and_forth
         case _:
             raise ValueError(f"unknown stream: {stream_name}")
+
+
+def evaluate_config(config):
+    classifier = config_to_learner(*config['learner'], grace_period=config['grace_period'])
+    added_params = {
+        "mci_threshold_for_layer_pruning": config['mci'],
+        'drift_detector': ADWIN(config['adwin-delta']),
+        'lr': config['lr'],
+        'loss_fn': config['loss_fn'],
+
+    }
+    renames = {
+        "MCICutOff": f"{config['mci']:4e}",
+        ADWIN_DELTA_STANDIN: f"{config['adwin-delta']:.4e}",
+        'classifier': config_to_learner(*config['learner'], grace_period=None).name(),
+        'lr': f"{config['lr']:.4e}",
+        'loss_fn': config['loss_fn'].__name__ if hasattr(config['loss_fn'], '__name__') else config['loss_fn'].__str__(),
+    }
+    added_names = {'MCICutOff', 'classifier', 'stream', ADWIN_DELTA_STANDIN, 'lr', 'loss_fn'}
+
+    if config['grace_period'] is not None and config['grace_period'][1] == 'global_grace':
+        renames['globalGracePeriod'] = config['grace_period'][0]
+        added_names.add('globalGracePeriod')
+
+    elif config['grace_period'] is not None and config['grace_period'][1] == 'layer_grace':
+        renames['gracePeriodPerLayer'] = config['grace_period'][0]
+        added_names.add('gracePeriodPerLayer')
+
+    run_id = __get_run_id()
+    __evaluate_on_stream(
+        stream_data=config_to_stream(config['stream']),
+        run_id=run_id,
+        classifier=classifier,
+        adl_parameters=added_params,
+        rename_values=renames,
+        stream_name=config['stream'],
+    )
+    __write_summary(run_id, added_names)
+    __plot_and_save_result(run_id, show=False)

@@ -1,3 +1,2 @@
-from Evaluation.EvaluationFunctions import __get_run_id, __evaluate_on_stream
 from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_results_via_plot_and_save, __compare_all_of_one_run
 from Evaluation.SynteticStreams import *

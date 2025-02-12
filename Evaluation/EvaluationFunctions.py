@@ -6,18 +6,16 @@ from pathlib import Path
 from typing import Dict, List, Union, Any, Set, Optional
 
 import pandas as pd
-import torch
 from capymoa.datasets import ElectricityTiny
 from capymoa.drift.detectors import ADWIN
 from capymoa.evaluation import prequential_evaluation
 from capymoa.stream import Stream
-from torch import nn
 
 from ADLClassifier import ADLClassifier, global_grace_period, grace_period_per_layer, extend_classifier_for_evaluation, \
     winning_layer_training, vectorized_for_loop, BaseLearningRateProgression, disabeling_deleted_layers
 from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_all_of_one_run
+from Evaluation.RayTuneResources._config import MAX_INSTANCES, ADWIN_DELTA_STANDIN
 
-ADWIN_DELTA_STANDIN = "adwin-delta"
 
 def __get_run_id() -> int:
     results_dir_path = Path("results/runs/")
@@ -44,7 +42,6 @@ def __evaluate_on_stream(
 
     adl_classifier = classifier(
         schema=stream_data.schema,
-        loss_fn=lambda predicted_props, truth: nn.NLLLoss()(torch.log(predicted_props), truth),
         **adl_parameters
     )
 
@@ -63,7 +60,7 @@ def __evaluate_on_stream(
     os.environ["CODECARBON_LOG_LEVEL"] = "CRITICAL"
 
     total_time_start = time.time_ns()
-    results_ht = prequential_evaluation(stream=stream_data, learner=adl_classifier, window_size=1, optimise=True, store_predictions=False, store_y=False)
+    results_ht = prequential_evaluation(stream=stream_data, learner=adl_classifier, window_size=100, optimise=True, store_predictions=False, store_y=False, max_instances=MAX_INSTANCES)
     total_time_end = time.time_ns()
 
     print(f"summary for training:\nrunId={run_id}\nstream={name_string_of_stream_data}\n" + "\n".join((f"{str(key).replace('_', ' ')}={str(value).replace('_', ' ')}" for key, value in rename_values.items())) + ":")

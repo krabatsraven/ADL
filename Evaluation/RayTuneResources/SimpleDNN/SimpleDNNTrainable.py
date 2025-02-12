@@ -4,11 +4,12 @@ from capymoa.stream import ARFFStream
 from ray import train
 
 from Evaluation.ComparisionDNNClassifier.SimpleDNN.SimpleDNNClassifier import SimpleDNNClassifier
+from Evaluation.RayTuneResources.ADL.ADLTrainable import config_to_stream
 from Evaluation.RayTuneResources._config import MAX_INSTANCES, WINDOW_SIZE
 
 
 def SimpleDNNTrainable(config):  # ①
-    stream = ARFFStream(config['stream'])
+    stream = config_to_stream(config['stream'])
     learner = SimpleDNNClassifier(
         schema=stream.get_schema(),
         model_structure=config['model_structure'],
