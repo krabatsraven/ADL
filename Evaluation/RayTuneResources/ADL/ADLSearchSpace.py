@@ -31,8 +31,8 @@ def ADLSearchSpace(stream_name: str):
         ),
         'loss_fn': tune.grid_search(
             [
-                nn.CrossEntropyLoss(),
-                NLLLoss
+                'CrossEntropyLoss',
+                'NLLLoss'
             ]
         )
     }

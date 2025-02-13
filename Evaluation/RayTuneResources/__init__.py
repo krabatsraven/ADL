@@ -1,2 +1,3 @@
 from Evaluation.RayTuneResources.SimpleDNN import hyperparameter_search_for_SimpleDNN
 from Evaluation.RayTuneResources.ADL import hyperparameter_search_for_ADL
+from Evaluation.RayTuneResources.config_handling import evaluate_simple_run, evaluate_adl_run

@@ -3,7 +3,8 @@ from ray import tune
 
 from Evaluation.RayTuneResources.ADL.ADLScheduler import ADLScheduler
 from Evaluation.RayTuneResources.ADL.ADLSearchSpace import ADLSearchSpace
-from Evaluation.RayTuneResources.ADL.ADLTrainable import ADLTrainable, evaluate_adl_run_config
+from Evaluation.RayTuneResources.ADL.ADLTrainable import ADLTrainable
+from Evaluation.RayTuneResources.config_handling import write_config
 
 
 def hyperparameter_search_for_ADL(nr_of_trials: int = 100, stream_name: str = 'electricity'):
@@ -20,4 +21,4 @@ def hyperparameter_search_for_ADL(nr_of_trials: int = 100, stream_name: str = 'e
     best_result_config = results.get_best_result(metric="score", mode="max").config
     print(best_result_config)
 
-    evaluate_adl_run_config(best_result_config)
+    return write_config(best_result_config)
