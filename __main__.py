@@ -40,4 +40,4 @@ if __name__ == "__main__":
     for stream_name in stream_strings:
         runs.append(hyperparameter_search_for_SimpleDNN(500, stream_name=stream_name))
     for run in runs:
-        evaluate_adl_run(run)
+        evaluate_simple_run(run)

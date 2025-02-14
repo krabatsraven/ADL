@@ -11,7 +11,7 @@ from capymoa.stream import Stream, ARFFStream
 from torch.nn import CrossEntropyLoss
 
 from ADLClassifier import global_grace_period, grace_period_per_layer, extend_classifier_for_evaluation, \
-    winning_layer_training, vectorized_for_loop, ADLClassifier
+    winning_layer_training, vectorized_for_loop, ADLClassifier, add_weight_correction_parameter_to_user_choices
 from ADLClassifier.Resources.NLLLoss import NLLLoss
 from Evaluation import agrawal_no_drift
 from Evaluation.EvaluationFunctions import __plot_and_save_result
@@ -84,7 +84,6 @@ def evaluate_adl_run_config(config, run_id):
         'drift_detector': ADWIN(config['adwin-delta']),
         'lr': config['lr'],
         'loss_fn': config_to_loss_fn(config['loss_fn']),
-
     }
     renames = {
         "MCICutOff": f"{config['mci']:4e}",
@@ -98,10 +97,13 @@ def evaluate_adl_run_config(config, run_id):
     if config['grace_period'] is not None and config['grace_period'][1] == 'global_grace':
         renames['globalGracePeriod'] = config['grace_period'][0]
         added_names.add('globalGracePeriod')
-
     elif config['grace_period'] is not None and config['grace_period'][1] == 'layer_grace':
         renames['gracePeriodPerLayer'] = config['grace_period'][0]
         added_names.add('gracePeriodPerLayer')
+    if 'WithUserChosenWeightLR' in classifier.name():
+        added_params['layer_weight_learning_rate'] = config['layer_weight_learning_rate']
+        renames['layerWeightLR'] = config['layer_weight_learning_rate']
+        added_names.add('layerWeightLR')
 
     __evaluate_on_stream(
         stream_data=config_to_stream(config['stream']),
@@ -149,6 +151,8 @@ def config_to_learner(*traits: str, grace_period: Optional[Tuple[int, str]]) -> 
                 decorators.append(vectorized_for_loop)
             case 'winning_layer':
                 decorators.append(winning_layer_training)
+            case 'decoupled_lrs':
+                decorators.append(add_weight_correction_parameter_to_user_choices)
             case _:
                 raise ValueError(f"unknown trait: {trait}")
 

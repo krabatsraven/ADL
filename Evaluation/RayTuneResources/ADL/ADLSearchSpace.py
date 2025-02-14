@@ -9,6 +9,7 @@ def ADLSearchSpace(stream_name: str):
         'learner': tune.grid_search(
             [
                 ('vectorized', 'winning_layer'),
+                ('vectorized', 'winning_layer', 'decoupled_lrs'),
                 # ('winning_layer',),
                 # ('vectorized',)
             ]
@@ -20,6 +21,7 @@ def ADLSearchSpace(stream_name: str):
         ),
         # todo: add progressions
         'lr': tune.loguniform(1e-4, 5e-1),
+        'layer_weight_learning_rate': tune.loguniform(1e-4, 5e-1),
         'adwin-delta': tune.loguniform(1e-7, 1e-3),
         'mci': tune.loguniform(1e-7, 1e-5),
         'grace_period': tune.choice(
