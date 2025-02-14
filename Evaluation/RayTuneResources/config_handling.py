@@ -13,8 +13,11 @@ from torch.nn import CrossEntropyLoss
 from ADLClassifier import global_grace_period, grace_period_per_layer, extend_classifier_for_evaluation, \
     winning_layer_training, vectorized_for_loop, ADLClassifier
 from ADLClassifier.Resources.NLLLoss import NLLLoss
+from Evaluation import agrawal_no_drift
 from Evaluation.EvaluationFunctions import __plot_and_save_result
-from Evaluation.SynteticStreams import simple_agraval_single_drift, simple_agraval_three_drifts, simple_agraval_drift_back_and_forth
+from Evaluation.SynteticStreams import agrawal_single_drift, agrawal_three_drifts, agrawal_drift_back_and_forth
+from Evaluation.SynteticStreams.SyntheticSEAStreams import sea_no_drift, sea_single_drift, sea_three_drifts, \
+    sea_drift_back_and_forth
 from Evaluation._config import  ADWIN_DELTA_STANDIN, MAX_INSTANCES
 from Evaluation.ComparisionDNNClassifier.SimpleDNN.SimpleDNNClassifier import SimpleDNNClassifier
 from Evaluation.EvaluationFunctions import __get_run_id, __write_summary, __evaluate_on_stream
@@ -118,12 +121,22 @@ def config_to_stream(stream_name: str) -> type(Stream):
             return ARFFStream('/home/david/PycharmProjects/ADL/data/electricity.arff')
         case 'electricity_tiny':
             return ARFFStream('/home/david/PycharmProjects/ADL/data/electricity_tiny.arff')
-        case 'simple_agraval_single_drift':
-            return simple_agraval_single_drift
-        case 'simple_agraval_three_drifts':
-            return simple_agraval_three_drifts
-        case 'simple_agraval_drift_back_and_forth':
-            return simple_agraval_drift_back_and_forth
+        case 'agraval_no_drift':
+            return agrawal_no_drift
+        case 'agraval_single_drift':
+            return agrawal_single_drift
+        case 'agraval_three_drifts':
+            return agrawal_three_drifts
+        case 'agraval_drift_back_and_forth':
+            return agrawal_drift_back_and_forth
+        case 'sea_no_drift':
+            return sea_no_drift
+        case 'sea_single_drift':
+            return sea_single_drift
+        case 'sea_three_drifts':
+            return sea_three_drifts
+        case 'sea_drift_back_and_forth':
+            return sea_drift_back_and_forth
         case _:
             raise ValueError(f"unknown stream: {stream_name}")
 

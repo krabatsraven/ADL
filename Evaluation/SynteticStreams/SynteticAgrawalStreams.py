@@ -1,15 +1,12 @@
 from capymoa.stream.drift import DriftStream, AbruptDrift
-from capymoa.stream.generator import SEA, AgrawalGenerator
+from capymoa.stream.generator import AgrawalGenerator
 
-simple_sea_single_drift = DriftStream(
-    stream=[
-        SEA(function=1),
-        AbruptDrift(position=5000),
-        SEA(function=3),
-    ]
+agrawal_no_drift = DriftStream(
+    stream=[AgrawalGenerator(classification_function=1)]
 )
 
-simple_agraval_single_drift = DriftStream(
+
+agrawal_single_drift = DriftStream(
     stream=[
         AgrawalGenerator(classification_function=1),
         AbruptDrift(position=5000),
@@ -17,7 +14,7 @@ simple_agraval_single_drift = DriftStream(
     ]
 )
 
-simple_agraval_drift_back_and_forth = DriftStream(
+agrawal_drift_back_and_forth = DriftStream(
     stream=[
         AgrawalGenerator(classification_function=1),
         AbruptDrift(position=5000),
@@ -27,13 +24,13 @@ simple_agraval_drift_back_and_forth = DriftStream(
     ]
 )
 
-simple_agraval_three_drifts = DriftStream(
+agrawal_three_drifts = DriftStream(
     stream=[
         AgrawalGenerator(classification_function=1),
         AbruptDrift(position=5000),
         AgrawalGenerator(classification_function=3),
         AbruptDrift(position=10000),
-        AgrawalGenerator(classification_function=5),
+        AgrawalGenerator(classification_function=4),
         AbruptDrift(position=15000),
         AgrawalGenerator(classification_function=1),
     ]
