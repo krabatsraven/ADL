@@ -98,7 +98,7 @@ def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
         columns=list(
             {
                 "accuracy", "nr_of_layers", "instances", "overall time",
-                "amount of active layers",
+                "amount of active layers", 'amount of nodes',
                 "runID", "path", "stream",
                 *user_added_hyperparameter
             }
@@ -125,6 +125,7 @@ def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
                     "stream": stream_name,
                     "runID": run_id,
                     "amount of active layers": len(metrics.loc[:, "active_layers"].iloc[0]),
+                    'amount of nodes': metrics.loc[:, "shape_of_hidden_layers"].map(lambda list_of_shapes: sum((layer_shape[1] for layer_shape in list_of_shapes))).iloc[0],
                     "path": Path(root),
                  }
             )
@@ -136,7 +137,7 @@ def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
     runs_folder.mkdir(exist_ok=True, parents=True)
     order_of_columns = (
             [filtered_param if filtered_param not in rename else rename[filtered_param] for filtered_param in [added_parameter for added_parameter in user_added_hyperparameter if added_parameter != "classifier"]]
-            + ["accuracy", "amount of hidden layers", "amount of active layers", "overall time", "classifier", "amount of instances", "run id", "path", "stream"]
+            + ["accuracy", "amount of hidden layers", "amount of active layers", 'amount of nodes', "overall time", "classifier", "amount of instances", "run id", "path", "stream"]
                         )
     summary = summary.loc[:, order_of_columns]
     summary.to_csv(runs_folder / "summary.csv", sep="\t")

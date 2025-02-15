@@ -23,16 +23,19 @@ from Evaluation.ComparisionDNNClassifier.SimpleDNN.SimpleDNNClassifier import Si
 from Evaluation.EvaluationFunctions import __get_run_id, __write_summary, __evaluate_on_stream
 
 
-def write_config(config):
-    run_id = __get_run_id()
+def write_config(config, run_id: Optional[int] = None, run_name: str = ''):
+    if run_id is None:
+        run_id = __get_run_id()
+    else:
+        run_id = run_id
     save_dir = Path("results/runs") / f"runID={run_id}"
     save_dir.mkdir(parents=True, exist_ok=True)
-    with open(save_dir / "config.json", "w") as f:
+    with open(save_dir / f"config{run_name}.json", "w") as f:
         f.write(json.dumps(config, indent=4))
     return run_id
 
-def load_config(run_id: int):
-    save_file = Path("results/runs") / f"runID={run_id}" / "config.json"
+def load_config(run_id: int, run_name: str= ''):
+    save_file = Path("results/runs") / f"runID={run_id}" / f"config{run_name}.json"
     if not save_file.exists():
         raise FileNotFoundError("Config not found, aborting")
     else:
@@ -43,6 +46,7 @@ def load_config(run_id: int):
 def evaluate_adl_run(run_id):
     config = load_config(run_id)
     return evaluate_adl_run_config(config, run_id)
+
 
 def evaluate_simple_run(run_id):
     config = load_config(run_id)
