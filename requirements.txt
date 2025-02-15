@@ -1,52 +1,77 @@
-# build on python 3.11, developers do not guarantee 3.12 at the moment
-
-# general packages
-# ----------------
-# ----------------
-# pytorch:
-# --------
-
-# cuda version:
-# --index-url https://download.pytorch.org/whl/cu124
-
-# cpu version
---index-url https://download.pytorch.org/whl/cpu
-
-# torch packages:
-# neural network
-torch
-torchvision
-torchaudio
-
-# capyMoa
-# -------
-# stream learning
-# dependencies for CapyMoa: Java
-capymoa
-
-# numpy
-numpy
-
-# packages for development:
-# --------------
-# ----------------
-pytest
-
-# packages for evaluation::
-# --------------
-# ----------------
-
-# hyperparameter tuning:
-# ray tune:
-ray[tune]
-# tensorboardx for visualitzation
-tensorboardx
-
-# code carbon to measure co2 equivalents
-codecarbon
-
-# plots by seaborn:
-seaborn
-
-# dependency of sns/matplotlib for plots:
-matplotlib
+aiosignal==1.3.2
+anyio==4.8.0
+arrow==1.3.0
+attrs==25.1.0
+capymoa==0.8.2
+certifi==2025.1.31
+cffi==1.17.1
+charset-normalizer==3.4.1
+click==8.1.8
+codecarbon==2.8.3
+contourpy==1.3.1
+cryptography==44.0.1
+cycler==0.12.1
+fief-client==0.20.0
+filelock==3.17.0
+fonttools==4.56.0
+frozenlist==1.5.0
+h11==0.14.0
+httpcore==1.0.7
+httpx==0.27.2
+idna==3.10
+iniconfig==2.0.0
+joblib==1.4.2
+jpype1==1.5.2
+jsonschema==4.23.0
+jsonschema-specifications==2024.10.1
+jwcrypto==1.5.6
+kiwisolver==1.4.8
+markdown-it-py==3.0.0
+matplotlib==3.10.0
+mdurl==0.1.2
+msgpack==1.1.0
+numpy==2.2.3
+nvidia-ml-py==12.570.86
+packaging==24.2
+pandas==2.2.3
+pillow==11.1.0
+pluggy==1.5.0
+prometheus_client==0.21.1
+prompt_toolkit==3.0.50
+protobuf==5.29.3
+psutil==7.0.0
+py-cpuinfo==9.0.0
+pyarrow==19.0.0
+pycparser==2.22
+Pygments==2.19.1
+pynvml==12.0.0
+pyparsing==3.2.1
+pytest==8.3.4
+python-dateutil==2.9.0.post0
+pytz==2025.1
+PyYAML==6.0.2
+questionary==2.1.0
+RapidFuzz==3.12.1
+ray==2.42.1
+referencing==0.36.2
+requests==2.32.3
+rich==13.9.4
+rpds-py==0.22.3
+scikit-learn==1.6.1
+scipy==1.15.1
+seaborn==0.13.2
+shellingham==1.5.4
+six==1.17.0
+sniffio==1.3.1
+tensorboardX==2.6.2.2
+termcolor==2.3.0
+threadpoolctl==3.5.0
+tqdm==4.67.1
+typer==0.15.1
+types-python-dateutil==2.9.0.20241206
+typing_extensions==4.12.2
+tzdata==2025.1
+urllib3==2.3.0
+wcwidth==0.2.13
+wget==3.2
+yaspin==3.1.0

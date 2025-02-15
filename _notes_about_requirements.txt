@@ -1,0 +1,52 @@
+# build on python 3.11, developers do not guarantee 3.12 at the moment
+
+# general packages
+# ----------------
+# ----------------
+# pytorch:
+# --------
+
+# cuda version:
+# --index-url https://download.pytorch.org/whl/cu124
+
+# cpu version
+--index-url https://download.pytorch.org/whl/cpu
+
+# torch packages:
+# neural network
+torch
+torchvision
+torchaudio
+
+# capyMoa
+# -------
+# stream learning
+# dependencies for CapyMoa: Java
+capymoa
+
+# numpy
+numpy
+
+# packages for development:
+# --------------
+# ----------------
+pytest
+
+# packages for evaluation::
+# --------------
+# ----------------
+
+# hyperparameter tuning:
+# ray tune:
+ray[tune]
+# tensorboardx for visualitzation
+tensorboardx
+
+# code carbon to measure co2 equivalents
+codecarbon
+
+# plots by seaborn:
+seaborn
+
+# dependency of sns/matplotlib for plots:
+matplotlib
