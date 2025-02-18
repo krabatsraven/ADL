@@ -14,7 +14,7 @@ from capymoa.stream import Stream
 from ADLClassifier import ADLClassifier, global_grace_period, grace_period_per_layer, extend_classifier_for_evaluation, \
     winning_layer_training, vectorized_for_loop, BaseLearningRateProgression, disabeling_deleted_layers, delete_deleted_layers
 from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_all_of_one_run
-from Evaluation._config import MAX_INSTANCES, ADWIN_DELTA_STANDIN
+from Evaluation._config import MAX_INSTANCES, ADWIN_DELTA_STANDIN, MAX_INSTANCES_TEST
 
 
 def __get_run_id() -> int:
@@ -59,12 +59,13 @@ def __evaluate_on_stream(
     os.environ["CODECARBON_TRACKING_MODE"] = "process"
     os.environ["CODECARBON_LOG_LEVEL"] = "CRITICAL"
 
-    total_time_start = time.time_ns()
-    results_ht = prequential_evaluation(stream=stream_data, learner=adl_classifier, window_size=100, optimise=True, store_predictions=False, store_y=False, max_instances=MAX_INSTANCES)
-    total_time_end = time.time_ns()
-
     print(f"summary for training:\nrunId={run_id}\nstream={name_string_of_stream_data}\n" + "\n".join((f"{str(key).replace('_', ' ')}={str(value).replace('_', ' ')}" for key, value in rename_values.items())) + ":")
     print("--------------------------------------------------------------------------")
+
+    total_time_start = time.time_ns()
+    results_ht = prequential_evaluation(stream=stream_data, learner=adl_classifier, window_size=100, optimise=True, store_predictions=False, store_y=False, max_instances=MAX_INSTANCES_TEST)
+    total_time_end = time.time_ns()
+
     print(f"total time spend training the network: {(total_time_end - total_time_start):.2E}ns, that equals {(total_time_end - total_time_start) / 10 ** 9:.2E}s or {(total_time_end - total_time_start) / 10 ** 9 /60:.2f}min")
 
     print(f"\n\tThe cumulative results:")

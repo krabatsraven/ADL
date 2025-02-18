@@ -1,17 +1,12 @@
-import torch
+from typing import Tuple
+
 from ray import tune
-from torch import nn
 
-from ADLClassifier.Resources.NLLLoss import NLLLoss
-
-def ADLSearchSpace(stream_name: str):
+def ADLSearchSpace(stream_name: str, learner: Tuple[str] = ('vectorized', 'winning_layer', 'decoupled_lrs')):
     return {
         'learner': tune.grid_search(
             [
-                ('vectorized', 'winning_layer'),
-                ('vectorized', 'winning_layer', 'decoupled_lrs'),
-                # ('winning_layer',),
-                # ('vectorized',)
+                learner
             ]
         ),
         'stream': tune.grid_search(
@@ -20,20 +15,20 @@ def ADLSearchSpace(stream_name: str):
             ]
         ),
         # todo: add progressions
-        'lr': tune.loguniform(1e-4, 5e-1),
-        'layer_weight_learning_rate': tune.loguniform(1e-4, 5e-1),
+        'lr': tune.loguniform(1e-4, 5e-2),
+        'layer_weight_learning_rate': tune.loguniform(1e-4, 5e-2),
         'adwin-delta': tune.loguniform(1e-7, 1e-3),
         'mci': tune.loguniform(1e-7, 1e-5),
         'grace_period': tune.choice(
             [
                 (grace_period, is_global) if grace_period is not None else None
                 for is_global in ["global_grace", "layer_grace"]
-                for grace_period in [None, 4, 8, 16, 32]
+                for grace_period in [1, 4, 8, 16, 32]
             ]
         ),
         'loss_fn': tune.grid_search(
             [
-                'CrossEntropyLoss',
+                # 'CrossEntropyLoss',
                 'NLLLoss'
             ]
         )

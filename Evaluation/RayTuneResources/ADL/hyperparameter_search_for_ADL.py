@@ -1,5 +1,6 @@
-from ray import tune
+from typing import Tuple
 
+from ray import tune
 
 from Evaluation.RayTuneResources.ADL.ADLScheduler import ADLScheduler
 from Evaluation.RayTuneResources.ADL.ADLSearchSpace import ADLSearchSpace
@@ -7,7 +8,7 @@ from Evaluation.RayTuneResources.ADL.ADLTrainable import ADLTrainable
 from Evaluation.RayTuneResources.config_handling import write_config
 
 
-def hyperparameter_search_for_ADL(nr_of_trials: int = 100, stream_name: str = 'electricity'):
+def hyperparameter_search_for_ADL(nr_of_trials: int = 100, stream_name: str = 'electricity', learner: Tuple[str, ...] = ('vectorized', 'winning_layer', 'decoupled_lrs')):
     tuner = tune.Tuner(
         trainable=ADLTrainable,
         tune_config=tune.TuneConfig(

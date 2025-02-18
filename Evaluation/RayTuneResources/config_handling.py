@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 import pandas as pd
+from capymoa.datasets import Electricity
 from capymoa.drift.detectors import ADWIN
 from capymoa.evaluation import prequential_evaluation
 from capymoa.stream import Stream, ARFFStream
@@ -18,7 +19,7 @@ from Evaluation.EvaluationFunctions import __plot_and_save_result
 from Evaluation.SynteticStreams import agrawal_single_drift, agrawal_three_drifts, agrawal_drift_back_and_forth
 from Evaluation.SynteticStreams.SyntheticSEAStreams import sea_no_drift, sea_single_drift, sea_three_drifts, \
     sea_drift_back_and_forth
-from Evaluation._config import  ADWIN_DELTA_STANDIN, MAX_INSTANCES
+from Evaluation._config import ADWIN_DELTA_STANDIN, MAX_INSTANCES, MAX_INSTANCES_TEST
 from Evaluation.ComparisionDNNClassifier.SimpleDNN.SimpleDNNClassifier import SimpleDNNClassifier
 from Evaluation.EvaluationFunctions import __get_run_id, __write_summary, __evaluate_on_stream
 
@@ -63,7 +64,7 @@ def evaluate_simple_dnn_config(config, run_id):
     print("--------------------------------------------------------------------------")
     print(f"---------------Start time: {datetime.now()}---------------------")
     total_time_start = time.time_ns()
-    results_ht = prequential_evaluation(stream=stream, learner=learner, window_size=100, optimise=True, store_predictions=False, store_y=False, max_instances=MAX_INSTANCES)
+    results_ht = prequential_evaluation(stream=stream, learner=learner, window_size=100, optimise=True, store_predictions=False, store_y=False, max_instances=MAX_INSTANCES_TEST)
     total_time_end = time.time_ns()
     print(f"---------------End time: {datetime.now()}-----------------------")
     print(f"total time spend training the network: {(total_time_end - total_time_start):.2E}ns, that equals {(total_time_end - total_time_start) / 10 ** 9:.2E}s or {(total_time_end - total_time_start) / 10 ** 9 /60:.2f}min")
