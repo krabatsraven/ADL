@@ -1,3 +1,4 @@
+[//]: #todo: (add images to git)
 
 # Wir haben die falsche Loss function verwendet? 
 ## hinweis 1:
@@ -6,18 +7,17 @@
 ## quellen arbeit:
 
 [//]: #todo (recheriere im internet)
-## neue loss funktions vorschlag:
+## Vorschlag einer neuen Loss Funktion:
 ```python
 import torch
 from torch import nn
-nr_of_classes = 4
-idx_of_true_class = 1
+nr_of_classes, idx_of_true_class = 4, 1
 
 y_pred: torch.Tensor = torch.rand(nr_of_classes)
 y_true: torch.Tensor = torch.tensor(idx_of_true_class, dtype=torch.int)
 nn.NLLLoss()(torch.log(y_pred), y_true)
 ```
-## comparision of old loss vs new loss for set of hyperparameter:
+## Vergleich der alten gegen die neue Loss Funktion für ein Set an Hyperparametern:
 
 [//]: #todo: (test loss functions against each other)
 
@@ -101,8 +101,8 @@ nn.NLLLoss()(torch.log(y_pred), y_true)
 
 ### These: min_runs=500 zu niedrig, bestraft anfänglich langsame lerner
 
-> nachteil von hohem min_run: suchen dauern sehr lange
-> exemplarisch für electriciy
+> Nachteil von hohem min_run: suchen dauern sehr lange  
+> exemplarisch für Electricity
 
 [//]: #todo: (run mit min_run=4000 für electricity again)
 
@@ -134,13 +134,15 @@ nn.NLLLoss()(torch.log(y_pred), y_true)
 
 # Comparision Network
 ## Strukture
+![Skizze_simple_dnn.png](images%2FSkizze_simple_dnn.png)  
 
-[//]: #todo: (skizze)
 ## Results on Electricity
 
 [//]: #todo: (test network with default)
 
 ## Results for ADL on Types of Streams
+Zur Erinnerung:  
+
 |                 Type | Agrawal | SEA  |
 |---------------------:|:--------|:----:|
 |             no drift | xx%     | xx%  |  
@@ -157,9 +159,44 @@ nn.NLLLoss()(torch.log(y_pred), y_true)
 | drift back and forth | xx%     | xx%  |
 
 
+# Hidden layers Disablen:
+## Einfacher Weg:
+```python
+from torch import nn
+nr_of_inputs, nr_of_nodes = 3, 4
+
+nn.Linear(nr_of_inputs, nr_of_nodes).requires_grad_(False)
+```
+Für alle Hidden layer die gelöscht werden.
+ohne Gradient keine Berechnung von Backward
+aber im Forward immer noch anwendung der Matrixmultiplikation und der Sigmoidfunction
+
+implementiert in :
+```python
+from ADLClassifier import ADLClassifier, disabeling_deleted_layers
+
+adl_classifier = ADLClassifier()
+disabeling_deleted_layers(adl_classifier)
+```
+## Proposal:
+![How_to_Delete_hidden_layer_skizze.jpg](images%2FHow_to_Delete_hidden_layer_skizze.jpg)
+
+implementiert in:
+```python
+from ADLClassifier import ADLClassifier, delete_deleted_layers
+
+adl_classifier = ADLClassifier()
+delete_deleted_layers(adl_classifier)
+```
 # Ergebnisse des disablen von hidden layern:
 ## Accuracy Changes
+
+[//]: #todo: (run best electricity mit neuem classifier run=1 and enable emission tracking)  
+[//]: #todo: (add comparision plot here)
 ## Emission Changes
+[//]: #todo: (rerun best electricity mit emsission tracking enabled run=1)
+
+[//]: #todo: (add comparision of co2 here)
 
 # Notizen:
 1. Wenn Concept Change passiert macht eine Learning Rate Progression nur Sinn wenn sie dann reseted -> Future Work (nach dem 20.03.)
