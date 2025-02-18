@@ -17,10 +17,10 @@ y_pred: torch.Tensor = torch.rand(nr_of_classes)
 y_true: torch.Tensor = torch.tensor(idx_of_true_class, dtype=torch.int)
 nn.NLLLoss()(torch.log(y_pred), y_true)
 ```
-## Vergleich der alten gegen die neue Loss Funktion für ein Set an Hyperparametern:
-
-[//]: #todo: (test loss functions against each other)
-
+## Vergleich der alten gegen die neue Loss Funktion für ein Set an Hyperparametern:  
+  
+![compare_diff_loss_fn.png](plots/compare_diff_loss_fn.png)
+  
 # Decoupeling von Learning Rate und Weight Correction Factor um LR zu senken?
 ## Vergleich best LR Coupled vs Best LR Decoupled
 
@@ -38,12 +38,14 @@ nn.NLLLoss()(torch.log(y_pred), y_true)
 | drift back and forth | &#x2611; | &#x2611; | Function 1 -> abrupt drift @ 5000 -> Function 3 -> abrupt drift @ 10000 -> Function 1                                       |
 
 ## Results for ADL on Types of Streams  
+
+[//]: #todo: (check comparision run in run 8 if better)
 |                 Type | Agrawal |  SEA   |
 |---------------------:|:--------|:------:|
 |             no drift | 53.3%   | 54.06% |  
-|            one drift | 53.54%  |  xx%   | 
-|         three drifts | 56.68%  |  xx%   |
-| drift back and forth | 65.71%  |  xx%   |
+|            one drift | 53.54%  | 82.00% | 
+|         three drifts | 56.68%  | 78.2%  |
+| drift back and forth | 65.71%  | 61.39% |
 
 # Suchraum einschränken:
 ## 1. Versuch: einfach jeweils die drei Parameter nehmen die am besten auf EletricityTiny performed haben und sie auf Electricity testen:
@@ -143,12 +145,12 @@ nn.NLLLoss()(torch.log(y_pred), y_true)
 ## Results for ADL on Types of Streams
 Zur Erinnerung:  
 
-|                 Type | Agrawal | SEA  |
-|---------------------:|:--------|:----:|
-|             no drift | xx%     | xx%  |  
-|            one drift | xx%     | xx%  | 
-|         three drifts | xx%     | xx%  |
-| drift back and forth | xx%     | xx%  |
+|                 Type | Agrawal |  SEA   |
+|---------------------:|:--------|:------:|
+|             no drift | 53.3%   | 54.06% |  
+|            one drift | 53.54%  | 82.00% | 
+|         three drifts | 56.68%  | 78.2%  |
+| drift back and forth | 65.71%  | 61.39% |
 
 ## Result for Comparision Network
 |                 Type | Agrawal | SEA  |

@@ -5,7 +5,7 @@ import ray
 from Evaluation.EvaluationFunctions import _test_example
 
 from Evaluation import evaluate_adl_run, evaluate_simple_run, hyperparameter_search_for_SimpleDNN, \
-    hyperparameter_search_for_ADL, MAX_INSTANCES
+    hyperparameter_search_for_ADL, MAX_INSTANCES, __compare_results_via_plot_and_save
 from Evaluation.RayTuneResources.SimpleDNN.hyperparameter_search_for_SimpleDNN import compare_simple_to_adl, \
     compare_simple_to_adl_wo_evaluation, evaluate_comparision_to_adl
 from Evaluation.RayTuneResources.config_handling import load_config, evaluate_adl_run_config
@@ -16,26 +16,18 @@ from Evaluation._config import NR_OF_TRIALS
 if __name__ == "__main__":
     # _test_example()
 
-    ray.init(_temp_dir='/home/david/rayTmp')
-    ray.shutdown()
     stream_strings = [
         'electricity',
         'agraval_no_drift', 'agraval_single_drift', 'agraval_three_drifts', 'agraval_drift_back_and_forth',
         'sea_no_drift', 'sea_single_drift', 'sea_three_drifts', 'sea_drift_back_and_forth'
     ]
     runs = []
-    # for stream_name in stream_strings:
-    #     runs.append(hyperparameter_search_for_ADL(NR_OF_TRIALS, stream_name=stream_name))
-    for run in range(8,11):
-        evaluate_adl_run(run)
-
-    print("evaluating adl run 1 with different loss function")
-    # todo: test loss functions against each other
-    # just use config from run one and change loss function string
-    # after that run compare with links
-    config = load_config(1)
-    config['loss_fn'] = 'CrossEntropyLoss'
-    run_id = evaluate_adl_run_config(config, 1)
+    __compare_results_via_plot_and_save(
+        [
+            pathlib.Path("results/runs/runID=1/MCICutOff=2.310522e-07_adwin-delta=2.2020e-05_classifier=ADLClassifierWithoutForLoopWithWinningLayerTrainingWithUserChosenWeightLRWithGraphRecord_lr=1.7037e-01_loss fn=NLLLoss_globalGracePeriod=32_layerWeightLR=0.0051048969488651065/electricity"),
+            pathlib.Path("results/runs/runID=1/MCICutOff=2.310522e-07_adwin-delta=2.2020e-05_classifier=ADLClassifierWithoutForLoopWithWinningLayerTrainingWithUserChosenWeightLRWithGraphRecord_lr=1.7037e-01_loss fn=CrossEntropyLoss_globalGracePeriod=32_layerWeightLR=0.0051048969488651065/electricity")
+        ]
+    )
 
     print("comparing to adl runs")
 
@@ -57,8 +49,8 @@ if __name__ == "__main__":
     ray.shutdown()
 
     print("searching for simple hyperparameters with default values")
-    ray.init(_temp_dir='/home/david/rayTmp')
     # todo: test simple with default
+    ray.init(_temp_dir='/home/david/rayTmp')
     for stream_name in stream_strings:
         hyperparameter_search_for_SimpleDNN(NR_OF_TRIALS, stream_name=stream_name)
     ray.shutdown()

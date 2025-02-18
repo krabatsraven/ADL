@@ -65,13 +65,14 @@ def compare_simple_to_adl_wo_evaluation(run_id, path_to_summary: Path, nr_of_tri
     assert 'amount of nodes' in summary.columns.tolist(), "summary misses the nr of nodes in adl"
     assert 'amount of hidden layers' in summary.columns.tolist(), "summary misses the nr of hidden layers"
 
-    hyperparameter_search_for_SimpleDNN(
-        nr_of_trials=nr_of_trials,
-        stream_name=summary.loc[:,'stream'].iloc[0],
-        nr_of_neurons=int(summary.loc[:,'amount of nodes'].iloc[0]),
-        nr_of_hidden_layers=int(summary.loc[:,'amount of hidden layers'].iloc[0]),
-        run_id=run_id
-    )
+    for trial in range(len(summary.index)):
+        hyperparameter_search_for_SimpleDNN(
+            nr_of_trials=nr_of_trials,
+            stream_name=summary.loc[:,'stream'].iloc[trial],
+            nr_of_neurons=int(summary.loc[:,'amount of nodes'].iloc[trial]),
+            nr_of_hidden_layers=int(summary.loc[:,'amount of hidden layers'].iloc[trial]),
+            run_id=run_id
+        )
     return run_id
 
 def evaluate_comparision_to_adl(run_id):
