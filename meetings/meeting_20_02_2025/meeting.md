@@ -39,13 +39,12 @@ nn.NLLLoss()(torch.log(y_pred), y_true)
 
 ## Results for ADL on Types of Streams  
 
-[//]: #todo: (check comparision run in run 8 if better)
 |                 Type | Agrawal |  SEA   |
 |---------------------:|:--------|:------:|
 |             no drift | 53.3%   | 54.06% |  
 |            one drift | 53.54%  | 82.00% | 
-|         three drifts | 56.68%  | 78.2%  |
-| drift back and forth | 65.71%  | 61.39% |
+|         three drifts | 56.68%  | 80.95% |
+| drift back and forth | 65.71%  | 81.1%  |
 
 # Suchraum einschränken:
 ## 1. Versuch: einfach jeweils die drei Parameter nehmen die am besten auf EletricityTiny performed haben und sie auf Electricity testen:
@@ -149,8 +148,8 @@ Zur Erinnerung:
 |---------------------:|:--------|:------:|
 |             no drift | 53.3%   | 54.06% |  
 |            one drift | 53.54%  | 82.00% | 
-|         three drifts | 56.68%  | 78.2%  |
-| drift back and forth | 65.71%  | 61.39% |
+|         three drifts | 56.68%  | 80.95% |
+| drift back and forth | 65.71%  | 81.1%  |
 
 ## Result for Comparision Network
 |                 Type | Agrawal | SEA  |

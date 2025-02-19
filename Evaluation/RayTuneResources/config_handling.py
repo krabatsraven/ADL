@@ -31,6 +31,7 @@ def write_config(config, run_id: Optional[int] = None, run_name: str = ''):
         run_id = run_id
     save_dir = Path("results/runs") / f"runID={run_id}"
     save_dir.mkdir(parents=True, exist_ok=True)
+    # todo: if config exists, change config name?
     with open(save_dir / f"config{run_name}.json", "w") as f:
         f.write(json.dumps(config, indent=4))
     return run_id

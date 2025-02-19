@@ -2,7 +2,7 @@ from typing import Tuple
 
 from ray import tune
 
-def ADLSearchSpace(stream_name: str, learner: Tuple[str] = ('vectorized', 'winning_layer', 'decoupled_lrs')):
+def ADLSearchSpace(stream_name: str, learner: Tuple[str, ...] = ('vectorized', 'winning_layer', 'decoupled_lrs')):
     return {
         'learner': tune.grid_search(
             [
