@@ -1,12 +1,13 @@
-[//]: #todo: (add images to git)
-
-# Wir haben die falsche Loss function verwendet? 
-## hinweis 1:
-> laut herrn gpt macht cross entropy bereits selber ein softmax und erwartet reine logits,
-> nlll loss wäre dementsprechend für unsere funktion die bessere loss function wenn wir auf die wsk jeweils den log anwenden
-## quellen arbeit:
-
-[//]: #todo (recheriere im internet)
+# Wir haben die falsche Loss function verwendet?
+## Aus der Pytorch Dokumentation:  
+**"The input is expected to contain the unnormalized logits for each class"**
+### der unreduzierte Cross Entropy Loss:
+![unreduced_loss_CrossEntropy.png](images%2Funreduced_loss_CrossEntropy.png)  
+Default ist reduction = 'mean':  
+![reduction_CrossEntropyLoss.png](images%2Freduction_CrossEntropyLoss.png)   
+**"Note that this case is equivalent to applying LogSoftmax on an input, followed by NLLLoss"**  
+  
+ADL wendet einen Softmax bereits im Forward Pass an, daher ist CrossEntropy vielleicht nicht die geeigneteste Loss Funktion. 
 ## Vorschlag einer neuen Loss Funktion:
 ```python
 import torch
@@ -73,8 +74,10 @@ nn.NLLLoss()(torch.log(y_pred), y_true)
 > und per layer out-performed global nach dem ich global auch anwende #-.-  
 > es kann sein, dass auf mehr instanzen größere grace periods sinn machen bzw positive sind,
 > weil auf den kleinen datastreams haben wir ja anscheinend nur das problem nicht schnell genug lernen zu können
+> Grace Period None: Sieht sehr lange Trainingszeiten, habe ich dann erstmal zu grace period=1 gemacht.
 
-# Ray Tunes:
+# Ray Tunes:  
+kein Grid Search mehr, sondern Probing:
 ## 1. Suchraum:
 - maximal 50000
 - frühester abbruch nach = 500
@@ -105,7 +108,7 @@ nn.NLLLoss()(torch.log(y_pred), y_true)
 > Nachteil von hohem min_run: suchen dauern sehr lange  
 > exemplarisch für Electricity
 
-[//]: #todo: (run mit min_run=4000 für electricity again)
+[//]: #todo: (run mit min_run=4000 für electricity again und höherer LR im Suchraum -.-)
 
 ## 2. Suchraum:
 - maximal 50000
@@ -118,7 +121,7 @@ nn.NLLLoss()(torch.log(y_pred), y_true)
 - 'adwin-delta': tune.loguniform(1e-7, 1e-3),
 - 'mci': tune.loguniform(1e-7, 1e-5),
 - 'loss_fn': 'NLLLoss'
-- 'grace_period': choice aus: global/layer/none in 4,8,16,32
+- 'grace_period': choice aus: global/layer/1 in 4,8,16,32
 
 ### Ergebnisse aus 2. Suchraum:
 > vgl tabelle bei streams
@@ -200,6 +203,7 @@ delete_deleted_layers(adl_classifier)
 [//]: #todo: (add comparision of co2 here)
 
 # Notizen:
-1. Wenn Concept Change passiert macht eine Learning Rate Progression nur Sinn wenn sie dann reseted -> Future Work (nach dem 20.03.)
+1. Wenn Concept Change passiert macht eine Learning Rate Progression nur Sinn wenn sie dann wieder von vorne beginnt  
+   -> Future Work (nach dem 20.03.)
 2. Future Work: Write Capymoa classifier that runs the Matlab Implementation (for benchmarking reasons)
 
