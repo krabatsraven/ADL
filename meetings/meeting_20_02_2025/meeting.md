@@ -25,10 +25,8 @@ nn.NLLLoss()(torch.log(y_pred), y_true)
 # Decoupeling von Learning Rate und Weight Correction Factor um LR zu senken?
 ## Vergleich best LR Coupled vs Best LR Decoupled
 
-[//]: #todo: (run best LR Coupled)
-
 [//]: #todo: (compare best coupled vs best decoupled by plot)
-
+![compare_coupled_vs_decoupled.png](plots%2Fcompare_coupled_vs_decoupled.png)
 # Syntetic Streams Build:
 ## Type of Streams:
 |                 Type | Agrawal  | SEA | details                                                                                                                     |  
@@ -213,21 +211,127 @@ aber im Forward immer noch anwendung der Matrixmultiplikation und der Sigmoidfun
 
 implementiert in :
 ```python
-from ADLClassifier import ADLClassifier, disabeling_deleted_layers
+from ADLClassifier.BaseClassifier import ADLClassifier
 
-adl_classifier = ADLClassifier()
-disabeling_deleted_layers(adl_classifier)
+
+def disabeling_deleted_layers(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
+   """
+   extends an existing ADLClassifier class 
+   to disable the gradiant calculation for the corresponding hidden layer
+   if an output layer is deleted
+   :param adl_classifier: the class of ADL Classifier that should be extended
+   :return: the extended ADLClassifier class
+   """
+
+   class DisabelingDeletedLayersWrapper(adl_classifier):
+      """
+      :arg class of ADLClassifier that sets requires_grad to False for hidden layers whose output layer has been deleted
+      """
+
+      def __str__(self):
+         return f"{super().__str__()}WithDisabledDeletedLayers"
+
+      @classmethod
+      def name(cls) -> str:
+         return f"{adl_classifier.name()}WithDisabledDeletedLayers"
+
+      def _delete_layer(self, layer_index: int) -> bool:
+         if super()._delete_layer(layer_index):
+            self.model.layers[layer_index].requires_grad_(False)
+            return True
+         else:
+            return False
+
+   DisabelingDeletedLayersWrapper.__name__ = f"{adl_classifier.__name__}WithDisabledDeletedLayers"
+   return DisabelingDeletedLayersWrapper
 ```
 ## Proposal:
 ![How_to_Delete_hidden_layer_skizze.jpg](images%2FHow_to_Delete_hidden_layer_skizze.jpg)
 
 implementiert in:
 ```python
-from ADLClassifier import ADLClassifier, delete_deleted_layers
+from ADLClassifier import ADLClassifier
 
-adl_classifier = ADLClassifier()
-delete_deleted_layers(adl_classifier)
+
+def delete_deleted_layers(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
+   """
+   extends an existing ADLClassifier class 
+   to disable the gradiant calculation for the corresponding hidden layer
+   if an output layer is deleted
+   :param adl_classifier: the class of ADL Classifier that should be extended
+   :return: the extended ADLClassifier class
+   """
+
+   class DeleteDeletedLayersWrapper(adl_classifier):
+      """
+      :arg class of ADLClassifier that sets requires_grad to False for hidden layers whose output layer has been deleted
+      """
+
+      def __str__(self):
+         return f"{super().__str__()}WithDeleteDeletedLayers"
+
+      @classmethod
+      def name(cls) -> str:
+         return f"{adl_classifier.name()}WithDeleteDeletedLayers"
+
+      def _delete_layer(self, layer_index: int) -> bool:
+         # not exactly the same output, as we remove a sigmoid function between both layers in the forward stack
+         if super()._delete_layer(layer_index):
+            self.model.delete_hidden_layer(layer_index)
+            return True
+         else:
+            return False
+
+   DeleteDeletedLayersWrapper.__name__ = f"{adl_classifier.__name__}WithDeleteDeletedLayers"
+   return DeleteDeletedLayersWrapper
 ```
+sowie: 
+```python
+from typing import List, Dict, Optional, Tuple
+
+import numpy as np
+import torch
+from torch import nn
+
+
+class AutoDeepLearner(nn.Module):
+
+    def delete_hidden_layer(self, layer_index: int) -> None:
+        """
+        deletes a hidden layer whose output layer was deleted beforehand
+        :param layer_index: the index of the hidden layer to delete
+        """
+        # make sure that there is another layer
+        assert len(self.layers) > 1, "there needs to be at least another layer to delete a hidden layer"
+        assert not self.output_layer_with_index_exists(layer_index), "cannot delete a hidden layer of an active output layer"
+
+        layer_to_delete: nn.Module = self.layers[layer_index]
+        # merge two layers and take the place of the second layer:
+        if layer_index == len(self.layers) - 1:
+            # if last layer is deleted just delete the layer, no need to merge anything
+            pass
+
+        else:
+            # if not first layer is deleted merge with layer in after it
+            layer_to_merge_with: nn.Module = self.layers[layer_index + 1]
+            new_weight = nn.Parameter(layer_to_merge_with.weight.matmul(layer_to_delete.weight))
+            new_bias = nn.Parameter(layer_to_merge_with.bias + layer_to_merge_with.weight.matmul(layer_to_delete.bias))
+            new_layer = nn.Linear(layer_to_delete.in_features, layer_to_merge_with.out_features)
+            new_layer.weight = new_weight
+            new_layer.bias = new_bias
+            self.layers[layer_index + 1] = new_layer
+
+        # remove now merged layer
+        self.layers.pop(layer_index)
+
+        # update all keys of all weights, all output keys and all weight_correction_factors
+        # for all active layers that follow the deleted layer:
+        for active_key in self.active_layer_keys()[self.active_layer_keys() > layer_index].detach().numpy().astype(int):
+            self.__set_output_layer(active_key - 1, self.__pop_output_layer(active_key))
+            self.__set_voting_weight(active_key - 1, self.__pop_voting_weight(active_key))
+            self.__set_weight_correction_factor(active_key - 1, self.__pop_weight_correction_factor(active_key))
+```  
+
 # Ergebnisse des disablen von hidden layern:
 keine zeit mehr für runs gehabt
 ## Accuracy Changes
