@@ -25,7 +25,6 @@ nn.NLLLoss()(torch.log(y_pred), y_true)
 # Decoupeling von Learning Rate und Weight Correction Factor um LR zu senken?
 ## Vergleich best LR Coupled vs Best LR Decoupled
 
-[//]: #todo: (compare best coupled vs best decoupled by plot)
 ![compare_coupled_vs_decoupled.png](plots%2Fcompare_coupled_vs_decoupled.png)
 # Syntetic Streams Build:
 ## Type of Streams:
