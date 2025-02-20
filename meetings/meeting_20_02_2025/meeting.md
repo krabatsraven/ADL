@@ -1,13 +1,14 @@
 # Wir haben die falsche Loss function verwendet?
 ## Aus der Pytorch Dokumentation:  
-**"The input is expected to contain the unnormalized logits for each class"**
+**The input is expected to contain the unnormalized logits for each class**
 ### der unreduzierte Cross Entropy Loss:
 ![unreduced_loss_CrossEntropy.png](images%2Funreduced_loss_CrossEntropy.png)  
-Default ist reduction = 'mean':  
+Default ist reduction = mean:  
 ![reduction_CrossEntropyLoss.png](images%2Freduction_CrossEntropyLoss.png)   
-**"Note that this case is equivalent to applying LogSoftmax on an input, followed by NLLLoss"**  
+**Note that this case is equivalent to applying LogSoftmax on an input, followed by NLLLoss**  
   
-ADL wendet einen Softmax bereits im Forward Pass an, daher ist CrossEntropy vielleicht nicht die geeigneteste Loss Funktion. 
+ADL wendet einen Softmax bereits im Forward Pass an, daher ist CrossEntropy vielleicht nicht die geeigneteste Loss Funktion.  
+  
 ## Vorschlag einer neuen Loss Funktion:
 ```python
 import torch
@@ -27,13 +28,14 @@ nn.NLLLoss()(torch.log(y_pred), y_true)
 
 ![compare_coupled_vs_decoupled.png](plots%2Fcompare_coupled_vs_decoupled.png)
 # Syntetic Streams Build:
-## Type of Streams:
-|                 Type | Agrawal  | SEA | details                                                                                                                     |  
-|---------------------:|:--------:|:---------:|:----------------------------------------------------------------------------------------------------------------------------|
-|             no drift | &#x2611; | &#x2611; | Function 1                                                                                                                  |  
-|            one drift | &#x2611; | &#x2611; | Function 1 -> abrupt drift @ 5000 -> Function 3                                                                             |  
-|         three drifts | &#x2611; | &#x2611; | Function 1 -> abrupt drift @ 5000 -> Function 3 -> abrupt drift @ 10000 -> Function 4 -> abrupt drift @ 15000 -> Function 1 |
-| drift back and forth | &#x2611; | &#x2611; | Function 1 -> abrupt drift @ 5000 -> Function 3 -> abrupt drift @ 10000 -> Function 1                                       |
+## Type of Streams:  
+  
+|                 Type | Agrawal | SEA | details                                                                                                                     |  
+|---------------------:|:-------:|:---:|:----------------------------------------------------------------------------------------------------------------------------|  
+|             no drift |    y    |  y  | Function 1                                                                                                                  |  
+|            one drift |    y    |  y  | Function 1 -> abrupt drift @ 5000 -> Function 3                                                                             |  
+|         three drifts |    y    |  y  | Function 1 -> abrupt drift @ 5000 -> Function 3 -> abrupt drift @ 10000 -> Function 4 -> abrupt drift @ 15000 -> Function 1 |  
+| drift back and forth |    y    |  y  | Function 1 -> abrupt drift @ 5000 -> Function 3 -> abrupt drift @ 10000 -> Function 1                                       |  
 
 ## Results for ADL on Types of Streams  
 
@@ -74,31 +76,31 @@ nn.NLLLoss()(torch.log(y_pred), y_true)
 > Grace Period None: Sieht sehr lange Trainingszeiten, habe ich dann erstmal zu grace period=1 gemacht.
 
 # Ray Tunes:  
-kein Grid Search mehr, sondern Probing:
-## 1. Suchraum:
-- maximal 50000
-- frühester abbruch nach = 500
-- anzahl stichproben = 500
-- 'learner': ('vectorized', 'winning_layer', 'decoupled_lrs')
-- stream: only one stream at a time
-- 'lr': tune.loguniform(1e-4, 5e-1)
-- 'layer_weight_learning_rate': tune.loguniform(1e-4, 5e-1),
-- 'adwin-delta': tune.loguniform(1e-7, 1e-3),
-- 'mci': tune.loguniform(1e-7, 1e-5),
-- 'loss_fn': 'NLLLoss'
-- 'grace_period': choice aus: global/layer/none in 4,8,16,32
+kein Grid Search mehr, sondern Probing:  
+## 1. Suchraum:  
+- maximal 50000  
+- frühester abbruch nach = 500  
+- anzahl stichproben = 500  
+- learner: (vectorized, winning_layer, decoupled_lrs)  
+- stream: only one stream at a time  
+- lr: tune.loguniform(1e-4, 5e-1)  
+- layer_weight_learning_rate: tune.loguniform(1e-4, 5e-1),  
+- adwin-delta: tune.loguniform(1e-7, 1e-3),  
+- mci: tune.loguniform(1e-7, 1e-5),  
+- loss_fn: NLLLoss  
+- grace_period: choice aus: global/layer/none in 4,8,16,32  
 
 ### Ergebniss des ersten Suchraums:
 
-- "lr": 0.17037433308206834,
-- "layer_weight_learning_rate": 0.0051048969488651065,
-- "adwin-delta": 2.2019797256079463e-05,
-- "mci": 2.3105218391180886e-07,
-- "grace_period": global, 32  
+- lr: 0.17037433308206834,
+- layer_weight_learning_rate: 0.0051048969488651065,
+- adwin-delta: 2.2019797256079463e-05,
+- mci: 2.3105218391180886e-07,
+- grace_period": global, 32  
   
 => 82.15% acc bei 6 hidden, 6 active, und 1502 nodes in hidden layern bei 45000 instancen
 
-<img alt="result_first_ray_tune_search_space.png" src="plots/result_first_ray_tune_search_space.png" width="500"/>
+<img alt="result_first_ray_tune_search_space.png" src=plots/result_first_ray_tune_search_space.png" width="500"/>
 
 ### These: min_runs=500 zu niedrig, bestraft anfänglich langsame lerner
 
@@ -111,14 +113,14 @@ kein Grid Search mehr, sondern Probing:
 - maximal 50000
 - frühester abbruch nach = 500
 - anzahl stichproben = 500
-- 'learner': ('vectorized', 'winning_layer', 'decoupled_lrs')
+- learner: (vectorized, winning_layer, decoupled_lrs)
 - stream: only one stream at a time
-- 'lr': tune.loguniform(1e-4, **5e-2**), (habe die obere grenze extra niedriger gesetzt um lr zu bekommen die "gut" sind)
-- 'layer_weight_learning_rate': tune.loguniform(1e-4, **5e-2**),
-- 'adwin-delta': tune.loguniform(1e-7, 1e-3),
-- 'mci': tune.loguniform(1e-7, 1e-5),
-- 'loss_fn': 'NLLLoss'
-- 'grace_period': choice aus: global/layer/1 in 4,8,16,32
+- lr: tune.loguniform(1e-4, **5e-2**), (habe die obere grenze extra niedriger gesetzt um lr zu bekommen die gut sind)
+- layer_weight_learning_rate: tune.loguniform(1e-4, **5e-2**),
+- adwin-delta: tune.loguniform(1e-7, 1e-3),
+- mci: tune.loguniform(1e-7, 1e-5),
+- loss_fn: NLLLoss
+- grace_period: choice aus: global/layer/1 in 4,8,16,32
 
 ### Ergebnisse aus 2. Suchraum:
 > vgl tabelle bei streams
@@ -186,12 +188,12 @@ für electricity:
             <td>0.0008</td>
             <td>1.43e-06</td>
             <td>2.48e-07</td>
-            <td>(8, "global")</td>
+            <td>(8, global)</td>
             <td>0.039</td>
             <td>0.027</td>
             <td>4.14e-07</td>
             <td>9.6e-06</td>
-            <td>(8, "global")</td>
+            <td>(8, global)</td>
         </tr>
         <tr>
             <td>three drifts</td>
@@ -199,12 +201,12 @@ für electricity:
             <td>0.0001</td>
             <td>1.77e-06</td>
             <td>8.24e-07</td>
-            <td>(4, "layer")</td>
+            <td>(4, layer)</td>
             <td>0.039</td>
             <td>0.027</td>
             <td>4.14e-07</td>
             <td>9.6e-06</td>
-            <td>(8, "global")</td>
+            <td>(8, global)</td>
         </tr>
         <tr>
             <td>drift back and forth</td>
@@ -212,12 +214,12 @@ für electricity:
             <td>0.002</td>
             <td>0.0002</td>
             <td>1.13e-07</td>
-            <td>(4, "global")</td>
+            <td>(4, global)</td>
             <td>0.039</td>
             <td>0.027</td>
             <td>4.14e-07</td>
             <td>9.6e-06</td>
-            <td>(8, "global")</td>
+            <td>(8, global)</td>
         </tr>
     </tbody>
 </table>
@@ -259,7 +261,7 @@ def SimpleDNNSearchSpace(stream_name: str, nr_of_hidden_layers: int = 5, nr_of_n
    return {
       "lr": tune.loguniform(1e-4, 5e-1),
       "model_structure": tune.choice(list_of_possible_neuron_configs),
-      'stream': tune.grid_search([stream_name])
+      stream: tune.grid_search([stream_name])
    }
 ```
 **also nicht jedes mal die gleiche model struktur**
