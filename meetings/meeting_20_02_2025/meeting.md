@@ -114,8 +114,8 @@ kein Grid Search mehr, sondern Probing:
 - anzahl stichproben = 500
 - 'learner': ('vectorized', 'winning_layer', 'decoupled_lrs')
 - stream: only one stream at a time
-- 'lr': tune.loguniform(1e-4, 5e-2), (habe die obere grenze extra niedriger gesetzt um lr zu bekommen die "gut" sind)
-- 'layer_weight_learning_rate': tune.loguniform(1e-4, 5e-2),
+- 'lr': tune.loguniform(1e-4, **5e-2**), (habe die obere grenze extra niedriger gesetzt um lr zu bekommen die "gut" sind)
+- 'layer_weight_learning_rate': tune.loguniform(1e-4, **5e-2**),
 - 'adwin-delta': tune.loguniform(1e-7, 1e-3),
 - 'mci': tune.loguniform(1e-7, 1e-5),
 - 'loss_fn': 'NLLLoss'
@@ -125,13 +125,112 @@ kein Grid Search mehr, sondern Probing:
 > vgl tabelle bei streams
 > beste hyperparameter:
 
-[//]: #todo (add hyperparameter as config)
-|                 Type | Agrawal | SEA  |
-|---------------------:|:--------|:----:|
-|             no drift | xx%     | xx%  |  
-|            one drift | xx%     | xx%  |
-|         three drifts | xx%     | xx%  |
-| drift back and forth | xx%     | xx%  |
+für electricity:
+```python
+{
+    "learner": [
+        "vectorized",
+        "winning_layer",
+        "decoupled_lrs"
+    ],
+    "stream": "electricity",
+    "lr": 0.03759834306496821,
+    "layer_weight_learning_rate": 0.0037788154914272006,
+    "adwin-delta": 0.0009280964263786628,
+    "mci": 7.631027908752775e-06,
+    "grace_period": [
+        8,
+        "layer_grace"
+    ],
+    "loss_fn": "NLLLoss"
+}
+```
+
+
+|                 Type | Agrawal                                                                                                                     |                                                           SEA                                                            |
+|---------------------:|:----------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------:|
+|             no drift | "lr": 0.001, "layer_weight_learning_rate": 0.013, "adwin-delta": 3.79e-05, "mci": 6.8e-07, "grace_period": null             |      "lr": 0.001, "layer_weight_learning_rate": 0.02, "adwin-delta": 4.7e-07, "mci": 1.2e-06, "grace_period": null       |  
+|            one drift | "lr": 0.0007, "layer_weight_learning_rate": 0.0008, "adwin-delta": 1.43e-06, "mci": 2.48e-07, "grace_period": (8, "global") | "lr": 0.039, "layer_weight_learning_rate": 0.027, "adwin-delta": 4.14e-07, "mci": 9.6e-06, "grace_period": (8, "global") |
+|         three drifts | "lr": 0.04, "layer_weight_learning_rate": 0.0001, "adwin-delta": 1.77e-06, "mci": 8.24e-07, "grace_period": (4, "layer")    | "lr": 0.039, "layer_weight_learning_rate": 0.027, "adwin-delta": 4.14e-07, "mci": 9.6e-06, "grace_period": (8, "global")  |
+| drift back and forth | "lr": 0.023, "layer_weight_learning_rate": 0.002, "adwin-delta": 0.0002, "mci": 1.13e-07, "grace_period": (4, "global")     | "lr": 0.039, "layer_weight_learning_rate": 0.027, "adwin-delta": 4.14e-07, "mci": 9.6e-06, "grace_period": (8, "global")  |
+
+  
+<table border="1">
+    <thead>
+        <tr>
+            <th>Type</th>
+            <th colspan="5">Agrawal</th>
+            <th colspan="5">SEA</th>
+        </tr>
+        <tr>
+            <th></th>
+            <th>lr</th>
+            <th>Layer Weight Learning Rate</th>
+            <th>Adwin Delta</th>
+            <th>MCI</th>
+            <th>Grace Period</th>
+            <th>lr</th>
+            <th>Layer Weight Learning Rate</th>
+            <th>Adwin Delta</th>
+            <th>MCI</th>
+            <th>Grace Period</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>no drift</td>
+            <td>0.001</td>
+            <td>0.013</td>
+            <td>3.79e-05</td>
+            <td>6.8e-07</td>
+            <td>null</td>
+            <td>0.001</td>
+            <td>0.02</td>
+            <td>4.7e-07</td>
+            <td>1.2e-06</td>
+            <td>null</td>
+        </tr>
+        <tr>
+            <td>one drift</td>
+            <td>0.0007</td>
+            <td>0.0008</td>
+            <td>1.43e-06</td>
+            <td>2.48e-07</td>
+            <td>(8, "global")</td>
+            <td>0.039</td>
+            <td>0.027</td>
+            <td>4.14e-07</td>
+            <td>9.6e-06</td>
+            <td>(8, "global")</td>
+        </tr>
+        <tr>
+            <td>three drifts</td>
+            <td>0.04</td>
+            <td>0.0001</td>
+            <td>1.77e-06</td>
+            <td>8.24e-07</td>
+            <td>(4, "layer")</td>
+            <td>0.039</td>
+            <td>0.027</td>
+            <td>4.14e-07</td>
+            <td>9.6e-06</td>
+            <td>(8, "global")</td>
+        </tr>
+        <tr>
+            <td>drift back and forth</td>
+            <td>0.023</td>
+            <td>0.002</td>
+            <td>0.0002</td>
+            <td>1.13e-07</td>
+            <td>(4, "global")</td>
+            <td>0.039</td>
+            <td>0.027</td>
+            <td>4.14e-07</td>
+            <td>9.6e-06</td>
+            <td>(8, "global")</td>
+        </tr>
+    </tbody>
+</table>
 
 
 # Comparision Network
