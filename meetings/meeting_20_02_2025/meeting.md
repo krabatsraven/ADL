@@ -146,15 +146,6 @@ für electricity:
 }
 ```
 
-
-|                 Type | Agrawal                                                                                                                     |                                                           SEA                                                            |
-|---------------------:|:----------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------:|
-|             no drift | "lr": 0.001, "layer_weight_learning_rate": 0.013, "adwin-delta": 3.79e-05, "mci": 6.8e-07, "grace_period": null             |      "lr": 0.001, "layer_weight_learning_rate": 0.02, "adwin-delta": 4.7e-07, "mci": 1.2e-06, "grace_period": null       |  
-|            one drift | "lr": 0.0007, "layer_weight_learning_rate": 0.0008, "adwin-delta": 1.43e-06, "mci": 2.48e-07, "grace_period": (8, "global") | "lr": 0.039, "layer_weight_learning_rate": 0.027, "adwin-delta": 4.14e-07, "mci": 9.6e-06, "grace_period": (8, "global") |
-|         three drifts | "lr": 0.04, "layer_weight_learning_rate": 0.0001, "adwin-delta": 1.77e-06, "mci": 8.24e-07, "grace_period": (4, "layer")    | "lr": 0.039, "layer_weight_learning_rate": 0.027, "adwin-delta": 4.14e-07, "mci": 9.6e-06, "grace_period": (8, "global")  |
-| drift back and forth | "lr": 0.023, "layer_weight_learning_rate": 0.002, "adwin-delta": 0.0002, "mci": 1.13e-07, "grace_period": (4, "global")     | "lr": 0.039, "layer_weight_learning_rate": 0.027, "adwin-delta": 4.14e-07, "mci": 9.6e-06, "grace_period": (8, "global")  |
-
-  
 <table border="1">
     <thead>
         <tr>
