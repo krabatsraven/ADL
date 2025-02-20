@@ -1,0 +1,17 @@
+{
+    "learner": [
+        "vectorized",
+        "winning_layer",
+        "decoupled_lrs"
+    ],
+    "stream": "electricity",
+    "lr": 0.03759834306496821,
+    "layer_weight_learning_rate": 0.0037788154914272006,
+    "adwin-delta": 0.0009280964263786628,
+    "mci": 7.631027908752775e-06,
+    "grace_period": [
+        8,
+        "layer_grace"
+    ],
+    "loss_fn": "NLLLoss"
+}

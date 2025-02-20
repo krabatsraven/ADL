@@ -142,7 +142,43 @@ kein Grid Search mehr, sondern Probing:
 
 ## Results on Electricity
 
-[//]: #todo: (test network with default)
+Suche durch den Suchraum:
+**alle kombinationen an 2er potenzen an nodes mit genau so vielen layern wie das adl netzwerk (solange die anzahl an layern kleiner als 9 ist, sonst ist space complexität zu groß)**
+```python
+from itertools import product
+from ray import tune
+import numpy as np
+
+def SimpleDNNSearchSpace(stream_name: str, nr_of_hidden_layers: int = 5, nr_of_neurons: int = 2**12):
+   """
+   creates a search space for the SimpleDNN model
+   that has no more than nr_of_hidden_layers many linear layers
+   and in total not more than 2*nr_of_neurons many nodes
+   """
+   if nr_of_neurons > 256:
+      list_of_possible_neuron_configs = [
+         list(perm)
+         for h in range(1, nr_of_hidden_layers + 1)
+         for perm in product(list(map(int, 2 ** np.arange(8, int(np.ceil(np.log2(nr_of_neurons))) + 1))), repeat=h)
+         if np.sum(perm) <= 2**np.ceil(np.log2(nr_of_neurons))
+      ]
+   else:
+      list_of_possible_neuron_configs = [
+         list(perm)
+         for h in range(1, nr_of_hidden_layers + 1)
+         for perm in product(list(map(int, 2 ** np.arange(int(np.ceil(np.log2(nr_of_neurons))) + 1))), repeat=h)
+         if np.sum(perm) <= 2**np.ceil(np.log2(nr_of_neurons))
+      ]
+   return {
+      "lr": tune.loguniform(1e-4, 5e-1),
+      "model_structure": tune.choice(list_of_possible_neuron_configs),
+      'stream': tune.grid_search([stream_name])
+   }
+```
+**also nicht jedes mal die gleiche model struktur**
+lr = 0,005
+model 1 layer mit 4096 Nodes
+Acc: 85.23%
 
 ## Results for ADL on Types of Streams
 Zur Erinnerung:  
@@ -155,12 +191,12 @@ Zur Erinnerung:
 | drift back and forth | 65.71%  | 81.1%  |
 
 ## Result for Comparision Network
-|                 Type | Agrawal | SEA  |
-|---------------------:|:--------|:----:|
-|             no drift | xx%     | xx%  |  
-|            one drift | xx%     | xx%  | 
-|         three drifts | xx%     | xx%  |
-| drift back and forth | xx%     | xx%  |
+|                 Type | Agrawal |   SEA  |
+|---------------------:|:--------|:------:|
+|             no drift | 58,19%  | 57.57% |  
+|            one drift | 54.53%  | 84.25% | 
+|         three drifts | 64.31%  | 83.94% |
+| drift back and forth | 65.584% | 83.61% |
 
 
 # Hidden layers Disablen:
@@ -193,6 +229,7 @@ adl_classifier = ADLClassifier()
 delete_deleted_layers(adl_classifier)
 ```
 # Ergebnisse des disablen von hidden layern:
+keine zeit mehr für runs gehabt
 ## Accuracy Changes
 
 [//]: #todo: (run best electricity mit neuem classifier run=1 and enable emission tracking)  

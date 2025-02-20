@@ -24,8 +24,8 @@ def hyperparameter_search_for_SimpleDNN(
 ):
 
     # more than 10 hidden layers are too much
-    if nr_of_hidden_layers >= 10:
-        nr_of_hidden_layers = 9
+    if nr_of_hidden_layers >= 9:
+        nr_of_hidden_layers = 8
 
     ray.init(_temp_dir='/home/david/rayTmp', configure_logging=True, logging_level=logging.INFO)
     tuner = tune.Tuner(

@@ -1,0 +1,14 @@
+{
+    "learner": [
+        "vectorized",
+        "winning_layer",
+        "decoupled_lrs"
+    ],
+    "stream": "agraval_no_drift",
+    "lr": 0.0014587131683653808,
+    "layer_weight_learning_rate": 0.012925172631472456,
+    "adwin-delta": 3.788103994332469e-05,
+    "mci": 6.798801646554932e-07,
+    "grace_period": null,
+    "loss_fn": "NLLLoss"
+}

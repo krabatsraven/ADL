@@ -22,23 +22,10 @@ if __name__ == "__main__":
     ]
     runs = []
 
-    # todo: run best LR Coupled
-    print("find best coupled")
-    runs.clear()
-    for stream_name in stream_strings:
-        runs.append(hyperparameter_search_for_ADL(nr_of_trials=NR_OF_TRIALS, stream_name=stream_name, learner=('vectorized', 'winning_layer')))
-
-    print("searching for simple hyperparameters with default values")
-    # todo: test simple with default
-    for stream_name in stream_strings:
-        hyperparameter_search_for_SimpleDNN(nr_of_trials=NR_OF_TRIALS, stream_name=stream_name)
-
     print("running adl with higher min instances")
     # todo: run mit min_run=4000 für electricity again
     runs.clear()
-    MIN_INSTANCES=int(MAX_INSTANCES * 0.1)
     run_id_2 = hyperparameter_search_for_ADL(nr_of_trials=NR_OF_TRIALS, stream_name='electricity')
-    MIN_INSTANCES = int(MAX_INSTANCES * 0.01)
     evaluate_adl_run(run_id_2)
     tasks_2 = get_simple_arguments(run_id=run_id_2, path_to_summary=(pathlib.Path(f'/home/david/PycharmProjects/ADL/results/runs/runID={run_id_2}/summary.csv')), nr_of_trials=NR_OF_TRIALS)
     for task in tasks_2:
