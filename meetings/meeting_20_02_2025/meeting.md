@@ -232,12 +232,12 @@ für electricity:
 ## Results on Electricity
 
 Suche durch den Suchraum:
-**alle kombinationen an 2er potenzen an nodes mit genau so vielen layern wie das adl netzwerk (solange die anzahl an layern kleiner als 9 ist, sonst ist space complexität zu groß)**
-```python
-from itertools import product
-from ray import tune
-import numpy as np
-
+**alle kombinationen an 2er potenzen an nodes mit genau so vielen layern wie das adl netzwerk (solange die anzahl an layern kleiner als 9 ist, sonst ist space complexität zu groß)**  
+```python  
+from itertools import product  
+from ray import tune  
+import numpy as np  
+  
 def SimpleDNNSearchSpace(stream_name: str, nr_of_hidden_layers: int = 5, nr_of_neurons: int = 2**12):
    """
    creates a search space for the SimpleDNN model
@@ -262,32 +262,32 @@ def SimpleDNNSearchSpace(stream_name: str, nr_of_hidden_layers: int = 5, nr_of_n
       "lr": tune.loguniform(1e-4, 5e-1),
       "model_structure": tune.choice(list_of_possible_neuron_configs),
       stream: tune.grid_search([stream_name])
-   }
-```
-**also nicht jedes mal die gleiche model struktur**
-lr = 0,005
-model 1 layer mit 4096 Nodes
-Acc: 85.23%
-
-## Results for ADL on Types of Streams
+   }  
+```  
+**also nicht jedes mal die gleiche model struktur**  
+lr = 0,005  
+model 1 layer mit 4096 Nodes  
+Acc: 85.23%  
+  
+## Results for ADL on Types of Streams  
 Zur Erinnerung:  
-
+  
 |                 Type | Agrawal |  SEA   |
 |---------------------:|:--------|:------:|
 |             no drift | 53.3%   | 54.06% |  
 |            one drift | 53.54%  | 82.00% | 
 |         three drifts | 56.68%  | 80.95% |
 | drift back and forth | 65.71%  | 81.1%  |
-
-## Result for Comparision Network
+  
+## Result for Comparision Network  
 |                 Type | Agrawal |   SEA  |
 |---------------------:|:--------|:------:|
 |             no drift | 58,19%  | 57.57% |  
 |            one drift | 54.53%  | 84.25% | 
 |         three drifts | 64.31%  | 83.94% |
 | drift back and forth | 65.584% | 83.61% |
-
-
+  
+  
 # Hidden layers Disablen:
 ## Einfacher Weg:
 ```python
@@ -439,3 +439,16 @@ keine zeit mehr für runs gehabt
    -> Future Work (nach dem 20.03.)
 2. Future Work: Write Capymoa classifier that runs the Matlab Implementation (for benchmarking reasons)
 
+
+# mitschriften:
+ray tune: search alg: hyper opt ?
+hyperparameter search: im stream learning, 
+streams müssen auch größere anzahl instanzen providen
+agrawal one hot encoden noch nicht in capymoa, schema -> wertebereich -> is nominal, und > 2,
+und normalisieren: bereits implementierit in capymoa feature standardisation
+größere grace periods auf mehr instanzen
+
+
+emissionen/accuracy von unterschiedlichen hyperparametern vergleichen (grace period, mci, delta) jeweils nur eines ändern.
+
+mogon: java optionen angeben, job array, 

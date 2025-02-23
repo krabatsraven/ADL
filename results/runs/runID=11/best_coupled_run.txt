@@ -1,2 +1,0 @@
-best run with lr and weight lr coupled
-only electricity

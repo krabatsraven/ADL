@@ -132,7 +132,7 @@ class ADLClassifier(Classifier):
     def predict_proba(self, instance):
         if self.model is None:
             self.set_model(instance)
-        X = torch.unsqueeze(torch.tensor(instance.x, dtype=torch.float32).to(self.device), 0)
+        X = self._preprocess_instance(instance)
         # turn off gradient collection
         with torch.no_grad():
             pred = np.asarray(self.model(X).numpy(), dtype=np.double)
@@ -141,11 +141,7 @@ class ADLClassifier(Classifier):
     # -----------------
     # internal functions for training
     def _train(self, instance):
-        X = torch.tensor(instance.x, dtype=torch.float32)
-        y = torch.tensor(instance.y_index, dtype=torch.long)
-        # set the device and add a dimension to the tensor
-        X, y = torch.unsqueeze(X.to(self.device), 0), torch.unsqueeze(y.to(self.device),0)
-
+        X, y = self._preprocess_trainings_instance(instance)
         # add data to tracked_statistical variables:
         self.model.add_data_to_statistical_variables(X)
 
@@ -175,6 +171,17 @@ class ADLClassifier(Classifier):
             self._reset_learning_rate()
 
         self.optimizer.step()
+
+    def _preprocess_trainings_instance(self, instance):
+        X = self._preprocess_instance(instance)
+        y = torch.tensor(instance.y_index, dtype=torch.long)
+        y = torch.unsqueeze(y.to(self.device),0)
+        return X, y
+
+    def _preprocess_instance(self, instance):
+        X = torch.tensor(instance.x, dtype=torch.float32)
+        # set the device and add a dimension to the tensor
+        return torch.unsqueeze(X.to(self.device), 0)
 
     # todo: new name for _adjust_weight()
     def _adjust_weights(self, true_label: torch.Tensor, step_size: float):

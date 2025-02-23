@@ -12,7 +12,8 @@ from capymoa.stream import Stream, ARFFStream
 from torch.nn import CrossEntropyLoss
 
 from ADLClassifier import global_grace_period, grace_period_per_layer, extend_classifier_for_evaluation, \
-    winning_layer_training, vectorized_for_loop, ADLClassifier, add_weight_correction_parameter_to_user_choices
+    winning_layer_training, vectorized_for_loop, ADLClassifier, add_weight_correction_parameter_to_user_choices, \
+    input_preprocessing, disabeling_deleted_layers, delete_deleted_layers
 from ADLClassifier.Resources.NLLLoss import NLLLoss
 from Evaluation import agrawal_no_drift
 from Evaluation.EvaluationFunctions import __plot_and_save_result
@@ -159,6 +160,12 @@ def config_to_learner(*traits: str, grace_period: Optional[Tuple[int, str]]) -> 
                 decorators.append(winning_layer_training)
             case 'decoupled_lrs':
                 decorators.append(add_weight_correction_parameter_to_user_choices)
+            case 'delete_deleted_layer':
+                decorators.append(delete_deleted_layers)
+            case 'disable_deleted_layer':
+                decorators.append(disabeling_deleted_layers)
+            case 'input_preprocessing':
+                decorators.append(input_preprocessing)
             case _:
                 raise ValueError(f"unknown trait: {trait}")
 
