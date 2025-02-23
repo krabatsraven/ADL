@@ -7,10 +7,10 @@ from ray import tune
 from Evaluation.RayTuneResources.ADL.ADLScheduler import ADLScheduler
 from Evaluation.RayTuneResources.ADL.ADLSearchSpace import ADLSearchSpace
 from Evaluation.RayTuneResources.ADL.ADLTrainable import ADLTrainable
-from Evaluation.RayTuneResources.config_handling import write_config
+from Evaluation.config_handling import write_config
 
 
-def hyperparameter_search_for_ADL(nr_of_trials: int = 100, stream_name: str = 'electricity', learner: Tuple[str, ...] = ('vectorized', 'winning_layer', 'decoupled_lrs')):
+def hyperparameter_search_for_ADL(nr_of_trials: int = 100, stream_name: str = 'electricity', learner: Tuple[str, ...] = ('input_preprocessing', 'vectorized', 'winning_layer', 'decoupled_lrs')):
     print("started adl hyperparameter search for ", stream_name)
     ray.init(_temp_dir='/home/david/rayTmp', configure_logging=True, logging_level=logging.INFO)
     tuner = tune.Tuner(

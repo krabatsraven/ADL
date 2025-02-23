@@ -1,7 +1,7 @@
 from capymoa.drift.detectors import ADWIN
 from ray import train
 
-from Evaluation.RayTuneResources.config_handling import config_to_stream, config_to_learner, config_to_loss_fn
+from Evaluation.config_handling import config_to_stream, config_to_learner, config_to_loss_fn
 from Evaluation._config import MAX_INSTANCES
 
 

@@ -1,10 +1,7 @@
 import logging
-import math
-from itertools import product
 from pathlib import Path
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 import ray
 from ray import tune
@@ -12,7 +9,8 @@ from ray import tune
 from Evaluation.RayTuneResources.SimpleDNN.SimpleDNNScheduler import SimpleDNNScheduler
 from Evaluation.RayTuneResources.SimpleDNN.SimpleDNNSearchSpace import SimpleDNNSearchSpace
 from Evaluation.RayTuneResources.SimpleDNN.SimpleDNNTrainable import SimpleDNNTrainable
-from Evaluation.RayTuneResources.config_handling import write_config, load_config, evaluate_simple_dnn_config
+from Evaluation.RayTuneResources.evaluate_runs import evaluate_simple_dnn_config
+from Evaluation.config_handling import write_config, load_config
 
 
 def hyperparameter_search_for_SimpleDNN(

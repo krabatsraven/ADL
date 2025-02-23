@@ -6,16 +6,16 @@ from pathlib import Path
 from typing import Dict, List, Union, Any, Set, Optional
 
 import pandas as pd
-from capymoa.datasets import ElectricityTiny
 from capymoa.drift.detectors import ADWIN
 from capymoa.evaluation import prequential_evaluation
 from capymoa.stream import Stream
 
 from ADLClassifier import ADLClassifier, global_grace_period, grace_period_per_layer, extend_classifier_for_evaluation, \
     winning_layer_training, vectorized_for_loop, BaseLearningRateProgression, disabeling_deleted_layers, \
-    delete_deleted_layers, input_preprocessing
+    delete_deleted_layers, input_preprocessing, add_weight_correction_parameter_to_user_choices
+from Evaluation import config_handling
 from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_all_of_one_run
-from Evaluation._config import MAX_INSTANCES, ADWIN_DELTA_STANDIN, MAX_INSTANCES_TEST
+from Evaluation._config import ADWIN_DELTA_STANDIN, MAX_INSTANCES_TEST, STREAM_STRINGS
 
 
 def __get_run_id() -> int:
@@ -48,7 +48,7 @@ def __evaluate_on_stream(
 
     assert hasattr(adl_classifier, "record_of_model_shape"), f"ADL classifier {adl_classifier} does not keep track of model shape, and cannot be evaluated"
 
-    name_string_of_stream_data = stream_name if stream_name is not None else f"{stream_data._filename.split('.')[0]}/"
+    name_string_of_stream_data = stream_name if stream_name is not None else f"{stream_data.schema.dataset_name}/"
     hyperparameter_part_of_name_string = "_".join((f"{str(key).replace('_', ' ')}={str(value).replace('_', ' ')}" for key, value in rename_values.items()))
     results_dir_path = Path("results/runs")
     results_dir_path.mkdir(parents=True, exist_ok=True)
@@ -149,6 +149,7 @@ def _evaluate_parameters(
         adl_classifiers: List[type(ADLClassifier)],
         streams: List[Stream],
         learning_rates: Optional[List[Union[float | BaseLearningRateProgression]]] = None,
+        learning_rate_for_weights: Optional[List[Union[float | BaseLearningRateProgression]]] = None,
         mci_thresholds: Optional[List[float]] = None,
         adwin_deltas: Optional[List[float]] = None,
         grace_periods_for_layer: Optional[List[int]] = None,
@@ -164,79 +165,90 @@ def _evaluate_parameters(
         values_of_renames = {
             "classifier": classifier.name()
         }
+        classifier_wo_grace = classifier
         for stream_data in streams:
             for lr in (learning_rates or [None]):
-                for mci_threshold in (mci_thresholds or [None]):
-                    for adwin_delta in (adwin_deltas or [None]):
-                        added_parameters = {}
-                        if adwin_delta is not None:
-                            added_parameters["drift_detector"] = ADWIN(delta=adwin_delta)
-                            values_of_renames[ADWIN_DELTA_STANDIN] = adwin_delta
-                            added_hyperparameters.add(ADWIN_DELTA_STANDIN)
-                        else:
-                            added_parameters.pop('drift_detector', None)
-                            values_of_renames.pop(ADWIN_DELTA_STANDIN, None)
-
-                        if lr is not None:
-                            added_parameters["lr"] = lr
-                            values_of_renames["lr"] = lr
-                            added_hyperparameters.add("lr")
-                        else:
-                            added_parameters.pop('lr', None)
-                            values_of_renames.pop('lr', None)
-
-                        if mci_threshold is not None:
-                            added_parameters["mci_threshold_for_layer_pruning"] = mci_threshold
-                            values_of_renames["MCICutOff"] = mci_threshold
-                            added_hyperparameters.add("MCICutOff")
-                        else:
-                            added_parameters.pop("mci_threshold_for_layer_pruning", None)
-                            values_of_renames.pop("MCICutOff", None)
-
-                        for grace_period in (grace_periods_global or ([None] if grace_periods_for_layer is None else [])):
-                            if grace_period is not None:
-                                classifier_to_give = global_grace_period(grace_period)(classifier)
-                                values_of_renames["globalGracePeriod"] = grace_period
-                                added_hyperparameters.add("globalGracePeriod")
+                for lr_weight in learning_rate_for_weights or [None]:
+                    for mci_threshold in (mci_thresholds or [None]):
+                        for adwin_delta in (adwin_deltas or [None]):
+                            added_parameters = {}
+                            if adwin_delta is not None:
+                                added_parameters["drift_detector"] = ADWIN(delta=adwin_delta)
+                                values_of_renames[ADWIN_DELTA_STANDIN] = adwin_delta
+                                added_hyperparameters.add(ADWIN_DELTA_STANDIN)
                             else:
-                                classifier_to_give = classifier
-                                values_of_renames.pop('globalGracePeriod', None)
-
-                            print(f"---------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
-                            print(f"------running since: {start}, for {(time.time_ns() - start_time) / (1e9 * 60) :.2f}min = {(time.time_ns() - start_time) / (1e9 * 60**2) :.2f}h------")
-                            print(f"---------------expected finish: {start + ((datetime.now() - start) * total_nr_of_runs/current_run_index)} ---------------")
-                            __evaluate_on_stream(
-                                stream_data=stream_data,
-                                run_id=run_id,
-                                classifier=classifier_to_give,
-                                adl_parameters=added_parameters,
-                                rename_values=values_of_renames
-                            )
-                            current_run_index += 1
-
-                            values_of_renames.pop("globalGracePeriod", None)
-
-                        for grace_period in grace_periods_for_layer or []:
-                            if grace_period is not None:
-                                classifier_to_give = grace_period_per_layer(grace_period)(classifier)
-                                values_of_renames["gracePeriodPerLayer"] = grace_period
-                                added_hyperparameters.add("gracePeriodPerLayer")
+                                added_parameters.pop('drift_detector', None)
+                                values_of_renames.pop(ADWIN_DELTA_STANDIN, None)
+    
+                            if lr is not None:
+                                added_parameters["lr"] = lr
+                                values_of_renames["lr"] = lr
+                                added_hyperparameters.add("lr")
                             else:
-                                classifier_to_give = classifier
-                                values_of_renames.pop('gracePeriodPerLayer', None)
-                            print(f"--------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
-                            print(f"------running since: {start}, for {(time.time_ns() - start_time) / (1e9 * 60) :.2f}min = {(time.time_ns() - start_time) / (1e9 * 60**2) :.2f}h------")
-                            print(f"---------------expected finish: {start + ((datetime.now() - start) * total_nr_of_runs/current_run_index)} ---------------")
-                            __evaluate_on_stream(
-                                stream_data=stream_data,
-                                run_id=run_id,
-                                classifier=classifier_to_give,
-                                adl_parameters=added_parameters,
-                                rename_values=values_of_renames
-                            )
+                                added_parameters.pop('lr', None)
+                                values_of_renames.pop('lr', None)
 
-                            current_run_index += 1
-                            values_of_renames.pop("gracePeriodPerLayer", None)
+                            if lr_weight is not None:
+                                added_parameters['layer_weight_learning_rate'] = lr_weight
+                                values_of_renames['layerWeightLR'] = lr_weight
+                                added_hyperparameters.add('layerWeightLR')
+                                classifier_wo_grace = add_weight_correction_parameter_to_user_choices(classifier_wo_grace)
+                            else:
+                                added_parameters.pop('layer_weight_learning_rate', None)
+                                values_of_renames.pop('layerWeightLR', None)
+    
+                            if mci_threshold is not None:
+                                added_parameters["mci_threshold_for_layer_pruning"] = mci_threshold
+                                values_of_renames["MCICutOff"] = mci_threshold
+                                added_hyperparameters.add("MCICutOff")
+                            else:
+                                added_parameters.pop("mci_threshold_for_layer_pruning", None)
+                                values_of_renames.pop("MCICutOff", None)
+    
+                            for grace_period in (grace_periods_global or ([None] if grace_periods_for_layer is None else [])):
+                                if grace_period is not None:
+                                    classifier_to_give = global_grace_period(grace_period)(classifier_wo_grace)
+                                    values_of_renames["globalGracePeriod"] = grace_period
+                                    added_hyperparameters.add("globalGracePeriod")
+                                else:
+                                    classifier_to_give = classifier_wo_grace
+                                    values_of_renames.pop('globalGracePeriod', None)
+    
+                                print(f"---------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
+                                print(f"------running since: {start}, for {(time.time_ns() - start_time) / (1e9 * 60) :.2f}min = {(time.time_ns() - start_time) / (1e9 * 60**2) :.2f}h------")
+                                print(f"---------------expected finish: {start + ((datetime.now() - start) * total_nr_of_runs/current_run_index)} ---------------")
+                                __evaluate_on_stream(
+                                    stream_data=stream_data,
+                                    run_id=run_id,
+                                    classifier=classifier_to_give,
+                                    adl_parameters=added_parameters,
+                                    rename_values=values_of_renames
+                                )
+                                current_run_index += 1
+    
+                                values_of_renames.pop("globalGracePeriod", None)
+    
+                            for grace_period in grace_periods_for_layer or []:
+                                if grace_period is not None:
+                                    classifier_to_give = grace_period_per_layer(grace_period)(classifier_wo_grace)
+                                    values_of_renames["gracePeriodPerLayer"] = grace_period
+                                    added_hyperparameters.add("gracePeriodPerLayer")
+                                else:
+                                    classifier_to_give = classifier_wo_grace
+                                    values_of_renames.pop('gracePeriodPerLayer', None)
+                                print(f"--------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
+                                print(f"------running since: {start}, for {(time.time_ns() - start_time) / (1e9 * 60) :.2f}min = {(time.time_ns() - start_time) / (1e9 * 60**2) :.2f}h------")
+                                print(f"---------------expected finish: {start + ((datetime.now() - start) * total_nr_of_runs/current_run_index)} ---------------")
+                                __evaluate_on_stream(
+                                    stream_data=stream_data,
+                                    run_id=run_id,
+                                    classifier=classifier_to_give,
+                                    adl_parameters=added_parameters,
+                                    rename_values=values_of_renames
+                                )
+    
+                                current_run_index += 1
+                                values_of_renames.pop("gracePeriodPerLayer", None)
 
     __write_summary(run_id, added_hyperparameters)
 
@@ -246,64 +258,26 @@ def _evaluate_parameters(
         __compare_all_of_one_run(run_id, show=False)
 
 
-def _test_example(name: Optional[str] = None):
+def _test_example(name: Optional[str] = None, with_co_2: bool = False):
 
-    streams = [
-        ElectricityTiny(),
-        # simple_agraval_single_drift
-        # Electricity()
-    ]
-    learning_rates = [
-        # LinearLearningRateProgression(initial_learning_rate=1, decay_alpha=0.1),
-        # LinearLearningRateProgression(initial_learning_rate=1, decay_alpha=0.01),
-        # LinearLearningRateProgression(initial_learning_rate=1, decay_alpha=0.001),
-        # LinearLearningRateProgression(initial_learning_rate=0.5, decay_alpha=0.1),
-        # LinearLearningRateProgression(initial_learning_rate=0.5, decay_alpha=0.01),
-        # LinearLearningRateProgression(initial_learning_rate=0.5, decay_alpha=0.001),
+    streams = list(map(config_handling.config_to_stream, STREAM_STRINGS))
+    learning_rates = [0.05]
+    learning_rate_for_weights = [0.001]
 
-        # ExponentialLearningRateProgression(initial_learning_rate=1, decay_alpha=0.1),
-        # ExponentialLearningRateProgression(initial_learning_rate=1, decay_alpha=0.01),
-        # ExponentialLearningRateProgression(initial_learning_rate=1, decay_alpha=0.001),
-        # ExponentialLearningRateProgression(initial_learning_rate=0.5, decay_alpha=0.1),
-        # ExponentialLearningRateProgression(initial_learning_rate=0.5, decay_alpha=0.01),
-        # ExponentialLearningRateProgression(initial_learning_rate=0.5, decay_alpha=0.001),
-        5e-1,
-        # 1e-1,
-        # 5e-2,
-        # 1e-2,
-        # 1e-3
-    ]
-
-    mci_thresholds = [
-        1e-5,
-        # 1e-6, 
-        # 1e-7,
-        # 1e-8
-    ]
+    mci_thresholds = [1e-7]
     classifiers = [
-        # extend_classifier_for_evaluation(vectorized_for_loop),
-        extend_classifier_for_evaluation(input_preprocessing, winning_layer_training, vectorized_for_loop),
-        # extend_classifier_for_evaluation(winning_layer_training, vectorized_for_loop, disabeling_deleted_layers),
-        # extend_classifier_for_evaluation(delete_deleted_layers, winning_layer_training, vectorized_for_loop)
-        # extend_classifier_for_evaluation(winning_layer_training),
+        extend_classifier_for_evaluation(input_preprocessing, winning_layer_training, vectorized_for_loop, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(delete_deleted_layers, input_preprocessing, winning_layer_training, vectorized_for_loop, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(disabeling_deleted_layers, input_preprocessing, winning_layer_training, vectorized_for_loop, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(input_preprocessing, vectorized_for_loop, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(winning_layer_training, vectorized_for_loop, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(input_preprocessing, winning_layer_training, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(winning_layer_training, with_emissions=with_co_2)
     ]
 
-    adwin_deltas=[
-        # 1e-1, 1e-2,
-        # 1e-3,
-        # 1e-4,
-        # 1e-5,
-        1e-6,
-        # 1e-7,
-        # 1e-8, 1e-9, 1e-10
-    ]
+    adwin_deltas=[1e-7]
 
-    grace_periods_for_layer = [
-        # None,
-        4,
-        # 8, 16,
-        # 32
-    ]
+    grace_periods_for_layer = [4000]
     grace_periods_global = None
 
     run_id = __get_run_id()
@@ -312,6 +286,7 @@ def _test_example(name: Optional[str] = None):
         adl_classifiers=classifiers,
         streams=streams,
         learning_rates=learning_rates,
+        learning_rate_for_weights=learning_rate_for_weights,
         mci_thresholds=mci_thresholds,
         adwin_deltas=adwin_deltas,
         grace_periods_global=grace_periods_global,

@@ -1,8 +1,8 @@
 from capymoa.evaluation import ClassificationEvaluator
 from ray import train
 
+from Evaluation.config_handling import config_to_stream
 from Evaluation.ComparisionDNNClassifier.SimpleDNN.SimpleDNNClassifier import SimpleDNNClassifier
-from Evaluation.RayTuneResources.ADL.ADLTrainable import config_to_stream
 from Evaluation._config import MAX_INSTANCES, WINDOW_SIZE
 
 
