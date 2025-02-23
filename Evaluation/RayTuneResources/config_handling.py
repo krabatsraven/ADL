@@ -127,9 +127,9 @@ def evaluate_adl_run_config(config, run_id):
 def config_to_stream(stream_name: str) -> type(Stream):
     match stream_name:
         case 'electricity':
-            return ARFFStream('/home/david/PycharmProjects/ADL/data/electricity.arff')
+            return ARFFStream(str(Path('data/electricity.arff').absolute().resolve()))
         case 'electricity_tiny':
-            return ARFFStream('/home/david/PycharmProjects/ADL/data/electricity_tiny.arff')
+            return ARFFStream(str(Path('data/electricity_tiny.arff').absolute().resolve()))
         case 'agraval_no_drift':
             return agrawal_no_drift
         case 'agraval_single_drift':

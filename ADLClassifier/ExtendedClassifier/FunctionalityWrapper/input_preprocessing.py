@@ -63,7 +63,9 @@ def input_preprocessing(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
 class StreamingStandardScaler(StandardScaler):
 
     def fit(self, X, y=None, sample_weight=None):
-        return self.partial_fit(X, y, sample_weight=sample_weight)
+        # pass without doing anything async make_column_transformer() calls partial_fit everytime
+        return self
 
     def transform(self, X, copy=None):
+        self.partial_fit(X)
         return super().transform(X, copy)
