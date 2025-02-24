@@ -271,7 +271,6 @@ def _test_example(name: Optional[str] = None, with_co_2: bool = False):
 
     streams = list(map(config_handling.config_to_stream, STREAM_STRINGS))
     stream_names = STREAM_STRINGS
-    best_config = list(map(get_best_config_for_stream_name, STREAM_STRINGS))
     learning_rate_for_weights = [0.001]
     learning_rates = [0.05]
 

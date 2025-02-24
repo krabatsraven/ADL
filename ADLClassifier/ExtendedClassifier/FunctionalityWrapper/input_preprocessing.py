@@ -1,3 +1,4 @@
+from functools import reduce
 from typing import Optional, Union
 
 import numpy as np
@@ -21,7 +22,7 @@ def input_preprocessing(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
         """
         Wrapper that adds normalization and one hot encoding to instances before passing them to the learning algorithmn
         """
-        
+
         def __init__(self, schema: Schema, random_seed: int = 1,
                      nn_model: Optional[AutoDeepLearner] = None, optimizer: Optional[Optimizer] = None,
                      loss_fn=nn.CrossEntropyLoss(), device: str = "cpu",
@@ -29,12 +30,22 @@ def input_preprocessing(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
                      drift_detector: BaseDriftDetector = ADWIN(delta=1e-5), drift_criterion: str = "accuracy",
                      mci_threshold_for_layer_pruning: float = 10 ** -7):
             self.schema = schema
-            nominal_indicies = [i for i in range(self.schema.get_num_attributes()) if self.schema.get_moa_header().attribute(i).isNominal()]
-            numerical_indicies = [i for i in range(self.schema.get_num_attributes()) if self.schema.get_moa_header().attribute(i).isNumeric()]
-            nominal_values = [torch.arange(len(self.schema.get_moa_header().attribute(i).getAttributeValues()), dtype=torch.float32) for i in nominal_indicies]
+
+            transformers = [
+                elem
+                for elem in
+                [
+                    (OneHotEncoder(categories=[torch.arange(len(self.schema.get_moa_header().attribute(i).getAttributeValues()), dtype=torch.float32)]), [i])
+                    if self.schema.get_moa_header().attribute(i).isNominal()
+                    else (StreamingStandardScaler(), [i])
+                    if self.schema.get_moa_header().attribute(i).isNumeric()
+                    else None
+                    for i in range(self.schema.get_num_attributes())
+                ]
+                if elem is not None
+            ]
             self.input_transformer = make_column_transformer(
-                (OneHotEncoder(categories=nominal_values), nominal_indicies),
-                (StreamingStandardScaler(), numerical_indicies),
+                *transformers,
                 remainder='passthrough',
                 sparse_threshold=0)
             super().__init__(schema, random_seed, nn_model, optimizer, loss_fn, device, lr, drift_detector, drift_criterion,
