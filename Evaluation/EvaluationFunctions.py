@@ -16,6 +16,7 @@ from ADLClassifier import ADLClassifier, global_grace_period, grace_period_per_l
 from Evaluation import config_handling
 from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_all_of_one_run
 from Evaluation._config import ADWIN_DELTA_STANDIN, MAX_INSTANCES_TEST, STREAM_STRINGS
+from Evaluation.config_handling import get_best_config_for_stream_name, adl_run_data_from_config
 
 
 def __get_run_id() -> int:
@@ -154,7 +155,13 @@ def _evaluate_parameters(
         adwin_deltas: Optional[List[float]] = None,
         grace_periods_for_layer: Optional[List[int]] = None,
         grace_periods_global: Optional[List[int]] = None,
+        stream_names: Optional[List[str]] = None,
 ):
+    if stream_names is not None:
+        assert len(stream_names) == len(streams), "give me as many names as streams or give me none"
+        streams = list(zip(streams, stream_names))
+    else:
+        streams = list(zip(streams, [None] * len(streams)))
     run_id = __get_run_id()
     added_hyperparameters = {"classifier", "stream"}
     start_time = time.time_ns()
@@ -166,7 +173,7 @@ def _evaluate_parameters(
             "classifier": classifier.name()
         }
         classifier_wo_grace = classifier
-        for stream_data in streams:
+        for stream_data, stream_name in streams:
             for lr in (learning_rates or [None]):
                 for lr_weight in learning_rate_for_weights or [None]:
                     for mci_threshold in (mci_thresholds or [None]):
@@ -222,7 +229,8 @@ def _evaluate_parameters(
                                     run_id=run_id,
                                     classifier=classifier_to_give,
                                     adl_parameters=added_parameters,
-                                    rename_values=values_of_renames
+                                    rename_values=values_of_renames,
+                                    stream_name=stream_name
                                 )
                                 current_run_index += 1
     
@@ -244,7 +252,8 @@ def _evaluate_parameters(
                                     run_id=run_id,
                                     classifier=classifier_to_give,
                                     adl_parameters=added_parameters,
-                                    rename_values=values_of_renames
+                                    rename_values=values_of_renames,
+                                    stream_name=stream_name
                                 )
     
                                 current_run_index += 1
@@ -261,8 +270,10 @@ def _evaluate_parameters(
 def _test_example(name: Optional[str] = None, with_co_2: bool = False):
 
     streams = list(map(config_handling.config_to_stream, STREAM_STRINGS))
-    learning_rates = [0.05]
+    stream_names = STREAM_STRINGS
+    best_config = list(map(get_best_config_for_stream_name, STREAM_STRINGS))
     learning_rate_for_weights = [0.001]
+    learning_rates = [0.05]
 
     mci_thresholds = [1e-7]
     classifiers = [
@@ -291,7 +302,51 @@ def _test_example(name: Optional[str] = None, with_co_2: bool = False):
         adwin_deltas=adwin_deltas,
         grace_periods_global=grace_periods_global,
         grace_periods_for_layer=grace_periods_for_layer,
+        stream_names=stream_names
     )
+
+    if name is not None:
+        folder = Path("/home/david/PycharmProjects/ADL/results/experiment_data_selected") / name
+        run_folder = Path(f"/home/david/PycharmProjects/ADL/results/runs/runID={run_id}")
+        comparision_folder = Path("/home/david/PycharmProjects/ADL/results/comparisons/comparison=0")
+
+        if folder.exists():
+            shutil.rmtree(folder)
+        shutil.move(run_folder, folder)
+        shutil.move(comparision_folder, folder)
+
+
+def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
+    streams = list(map(config_handling.config_to_stream, STREAM_STRINGS))
+    nr_of_combinations = len(streams) 
+    stream_names = STREAM_STRINGS
+    best_config = list(map(get_best_config_for_stream_name, STREAM_STRINGS))
+
+    classifiers = [
+        extend_classifier_for_evaluation(input_preprocessing, winning_layer_training, vectorized_for_loop, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(delete_deleted_layers, input_preprocessing, winning_layer_training, vectorized_for_loop, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(disabeling_deleted_layers, input_preprocessing, winning_layer_training, vectorized_for_loop, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(input_preprocessing, vectorized_for_loop, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(winning_layer_training, vectorized_for_loop, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(input_preprocessing, winning_layer_training, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(winning_layer_training, with_emissions=with_co_2)
+    ]
+
+    run_id = __get_run_id()
+
+    for classifier in classifiers:
+        for i in range(nr_of_combinations):
+            adl_parameter, rename_values, added_names = adl_run_data_from_config(best_config[i], with_weight_lr=('WithUserChosenWeightLR' in classifier.name()))
+            __evaluate_on_stream(
+                classifier=classifier,
+                stream_data=streams[i],
+                stream_name=stream_names[i],
+                adl_parameters=adl_parameter,
+                rename_values=rename_values,
+                run_id=run_id
+            )
+            __write_summary(run_id, added_names)
+            __plot_and_save_result(run_id, show=False)
 
     if name is not None:
         folder = Path("/home/david/PycharmProjects/ADL/results/experiment_data_selected") / name

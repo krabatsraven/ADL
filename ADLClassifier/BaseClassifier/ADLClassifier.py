@@ -36,6 +36,7 @@ class ADLClassifier(Classifier):
         self.__learning_rate: Optional[Union[float | BaseLearningRateProgression]] = None
         self.learning_rate_progression: Optional[bool] = None
         self.device: str = device
+        self._nr_of_instances_seen = 0
 
         # data and label which triggered a drift warning in the past
         self.drift_warning_data: Optional[torch.Tensor] = None
@@ -106,25 +107,25 @@ class ADLClassifier(Classifier):
         return str('schema=None, random_seed=1, optimizer=None, loss_fn=nn.CrossEntropyLoss(), device=("cpu"), lr=1e-3 evaluator=ClassificationEvaluator(), drift_detector=ADWIN(delta=0.001), drift_criterion="accuracy"')
 
     def set_model(self, instance):
-        if self.schema is not None:
+        if instance is not None:
+            nr_of_attributes = self._preprocess_instance(instance).shape[-1]
+
+            self.model: AutoDeepLearner = AutoDeepLearner(
+                nr_of_features = nr_of_attributes,
+                nr_of_classes = instance.schema.get_num_classes()
+            ).to(self.device)
+        elif self.schema is not None:
             self.model: AutoDeepLearner = AutoDeepLearner(
                 nr_of_features = self.schema.get_num_attributes(),
                 nr_of_classes = self.schema.get_num_classes()
             ).to(self.device)
 
-        elif instance is not None:
-            moa_instance = instance.java_instance.getData()
-
-            self.model: AutoDeepLearner = AutoDeepLearner(
-                nr_of_features = moa_instance.get_num_attributes(),
-                nr_of_classes = moa_instance.get_num_classes()
-            ).to(self.device)
 
     def train(self, instance):
-        if self.model is None:
-            self.set_model(instance)
-
-        self._train(instance)
+            if self.model is None:
+                self.set_model(instance)
+    
+            self._train(instance)
 
     def predict(self, instance):
         return self.predict_proba(instance).argmax()
@@ -179,6 +180,7 @@ class ADLClassifier(Classifier):
         return X, y
 
     def _preprocess_instance(self, instance):
+        self.nr_of_instances_seen += 1
         X = torch.tensor(instance.x, dtype=torch.float32)
         # set the device and add a dimension to the tensor
         return torch.unsqueeze(X.to(self.device), 0)
@@ -690,4 +692,8 @@ class ADLClassifier(Classifier):
 
     @property
     def nr_of_instances_seen(self) -> int:
-        return self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance.item()
+        return self._nr_of_instances_seen
+    
+    @nr_of_instances_seen.setter
+    def nr_of_instances_seen(self, value: int) -> None:
+        self._nr_of_instances_seen = value
