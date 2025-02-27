@@ -5,11 +5,14 @@ from Evaluation._config import NR_OF_TRIALS, STREAM_STRINGS
 
 def run_bench():
     # find best hyperparameters for all streams with adl
+    #  stream                 lr     ...ght_learning_rate     adwin-delta           mci   grace_period           loss_fn       iter     total time (s)     score
+    # electricity   0.190064                 0.153329        0.000239152   3.50888e-07   (128, 'layer_grace')   NLLLoss      45312           771.649    92.0418
     print("hyperparameter for adl")
-    runs = []
+    runs = [23]
     for stream in STREAM_STRINGS:
         print("stream: ", stream)
         runs.append(hyperparameter_search_for_ADL(nr_of_trials=NR_OF_TRIALS, stream_name=stream))
+        return
 
     # evaluate hyperparameters
     for run in runs:

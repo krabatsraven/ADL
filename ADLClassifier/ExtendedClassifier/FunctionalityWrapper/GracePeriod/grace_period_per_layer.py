@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Dict, Any
 
 import torch
 
@@ -94,6 +94,21 @@ def _grace_period_per_layer(adl_classifier: type(ADLClassifier), duration: int) 
             :return: the nr of instances for which no changes are to be applied to the models layer since the last change
             """
             return self.__duration
+
+        @property
+        def state_dict(self) -> Dict[str, Any]:
+            state_dict = super().state_dict
+            state_dict['time_since_last_change'] = self.time_since_last_change
+            state_dict['model_changed_this_iteration'] = self.model_changed_this_iteration
+            state_dict['duration'] = self.duration
+            return state_dict
+
+        @state_dict.setter
+        def state_dict(self, state_dict: Dict[str, Any]) -> None:
+            adl_classifier.state_dict.__set__(self, state_dict)
+            self.time_since_last_change = state_dict['time_since_last_change']
+            self.model_changed_this_iteration = state_dict['model_changed_this_iteration']
+            self.__duration = state_dict['duration']
 
     GracePeriodPerLayerWrapper.__name__ = f"{adl_classifier.__name__}WithGracePeriodPerLayer"
     return GracePeriodPerLayerWrapper

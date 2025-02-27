@@ -41,6 +41,8 @@ pytest
 ray[tune]
 # tensorboardx for visualitzation
 tensorboardx
+# hyperopt search alg
+hyperopt
 
 # code carbon to measure co2 equivalents
 codecarbon

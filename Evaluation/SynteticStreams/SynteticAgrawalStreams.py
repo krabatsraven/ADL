@@ -8,13 +8,6 @@ agrawal_no_drift = DriftStream(
     stream=[AgrawalGenerator(classification_function=1)]
 )
 
-agrawal_concept_names = {
-    AgrawalGenerator(classification_function=1): "agrawal1",
-    AgrawalGenerator(classification_function=2): "agrawal2",
-    AgrawalGenerator(classification_function=3): "agrawal3",
-    AgrawalGenerator(classification_function=4): "agrawal4",
-}
-
 agrawal_single_drift_concepts = [
     AgrawalGenerator(classification_function=1),
     AgrawalGenerator(classification_function=3)

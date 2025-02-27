@@ -4,12 +4,12 @@ from ray import tune
 
 def ADLSearchSpace(stream_name: str, learner: Tuple[str, ...] = ('vectorized', 'winning_layer', 'decoupled_lrs')):
     return {
-        'learner': tune.grid_search(
+        'learner': tune.choice(
             [
                 learner
             ]
         ),
-        'stream': tune.grid_search(
+        'stream': tune.choice(
             [
                 stream_name
             ]
@@ -26,7 +26,7 @@ def ADLSearchSpace(stream_name: str, learner: Tuple[str, ...] = ('vectorized', '
                 for grace_period in [1, 4, 8, 16, 32, 64, 128, 256, 512]
             ]
         ),
-        'loss_fn': tune.grid_search(
+        'loss_fn': tune.choice(
             [
                 # 'CrossEntropyLoss',
                 'NLLLoss'

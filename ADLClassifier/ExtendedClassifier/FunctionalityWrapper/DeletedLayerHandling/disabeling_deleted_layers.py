@@ -1,3 +1,5 @@
+from typing import Dict, Any
+
 from ADLClassifier.BaseClassifier import ADLClassifier
 
 
@@ -28,6 +30,17 @@ def disabeling_deleted_layers(adl_classifier: type(ADLClassifier)) -> type(ADLCl
                 return True
             else:
                 return False
+
+        @property
+        def state_dict(self) -> Dict[str, Any]:
+            return super().state_dict
+
+        @state_dict.setter
+        def state_dict(self, state_dict: Dict[str, Any]):
+            adl_classifier.state_dict.__set__(self, state_dict)
+            for idx in range(len(self.model.layers)):
+                if idx not in state_dict['active_layer_keys']:
+                    self.model.layers[idx].requires_grad_(False)
 
     DisabelingDeletedLayersWrapper.__name__ = f"{adl_classifier.__name__}WithDisabledDeletedLayers"
     return DisabelingDeletedLayersWrapper

@@ -1,4 +1,8 @@
+from io import BytesIO
+from typing import Dict, Any
+
 import torch
+from capymoa._pickle import JPickler, JUnpickler
 from capymoa.evaluation import ClassificationEvaluator
 
 from ADLClassifier import ADLClassifier
@@ -51,5 +55,21 @@ def record_network_graph(adl_classifier: type(ADLClassifier)):
             self.record_of_model_shape["active_layers"].append(self.model.active_layer_keys().numpy())
             self.record_of_model_shape["winning_layer"].append(self.model.get_winning_layer())
             self.record_of_model_shape['learning_rate'].append(self.learning_rate)
+
+        @property
+        def state_dict(self) -> Dict[str, Any]:
+            state_dict = super().state_dict
+            eval_file = BytesIO()
+            JPickler(eval_file).dump(self.evaluator)
+            eval_file.seek(0)
+            state_dict["evaluator"] = eval_file
+            state_dict['record_of_model_shape'] = {key: tuple(value) for key, value in self.record_of_model_shape.items()}
+            return state_dict
+
+        @state_dict.setter
+        def state_dict(self, state_dict: Dict[str, Any]):
+            adl_classifier.state_dict.__set__(self, state_dict)
+            self.evaluator = JUnpickler(state_dict['evaluator']).load()
+            state_dict['record_of_model_shape'] = {key: list(value) for key, value in self.record_of_model_shape.items()}
 
     return NetworkGraphRecorder

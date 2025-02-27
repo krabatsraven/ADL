@@ -1,5 +1,5 @@
 from functools import reduce
-from typing import Optional, Union
+from typing import Optional, Union, Any, Dict
 
 import numpy as np
 import torch
@@ -71,6 +71,18 @@ def input_preprocessing(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
             else:
                 self.nr_of_instances_seen += 1
             return torch.from_numpy(self.input_transformer.transform(X)).to(device=self.device, dtype=torch.float)
+
+        @property
+        def state_dict(self) -> Dict[str, Any]:
+            state_dict = super().state_dict
+            state_dict['input_transformer'] = self.input_transformer.__getstate__()
+            return state_dict
+
+        @state_dict.setter
+        def state_dict(self, state_dict: Dict[str, Any]) -> None:
+            adl_classifier.state_dict.__set__(state_dict)
+            self.input_transformer.__setstate__(state_dict['input_transformer'])
+
 
     return PrecocessingInputWrapper
 

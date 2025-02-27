@@ -5,6 +5,7 @@ from typing import Optional
 import pandas as pd
 import ray
 from ray import tune
+from ray.tune.search.hyperopt import HyperOptSearch
 
 from Evaluation.RayTuneResources.SimpleDNN.SimpleDNNScheduler import SimpleDNNScheduler
 from Evaluation.RayTuneResources.SimpleDNN.SimpleDNNSearchSpace import SimpleDNNSearchSpace
@@ -32,6 +33,7 @@ def hyperparameter_search_for_SimpleDNN(
         trainable=SimpleDNNTrainable,
         tune_config=tune.TuneConfig(
             num_samples=nr_of_trials,
+            search_alg=HyperOptSearch(metric='score', mode='max'),
             scheduler=SimpleDNNScheduler,
         ),
         param_space=SimpleDNNSearchSpace(

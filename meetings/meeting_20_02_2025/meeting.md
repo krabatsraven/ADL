@@ -261,7 +261,7 @@ def SimpleDNNSearchSpace(stream_name: str, nr_of_hidden_layers: int = 5, nr_of_n
    return {
       "lr": tune.loguniform(1e-4, 5e-1),
       "model_structure": tune.choice(list_of_possible_neuron_configs),
-      stream: tune.grid_search([stream_name])
+      'stream': tune.grid_search([stream_name])
    }  
 ```  
 **also nicht jedes mal die gleiche model struktur**  

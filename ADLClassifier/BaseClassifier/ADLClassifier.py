@@ -1,7 +1,9 @@
-from typing import Optional, Tuple, List, Union
+from io import BytesIO
+from typing import Optional, Tuple, List, Union, Any, Dict
 
 import numpy as np
 import torch
+from capymoa._pickle import JPickler, JUnpickler
 from capymoa.base import Classifier
 from capymoa.drift.base_detector import BaseDriftDetector
 from capymoa.drift.detectors import ADWIN
@@ -30,6 +32,7 @@ class ADLClassifier(Classifier):
     ):
 
         super().__init__(schema, random_seed)
+        self.random_seed = random_seed
         self.model: Optional[AutoDeepLearner] = None
         self.optimizer: Optional[Optimizer] = None
         self.loss_function = loss_fn
@@ -79,7 +82,7 @@ class ADLClassifier(Classifier):
         self.adl_evaluator = ClassificationEvaluator(self.schema, window_size=1)
 
         self.drift_detector: BaseDriftDetector = drift_detector
-        self.__drift_criterion_switch = drift_criterion
+        self.drift_criterion_switch = drift_criterion
 
         # instantiate variables to recursively calculate the covariance of output nodes to each other:
         # ---------------------------
@@ -492,7 +495,7 @@ class ADLClassifier(Classifier):
         )
 
     def _drift_criterion(self, true_label: torch.Tensor, prediction: torch.Tensor) -> float:
-        match self.__drift_criterion_switch:
+        match self.drift_criterion_switch:
             case "accuracy":
                 # use accuracy to univariant detect concept drift
                 self.adl_evaluator.update(true_label.item(), torch.argmax(prediction).item())
@@ -697,3 +700,84 @@ class ADLClassifier(Classifier):
     @nr_of_instances_seen.setter
     def nr_of_instances_seen(self, value: int) -> None:
         self._nr_of_instances_seen = value
+
+    @property
+    def state_dict(self) -> Dict[str, Any]:
+        # todo: learning rate progression
+        eval_file = BytesIO()
+        JPickler(eval_file).dump(self.adl_evaluator)
+        eval_file.seek(0)
+        # eval_bytes = eval_file.read()
+
+        drift_detector_file = BytesIO()
+        JPickler(drift_detector_file).dump(self.adl_evaluator)
+        drift_detector_file.seek(0)
+        # detector_bytes = eval_file.read()
+
+        return {
+            'model_state': self.model.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'loss_fn': self.loss_function,
+            'lr': self.learning_rate,
+            # 'lr_progression': self.learning_rate_progression,
+            'device': self.device,
+            'drift_warning_data': self.drift_warning_data,
+            'drift_warning_label': self.drift_warning_label,
+            'mci_threshold_for_pruning': self.mci_threshold_for_layer_pruning,
+            'mean_of_bias_squared': self.mean_of_bias_squared,
+            'sum_of_bias_squared_residuals_squared': self.sum_of_bias_squared_residuals_squared,
+            'standard_deviation_of_bias_squared': self.standard_deviation_of_bias_squared,
+            'mean_of_variance_squared_squared': self.mean_of_variance_squared_squared,
+            'sum_of_variance_squared_residuals_squared': self.sum_of_variance_squared_residuals_squared,
+            'standard_deviation_of_variance_squared_squared': self.standard_deviation_of_variance_squared_squared,
+            'minimum_of_mean_of_bias_squared': self.minimum_of_mean_of_bias_squared,
+            'minimum_of_standard_deviation_of_bias_squared': self.minimum_of_standard_deviation_of_bias_squared,
+            'minimum_of_mean_of_variance_squared_squared': self.minimum_of_mean_of_variance_squared_squared,
+            'minimum_of_standard_deviation_of_variance_squared_squared': self.minimum_of_standard_deviation_of_variance_squared_squared,
+            'random_seed': self.random_seed,
+            'nr_of_instances_tracked_in_aggregates_of_bias_and_variance': self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance,
+
+            'adl_evaluator': eval_file,
+            'drift_detector': drift_detector_file,
+            'drift_criterion': self.drift_criterion_switch,
+
+            'sum_of_residual_output_probabilities': self.sum_of_residual_output_probabilities,
+            'mean_of_output_probabilities': self.mean_of_output_probabilities,
+            'nr_of_instances_seen_for_cov': self.nr_of_instances_seen_for_cov,
+            'nr_of_instances_seen': self.nr_of_instances_seen,
+        }
+
+    @state_dict.setter
+    def state_dict(self, state_dict: Dict[str, Any]) -> None:
+        self.model.load_state_dict(state_dict['model_state'])
+        self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
+        self.optimizer.load_state_dict(state_dict['optimizer'])
+        self.loss_function = state_dict['loss_fn']
+        self.learning_rate = state_dict['lr']
+        # self.learning_rate_progression = state_dict['lr_progression']
+        self.device = state_dict['device']
+        self.drift_warning_data = state_dict['drift_warning_data']
+        self.drift_warning_label = state_dict['drift_warning_label']
+        self.mci_threshold_for_layer_pruning = state_dict['mci_threshold_for_pruning']
+        self.mean_of_bias_squared = state_dict['mean_of_bias_squared']
+        self.sum_of_bias_squared_residuals_squared = state_dict['sum_of_bias_squared_residuals_squared']
+        self.standard_deviation_of_bias_squared = state_dict['standard_deviation_of_bias_squared']
+        self.mean_of_variance_squared_squared = state_dict['mean_of_variance_squared_squared']
+        self.sum_of_variance_squared_residuals_squared = state_dict['sum_of_variance_squared_residuals_squared']
+        self.standard_deviation_of_variance_squared_squared = state_dict['standard_deviation_of_variance_squared_squared']
+        self.minimum_of_mean_of_bias_squared = state_dict['minimum_of_mean_of_bias_squared']
+        self.minimum_of_standard_deviation_of_bias_squared = state_dict['minimum_of_standard_deviation_of_bias_squared']
+        self.minimum_of_mean_of_variance_squared_squared = state_dict['minimum_of_mean_of_variance_squared_squared']
+        self.minimum_of_standard_deviation_of_variance_squared_squared = state_dict['minimum_of_standard_deviation_of_variance_squared_squared']
+        self.random_seed = state_dict['random_seed']
+        self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance = state_dict['nr_of_instances_tracked_in_aggregates_of_bias_and_variance']
+
+        self.adl_evaluator = JUnpickler(state_dict['adl_evaluator']).load()
+        self.drift_detector = JUnpickler(state_dict['drift_detector']).load()
+
+        self.drift_criterion_switch = state_dict['drift_criterion']
+
+        self.sum_of_residual_output_probabilities = state_dict['sum_of_residual_output_probabilities']
+        self.mean_of_output_probabilities = state_dict['mean_of_output_probabilities']
+        self.nr_of_instances_seen_for_cov = state_dict['nr_of_instances_seen_for_cov']
+        self.nr_of_instances_seen = state_dict['nr_of_instances_seen']
