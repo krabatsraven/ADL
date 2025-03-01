@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Tuple
 
 import ray
-from ray import tune, train
+from ray import tune
 from ray.train import RunConfig
 from ray.tune import Tuner
 from ray.tune.search.hyperopt import HyperOptSearch
@@ -22,34 +22,22 @@ def hyperparameter_search_for_ADL(nr_of_trials: int = 100, stream_name: str = 'e
     storage_path = tmp_dir / "results"
     experiment_name = f"ADL_{learner}_{stream_name}"
 
-    search_alg = HyperOptSearch(metric='score', mode='max')
-    run_config = RunConfig(
-        name=experiment_name,
-        storage_path=storage_path.as_posix(),
-    )
-
     if (storage_path / experiment_name).exists():
-        # search_alg.restore_from_dir((storage_path / experiment_name).as_posix())
         tuner = Tuner.restore(
             (storage_path / experiment_name).as_posix(), trainable=ADLTrainable, resume_errored=True)
-        # tuner = tune.Tuner(
-        #     trainable=ADLTrainable,
-        #     tune_config=tune.TuneConfig(
-        #         search_alg=search_alg,
-        #         num_samples=nr_of_trials,
-        #         scheduler=ADLScheduler,
-        #     ),
-        #     run_config=run_config
-        # )
+
     else:
         tuner = tune.Tuner(
             trainable=ADLTrainable,
             tune_config=tune.TuneConfig(
-                search_alg=search_alg,
+                search_alg=HyperOptSearch(metric='score', mode='max'),
                 num_samples=nr_of_trials,
                 scheduler=ADLScheduler,
             ),
-            run_config=run_config,
+            run_config=RunConfig(
+                name=experiment_name,
+                storage_path=storage_path.as_posix(),
+            ),
             param_space=ADLSearchSpace(stream_name=stream_name, learner=learner),
         )
 

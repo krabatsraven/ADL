@@ -5,6 +5,8 @@ from typing import Optional
 import pandas as pd
 import ray
 from ray import tune
+from ray.train import RunConfig
+from ray.tune import Tuner
 from ray.tune.search.hyperopt import HyperOptSearch
 
 from Evaluation.RayTuneResources.SimpleDNN.SimpleDNNScheduler import SimpleDNNScheduler
@@ -28,24 +30,38 @@ def hyperparameter_search_for_SimpleDNN(
     if nr_of_neurons > 2**14:
         nr_of_neurons = 2**14
 
-    ray.init(_temp_dir='/home/david/rayTmp', configure_logging=True, logging_level=logging.INFO)
-    tuner = tune.Tuner(
-        trainable=SimpleDNNTrainable,
-        tune_config=tune.TuneConfig(
-            num_samples=nr_of_trials,
-            search_alg=HyperOptSearch(metric='score', mode='max'),
-            scheduler=SimpleDNNScheduler,
-        ),
-        param_space=SimpleDNNSearchSpace(
-            stream_name=stream_name, 
-            nr_of_hidden_layers=nr_of_hidden_layers, 
-            nr_of_neurons=nr_of_neurons
-        ),
-    )
+    print("started simple dnn hyperparameter search for ", stream_name)
+    tmp_dir = Path("./rayTmp").absolute().resolve()
+    ray.init(_temp_dir=tmp_dir.as_posix(), configure_logging=True, logging_level=logging.INFO)
+
+    storage_path = tmp_dir / "results"
+    experiment_name = f"SimpleDNN_{nr_of_hidden_layers}layers_{nr_of_neurons}neurons_{stream_name}_{stream_name}"
+
+    if (storage_path / experiment_name).exists():
+        tuner = Tuner.restore(
+            (storage_path / experiment_name).as_posix(), trainable=SimpleDNNTrainable, resume_errored=True)
+    else:
+        tuner = tune.Tuner(
+            trainable=SimpleDNNTrainable,
+            tune_config=tune.TuneConfig(
+                num_samples=nr_of_trials,
+                search_alg=HyperOptSearch(metric='score', mode='max'),
+                scheduler=SimpleDNNScheduler,
+            ),
+            run_config=RunConfig(
+                name=experiment_name,
+                storage_path=storage_path.as_posix(),
+            ),
+            param_space=SimpleDNNSearchSpace(
+                stream_name=stream_name, 
+                nr_of_hidden_layers=nr_of_hidden_layers, 
+                nr_of_neurons=nr_of_neurons
+            ),
+        )
     results = tuner.fit()
     best_result_config = results.get_best_result(metric="score", mode="max").config
     print(best_result_config)
-    out = None
+
     if run_id is not None:
         out = write_config(best_result_config, run_id=run_id, run_name='ComparisonToADL')
     else:

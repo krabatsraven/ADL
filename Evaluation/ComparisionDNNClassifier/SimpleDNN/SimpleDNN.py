@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Any
 
 import torch
 from torch import nn
@@ -58,3 +58,11 @@ class SimpleDNN(nn.Module):
 
     def print(self) -> None:
         print(self.net)
+
+    def get_extra_state(self) -> Any:
+        return {
+            'net': self.net.state_dict()
+        }
+
+    def set_extra_state(self, state: Any) -> None:
+        self.net.load_state_dict(state['net'])

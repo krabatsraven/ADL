@@ -72,7 +72,7 @@ def ADLTrainable(config):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         torch.save(
-            {'instances_seen': nr_of_instances_seen, 'learner_state': learner.state_dict},
+            {'instances_seen': nr_of_instances_seen, 'learner_state': learner.state_dict, 'nr_of_active_layers': learner.model.nr_of_active_layers},
             os.path.join(tmpdir, 'checkpoint.pt')
         )
         train.report(metrics=metrics, checkpoint=Checkpoint.from_directory(tmpdir))

@@ -64,3 +64,19 @@ class SimpleDNNClassifier(Classifier):
         with torch.no_grad():
             pred = self.model(X).detach().cpu().numpy()
         return pred
+
+    @property
+    def state_dict(self):
+        return {
+            'model_state': self.model.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'lr': self.learning_rate,
+            'device': self.device,
+        }
+
+    @state_dict.setter
+    def state_dict(self, state_dict):
+        self.model.load_state_dict(state_dict['model_state'])
+        self.optimizer.load_state_dict(state_dict['optimizer'])
+        self.learning_rate = state_dict['lr']
+        self.device = state_dict['device']
