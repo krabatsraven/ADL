@@ -32,37 +32,27 @@ def ADLTrainable(config):
             mci_threshold_for_layer_pruning=config['mci'],
             loss_fn=config_to_loss_fn(config['loss_fn'])
         )
-
     checkpoint = train.get_checkpoint()
-    print(checkpoint)
     start = 0
-    print("before checkpoint")
     if checkpoint is not None:
-        print("restoring from checkpoint")
         with checkpoint.as_directory() as checkpoint_dir:
             checkpoint_dict = torch.load(os.path.join(checkpoint_dir, 'checkpoint.pt'), weights_only=False)
-            print(f"checkpoint: {checkpoint_dict['instances_seen']}")
             start = checkpoint_dict['instances_seen'] + 1
             learner.state_dict = checkpoint_dict['learner']
-            print(learner.evaluator.accuracy())
             assert learner.learning_rate == config['lr']
-            assert learner.device == config['device']
-            assert learner.drift_detector == ADWIN(delta=config['adwin-delta'])
+            assert learner.drift_detector.delta == config['adwin-delta']
             assert learner.mci_threshold_for_layer_pruning == config['mci']
-            assert learner.loss_fn == config_to_loss_fn(config['loss_fn'])
+            assert learner.loss_function == config_to_loss_fn(config['loss_fn'])
             assert learner.model.nr_of_active_layers == checkpoint_dict['nr_of_active_layers']
 
     nr_of_instances_seen = 0
 
-    print('before stream restart')
     stream.restart()
-    print('before fast forwarding')
     while stream.has_more_instances and nr_of_instances_seen < start and nr_of_instances_seen < MAX_INSTANCES:
         # fast-forward to start
-        _ = stream.get_next_instance()
+        _ = stream.next_instance()
         nr_of_instances_seen += 1
 
-    print('before training')
     metrics = {"score": 0, 'instances_seen': nr_of_instances_seen}
     while stream.has_more_instances() and nr_of_instances_seen < MAX_INSTANCES:
         instance = stream.next_instance()
@@ -77,11 +67,9 @@ def ADLTrainable(config):
                         os.path.join(tmpdir, 'checkpoint.pt')
                     )
                     train.report(metrics=metrics, checkpoint=Checkpoint.from_directory(tmpdir))
-                    raise Exception(f"planned abort: instances seen: {learner.evaluator.instances_seen}, accuracy: {learner.evaluator.accuracy()}")
             else:
                 train.report(metrics=metrics)
 
-    print('after training')
     with tempfile.TemporaryDirectory() as tmpdir:
         torch.save(
             {'instances_seen': nr_of_instances_seen, 'learner_state': learner.state_dict},

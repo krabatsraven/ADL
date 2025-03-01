@@ -200,6 +200,9 @@ class ADLClassifier(Classifier):
         for corrects_on_data_point in correctly_predicted_layers_mask_on_batch:
             # if layer predicted correctly increase weight correction factor p^(l) by step_size "zeta"
             # p^(l) = p^(l) + step_size
+            if corrects_on_data_point.shape != weight_correction_factor_values.shape:
+                print(weight_correction_factor_values)
+                print(self.model.weight_correction_factor)
             weight_correction_factor_values[corrects_on_data_point] += step_size_tensor
             # if layer predicted erroneous decrease weight correction factor p^(l) by step size
             # p^(l) = p^(l) - step_size
@@ -705,12 +708,12 @@ class ADLClassifier(Classifier):
     def state_dict(self) -> Dict[str, Any]:
         # todo: learning rate progression
         eval_file = BytesIO()
-        JPickler(eval_file).dump(self.adl_evaluator)
+        JPickler(eval_file).dump(self.adl_evaluator.__getstate__())
         eval_file.seek(0)
         # eval_bytes = eval_file.read()
 
         drift_detector_file = BytesIO()
-        JPickler(drift_detector_file).dump(self.adl_evaluator)
+        JPickler(drift_detector_file).dump(self.drift_detector.__getstate__())
         drift_detector_file.seek(0)
         # detector_bytes = eval_file.read()
 
@@ -772,8 +775,9 @@ class ADLClassifier(Classifier):
         self.random_seed = state_dict['random_seed']
         self.nr_of_instances_tracked_in_aggregates_of_bias_and_variance = state_dict['nr_of_instances_tracked_in_aggregates_of_bias_and_variance']
 
-        self.adl_evaluator = JUnpickler(state_dict['adl_evaluator']).load()
-        self.drift_detector = JUnpickler(state_dict['drift_detector']).load()
+        self.adl_evaluator.__dict__.update(JUnpickler(state_dict['adl_evaluator']).load())
+
+        self.drift_detector.__dict__.update(JUnpickler(state_dict['drift_detector']).load())
 
         self.drift_criterion_switch = state_dict['drift_criterion']
 

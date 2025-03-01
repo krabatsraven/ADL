@@ -1,4 +1,6 @@
 from functools import reduce
+from io import BytesIO
+from pickle import Pickler, Unpickler
 from typing import Optional, Union, Any, Dict
 
 import numpy as np
@@ -75,13 +77,16 @@ def input_preprocessing(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
         @property
         def state_dict(self) -> Dict[str, Any]:
             state_dict = super().state_dict
-            state_dict['input_transformer'] = self.input_transformer.__getstate__()
+            transformer_file = BytesIO()
+            Pickler(transformer_file).dump(self.input_transformer)
+            transformer_file.seek(0)
+            state_dict['input_transformer'] = transformer_file
             return state_dict
 
         @state_dict.setter
         def state_dict(self, state_dict: Dict[str, Any]) -> None:
-            adl_classifier.state_dict.__set__(state_dict)
-            self.input_transformer.__setstate__(state_dict['input_transformer'])
+            adl_classifier.state_dict.__set__(self, state_dict)
+            self.input_transformer = Unpickler(state_dict['input_transformer']).load()
 
 
     return PrecocessingInputWrapper

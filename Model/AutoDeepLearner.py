@@ -629,20 +629,25 @@ class AutoDeepLearner(nn.Module):
             'lower_voting_weigth_boarder': torch.tensor(self.lower_voting_weigth_boarder, dtype=torch.float),
             'upper_voting_weight_boarder': torch.tensor(self.upper_voting_weight_boarder, dtype=torch.float),
             'weight_initializiation_value': torch.tensor(self.weight_initializiation_value, dtype=torch.float),
-            'voting_weights': self.voting_weights.state_dict(),
+            'voting_weights': self.voting_weights,
             'layer_result_keys': self.layer_result_keys,
             'layer_results': self.layer_results,
             'lower_weigth_correction_factor_boarder': torch.tensor(self.lower_weigth_correction_factor_boarder, dtype=torch.float),
             'upper_weigth_correction_factor_boarder': torch.tensor(self.upper_weigth_correction_factor_boarder, dtype=torch.float),
             'weight_correction_factor_initialization_value': torch.tensor(self.weight_correction_factor_initialization_value, dtype=torch.float),
-            'weight_correction_factor': self.weight_correction_factor.state_dict(),
+            'weight_correction_factor': self.weight_correction_factor,
             'last_prediction': self.last_prediction,
             'mean_of_data': self.mean_of_data,
             '__nr_of_instances_in_statistical_variables': torch.tensor(self.__nr_of_instances_in_statistical_variables, dtype=torch.int),
             '__nr_of_active_layers': torch.tensor(self.__nr_of_active_layers, dtype=torch.int),
+            'input_size': self.input_size,
+            'output_size': self.output_size,
+            'standard_deviation_of_data': self.standard_deviation_of_data
         }
 
     def set_extra_state(self, state: Any) -> None:
+        self.input_size = state['input_size']
+        self.output_size = state['output_size']
         self.layers.pop(0)
         self.__pop_output_layer(0)
         self.__pop_voting_weight(0)
@@ -663,10 +668,7 @@ class AutoDeepLearner(nn.Module):
         self.upper_voting_weight_boarder = state['upper_voting_weight_boarder'].item()
         self.weight_initializiation_value = state['weight_initializiation_value'].item()
 
-        for key, value in state['voting_weights'].items():
-            if key.endswith('weight'):
-                self.voting_weights[key.removesuffix('.weight')] = nn.Linear(value.shape[1], value.shape[0])
-        self.voting_weights.load_state_dict(state['voting_weights'])
+        self.voting_weights = state['voting_weights']
 
         self.layer_result_keys = state['layer_result_keys']
         self.layer_results = state['layer_results']
@@ -674,13 +676,14 @@ class AutoDeepLearner(nn.Module):
         self.upper_weigth_correction_factor_boarder = state['upper_weigth_correction_factor_boarder'].item()
         self.weight_correction_factor_initialization_value = state['weight_correction_factor_initialization_value'].item()
 
-        for key, value in state['weight_correction_factor'].items():
-            if key.endswith('weight'):
-                self.weight_correction_factor[key.removesuffix('.weight')] = value
-        self.weight_correction_factor.load_state_dict(state['weight_correction_factor'])
+        # for key, value in state['weight_correction_factor'].items():
+        #     if key.endswith('weight'):
+        #         self.weight_correction_factor[key.removesuffix('.weight')] = value
+        self.weight_correction_factor = state['weight_correction_factor']
 
         self.last_prediction = state['last_prediction']
         self.mean_of_data = state['mean_of_data']
+        self.standard_deviation_of_data = state['standard_deviation_of_data']
         self.__nr_of_instances_in_statistical_variables = state['__nr_of_instances_in_statistical_variables'].item()
         self.__nr_of_active_layers = state['__nr_of_active_layers'].item()
 
