@@ -13,7 +13,8 @@ from ADLClassifier import global_grace_period, grace_period_per_layer, extend_cl
     input_preprocessing, disabeling_deleted_layers, delete_deleted_layers
 from ADLClassifier.Resources.NLLLoss import NLLLoss
 
-from Evaluation.SynteticStreams import agrawal_no_drift, agrawal_single_drift, agrawal_three_drifts, agrawal_four_drifts_concepts
+from Evaluation.SynteticStreams import agrawal_no_drift, agrawal_single_drift, agrawal_three_drifts, \
+    agrawal_four_drifts_concepts, agrawal_four_drifts
 from Evaluation.SynteticStreams.SyntheticSEAStreams import sea_no_drift, sea_single_drift, sea_three_drifts, sea_four_drifts
 from Evaluation._config import ADWIN_DELTA_STANDIN
 
@@ -96,15 +97,15 @@ def config_to_stream(stream_name: str) -> type(Stream):
             return agrawal_single_drift
         case 'agraval_three_drifts':
             return agrawal_three_drifts
-        case 'agrawal_four_drifts_concepts':
-            return agrawal_four_drifts_concepts
+        case 'agraval_four_drifts':
+            return agrawal_four_drifts
         case 'sea_no_drift':
             return sea_no_drift
         case 'sea_single_drift':
             return sea_single_drift
         case 'sea_three_drifts':
             return sea_three_drifts
-        case 'sea_four_drifts_concepts':
+        case 'sea_four_drifts':
             return sea_four_drifts
         case _:
             raise ValueError(f"unknown stream: {stream_name}")

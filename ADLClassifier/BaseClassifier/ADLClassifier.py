@@ -111,10 +111,8 @@ class ADLClassifier(Classifier):
 
     def set_model(self, instance):
         if instance is not None:
-            nr_of_attributes = self._preprocess_instance(instance).shape[-1]
-
             self.model: AutoDeepLearner = AutoDeepLearner(
-                nr_of_features = nr_of_attributes,
+                nr_of_features = self._preprocess_instance(instance).shape[-1],
                 nr_of_classes = instance.schema.get_num_classes()
             ).to(self.device)
         elif self.schema is not None:
@@ -180,10 +178,10 @@ class ADLClassifier(Classifier):
         X = self._preprocess_instance(instance)
         y = torch.tensor(instance.y_index, dtype=torch.long)
         y = torch.unsqueeze(y.to(self.device),0)
+        self.nr_of_instances_seen += 1
         return X, y
 
     def _preprocess_instance(self, instance):
-        self.nr_of_instances_seen += 1
         X = torch.tensor(instance.x, dtype=torch.float32)
         # set the device and add a dimension to the tensor
         return torch.unsqueeze(X.to(self.device), 0)

@@ -53,3 +53,6 @@ keine zeit mehr für runs gehabt
 [//]: #todo: (rerun best electricity mit emsission tracking enabled run=1)
 
 [//]: #todo: (add comparision of co2 here)
+
+1. tracker start, stop
+2. tracker only write at end

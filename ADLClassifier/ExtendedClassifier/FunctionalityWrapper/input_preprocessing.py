@@ -1,4 +1,3 @@
-from functools import reduce
 from io import BytesIO
 from pickle import Pickler, Unpickler
 from typing import Optional, Union, Any, Dict
@@ -25,13 +24,14 @@ def input_preprocessing(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
         Wrapper that adds normalization and one hot encoding to instances before passing them to the learning algorithmn
         """
 
-        def __init__(self, schema: Schema, random_seed: int = 1,
-                     nn_model: Optional[AutoDeepLearner] = None, optimizer: Optional[Optimizer] = None,
-                     loss_fn=nn.CrossEntropyLoss(), device: str = "cpu",
-                     lr: Union[float | BaseLearningRateProgression] = 1e-3,
-                     drift_detector: BaseDriftDetector = ADWIN(delta=1e-5), drift_criterion: str = "accuracy",
-                     mci_threshold_for_layer_pruning: float = 10 ** -7):
-            self.schema = schema
+        def __init__(self, *args, **kwargs):
+            if not args:
+                assert 'schema' in kwargs.keys(), "Expected 'schema' to be a argument for input processing"
+                self.schema = kwargs.get('schema')
+            else:
+                self.schema = args[0]
+
+            super().__init__(*args, **kwargs)
 
             transformers = [
                 elem
@@ -50,8 +50,6 @@ def input_preprocessing(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
                 *transformers,
                 remainder='passthrough',
                 sparse_threshold=0)
-            super().__init__(schema, random_seed, nn_model, optimizer, loss_fn, device, lr, drift_detector, drift_criterion,
-                             mci_threshold_for_layer_pruning)
 
         def __str__(self):
             return f"{super().__str__()}WithInputProcessing"
@@ -68,10 +66,9 @@ def input_preprocessing(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
                 X = instance.x
             if self.nr_of_instances_seen == 0:
                 self.input_transformer.fit(X)
-                self.nr_of_instances_seen += 1
+                self.nr_of_instances_seen = 1
                 self.set_model(instance)
-            else:
-                self.nr_of_instances_seen += 1
+                self.nr_of_instances_seen = 0
             return torch.from_numpy(self.input_transformer.transform(X)).to(device=self.device, dtype=torch.float)
 
         @property
