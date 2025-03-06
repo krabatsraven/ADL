@@ -36,17 +36,12 @@ def record_emissions(adl_classifier: type(ADLClassifier)):
             self.emissions_data.append(self.emissions_recorder.final_emissions_data.values)
 
         @staticmethod
-        def default_path() -> str:
-            default = Path('results/codecarbon').absolute()
-            default.mkdir(parents=True, exist_ok=True)
-            return default.as_posix()
+        def file_path() -> str:
+            save_path_dir = Path(os.environ.get("CODECARBON_OUTPUT_DIR", 'results/codecarbon'))
+            save_path_dir.mkdir(parents=True, exist_ok=True)
+            return (save_path_dir / 'emissions.csv').absolute().as_posix()
 
         def __del__(self):
-            (pd.DataFrame(self.emissions_data)
-             .to_csv(
-                os.path.join(
-                    os.environ.get("CODECARBON_OUTPUT_DIR", self.default_path()),
-                    "emissions.csv"))
-            )
+            pd.DataFrame(self.emissions_data).to_csv(self.file_path())
 
     return EmissionsRecorder
