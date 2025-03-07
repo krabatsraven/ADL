@@ -100,11 +100,11 @@ class ADLClassifier(Classifier):
         self.nr_of_instances_seen_for_cov = torch.zeros(self.model.nr_of_active_layers, dtype=torch.int)
 
     def __str__(self):
-        return "ADLClassifier"
+        return "ADL"
 
     @classmethod
     def name(cls) -> str:
-        return "ADLClassifier"
+        return "ADL"
 
     def CLI_help(self):
         return str('schema=None, random_seed=1, optimizer=None, loss_fn=nn.CrossEntropyLoss(), device=("cpu"), lr=1e-3 evaluator=ClassificationEvaluator(), drift_detector=ADWIN(delta=0.001), drift_criterion="accuracy"')

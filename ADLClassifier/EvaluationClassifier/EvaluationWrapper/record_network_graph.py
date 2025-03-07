@@ -26,11 +26,11 @@ def record_network_graph(adl_classifier: type(ADLClassifier)):
             self.evaluator = ClassificationEvaluator(self.schema, window_size=1)
 
         def __str__(self):
-            return f"{super().__str__()}WithGraphRecord"
+            return f"{super().__str__()}WithGraph"
 
         @classmethod
         def name(cls) -> str:
-            return f"{adl_classifier.name()}WithGraphRecord"
+            return f"{adl_classifier.name()}WithGraph"
 
         def train(self, instance):
             if self.model is None:

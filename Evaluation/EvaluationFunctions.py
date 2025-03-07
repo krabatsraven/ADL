@@ -52,7 +52,7 @@ def __evaluate_on_stream(
     results_path.mkdir(parents=True, exist_ok=True)
 
     os.environ["CODECARBON_OUTPUT_DIR"] = str(results_path)
-    os.environ["CODECARBON_TRACKING_MODE"] = "process"
+    # os.environ["CODECARBON_TRACKING_MODE"] = "process"
     os.environ["CODECARBON_LOG_LEVEL"] = "CRITICAL"
 
     print(f"summary for training:\nrunId={run_id}\nstream={name_string_of_stream_data}\n" + "\n".join((f"{str(key).replace('_', ' ')}={str(value).replace('_', ' ')}" for key, value in rename_values.items())) + ":")
@@ -337,7 +337,18 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
     streams = list(map(config_handling.config_to_stream, STREAM_STRINGS))
     nr_of_combinations = len(streams)
     stream_names = STREAM_STRINGS
-    best_config = list(map(get_best_config_for_stream_name, STREAM_STRINGS))
+    # best_config = list(map(get_best_config_for_stream_name, STREAM_STRINGS))
+
+    standard_config = {
+        'lr': 0.190064,
+        'learner': extend_classifier_for_evaluation(),
+        'layer_weight_learning_rate': 0.153329,
+        'adwin-delta': 0.000239152,
+        'mci': 3.50888e-07,
+        'grace_period': (128, 'layer_grace'),
+        'loss_fn': 'NLLLoss'
+    }
+    best_config = [standard_config] * nr_of_combinations
 
     classifiers = [
         extend_classifier_for_evaluation(input_preprocessing, vectorized_for_loop, winning_layer_training, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),

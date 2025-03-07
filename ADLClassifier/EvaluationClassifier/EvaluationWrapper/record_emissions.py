@@ -23,11 +23,11 @@ def record_emissions(adl_classifier: type(ADLClassifier)):
             self.emissions_data = []
 
         def __str__(self):
-            return f"{super().__str__()}WithEmission"
+            return f"{super().__str__()}WithEm"
 
         @classmethod
         def name(cls) -> str:
-            return f"{adl_classifier.name()}WithEmission"
+            return f"{adl_classifier.name()}WithEm"
 
         # @track_emissions(offline=True, country_iso_code="DEU")
         def _train(self, instance):
