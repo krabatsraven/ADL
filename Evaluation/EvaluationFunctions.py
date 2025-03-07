@@ -337,7 +337,7 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
     streams = list(map(config_handling.config_to_stream, STREAM_STRINGS))
     nr_of_combinations = len(streams)
     stream_names = STREAM_STRINGS
-    # best_config = list(map(get_best_config_for_stream_name, STREAM_STRINGS))
+    best_config = list(map(get_best_config_for_stream_name, STREAM_STRINGS))
 
     standard_config = {
         'lr': 0.190064,
@@ -348,7 +348,7 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
         'grace_period': (128, 'layer_grace'),
         'loss_fn': 'NLLLoss'
     }
-    best_config = [standard_config] * nr_of_combinations
+    # best_config = [standard_config] * nr_of_combinations
 
     classifiers = [
         extend_classifier_for_evaluation(input_preprocessing, vectorized_for_loop, winning_layer_training, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
