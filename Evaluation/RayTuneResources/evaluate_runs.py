@@ -6,7 +6,7 @@ import pandas as pd
 from capymoa.drift.detectors import ADWIN
 from capymoa.evaluation import prequential_evaluation
 
-from Evaluation._config import ADWIN_DELTA_STANDIN
+from Evaluation._config import ADWIN_DELTA_STANDIN, MAX_INSTANCES_TEST
 from Evaluation.ComparisionDNNClassifier.SimpleDNN.SimpleDNNClassifier import SimpleDNNClassifier
 from Evaluation.EvaluationFunctions import __evaluate_on_stream, __write_summary
 from Evaluation.PlottingFunctions import __plot_and_save_result
@@ -88,4 +88,4 @@ def evaluate_adl_run_config(config, run_id):
         stream_name=config['stream'],
     )
     __write_summary(run_id, added_names)
-    __plot_and_save_result(run_id, show=False)
+    __plot_and_save_result(run_id, show=False, force_replot=True)

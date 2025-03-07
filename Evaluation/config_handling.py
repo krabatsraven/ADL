@@ -33,7 +33,7 @@ def get_best_config_for_stream_name(stream_name: str) -> Dict[str, Any]:
         return json.loads(f.read())
 
 
-def adl_run_data_from_config(config, with_weight_lr: bool) -> Tuple[Dict[str, Any], Dict[str, Any], Set[str]]:
+def adl_run_data_from_config(config, with_weight_lr: bool, with_co2: bool = False, learner_name: Optional[str] = None) -> Tuple[Dict[str, Any], Dict[str, Any], Set[str]]:
     added_params = {
         "mci_threshold_for_layer_pruning": config['mci'],
         'drift_detector': ADWIN(config['adwin-delta']),
@@ -43,7 +43,7 @@ def adl_run_data_from_config(config, with_weight_lr: bool) -> Tuple[Dict[str, An
     renames = {
         "MCICutOff": f"{config['mci']:4e}",
         ADWIN_DELTA_STANDIN: f"{config['adwin-delta']:.4e}",
-        'classifier': config_to_learner(*config['learner'], grace_period=None).name(),
+        'classifier': config_to_learner(*config['learner'], grace_period=None, with_co2=with_co2).name() if learner_name is None else learner_name,
         'lr': f"{config['lr']:.4e}",
         'loss_fn': config['loss_fn'],
     }
@@ -111,7 +111,7 @@ def config_to_stream(stream_name: str) -> type(Stream):
             raise ValueError(f"unknown stream: {stream_name}")
 
 
-def config_to_learner(*traits: str, grace_period: Optional[Tuple[int, str]]) -> type(ADLClassifier):
+def config_to_learner(*traits: str, grace_period: Optional[Tuple[int, str]], with_co2: bool = False) -> type(ADLClassifier):
     decorators = []
     for trait in traits:
         match trait:
@@ -130,7 +130,7 @@ def config_to_learner(*traits: str, grace_period: Optional[Tuple[int, str]]) -> 
             case _:
                 raise ValueError(f"unknown trait: {trait}")
 
-    learner = extend_classifier_for_evaluation(*decorators)
+    learner = extend_classifier_for_evaluation(*decorators, with_emissions=with_co2)
 
     if grace_period is not None and grace_period[1] == "global_grace":
         learner = grace_period_per_layer(grace_period[0])(learner)

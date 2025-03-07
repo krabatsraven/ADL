@@ -17,16 +17,17 @@ def record_emissions(adl_classifier: type(ADLClassifier)):
             self.emissions_recorder = OfflineEmissionsTracker(
                 country_iso_code="DEU",
                 log_level='ERROR',
-                save_to_file=False
+                save_to_file=False,
+                allow_multiple_runs=True,
             )
             self.emissions_data = []
 
         def __str__(self):
-            return f"{super().__str__()}WithEmissionTracking"
+            return f"{super().__str__()}WithEmission"
 
         @classmethod
         def name(cls) -> str:
-            return f"{adl_classifier.name()}WithEmissionTracking"
+            return f"{adl_classifier.name()}WithEmission"
 
         # @track_emissions(offline=True, country_iso_code="DEU")
         def _train(self, instance):

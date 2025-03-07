@@ -6,9 +6,12 @@ from capymoa.base import Classifier
 from capymoa.instance import Instance, LabeledInstance
 from capymoa.stream import Schema
 from capymoa.type_alias import LabelProbabilities, LabelIndex
+from sklearn.compose import make_column_transformer
+from sklearn.preprocessing import OneHotEncoder
 from torch import nn
 from torch.optim import Optimizer, SGD
 
+from ADLClassifier.ExtendedClassifier.FunctionalityWrapper.input_preprocessing import StreamingStandardScaler
 from Evaluation.ComparisionDNNClassifier.SimpleDNN.SimpleDNN import SimpleDNN
 
 
@@ -24,6 +27,27 @@ class SimpleDNNClassifier(Classifier):
             lr: float = 1e-3
     ):
         super().__init__(schema, random_seed)
+        self.schema = schema
+
+        transformers = [
+            elem
+            for elem in
+            [
+                (OneHotEncoder(categories=[torch.arange(len(self.schema.get_moa_header().attribute(i).getAttributeValues()), dtype=torch.float32)]), [i])
+                if self.schema.get_moa_header().attribute(i).isNominal()
+                else (StreamingStandardScaler(), [i])
+                if self.schema.get_moa_header().attribute(i).isNumeric()
+                else None
+                for i in range(self.schema.get_num_attributes())
+            ]
+            if elem is not None
+        ]
+        self.input_transformer = make_column_transformer(
+            *transformers,
+            remainder='passthrough',
+            sparse_threshold=0)
+
+        self.nr_of_instances_seen = 0
         self.learning_rate = lr
         self.device = device
         self.loss_fn = loss_fn
@@ -65,6 +89,21 @@ class SimpleDNNClassifier(Classifier):
             pred = self.model(X).detach().cpu().numpy()
         return pred
 
+    def _preprocess_instance(self, instance):
+        if len(instance.x.shape) < 2:
+            # adding a dimension to data to ensure shape of [batch_size(=1), nr_of_features]
+            X = instance.x[np.newaxis, ...]
+        else:
+            X = instance.x
+
+        if self.nr_of_instances_seen == 0:
+            self.input_transformer.fit(X)
+            self.nr_of_instances_seen += 1
+
+        else:
+            self.nr_of_instances_seen += 1
+        return torch.from_numpy(self.input_transformer.transform(X)).to(device=self.device, dtype=torch.float)
+
     @property
     def state_dict(self):
         return {
@@ -72,6 +111,7 @@ class SimpleDNNClassifier(Classifier):
             'optimizer': self.optimizer.state_dict(),
             'lr': self.learning_rate,
             'device': self.device,
+            'nr_of_instances_seen': self.nr_of_instances_seen,
         }
 
     @state_dict.setter
@@ -79,4 +119,5 @@ class SimpleDNNClassifier(Classifier):
         self.model.load_state_dict(state_dict['model_state'])
         self.optimizer.load_state_dict(state_dict['optimizer'])
         self.learning_rate = state_dict['lr']
-        self.device = state_dict['device']
+        self.device = state_dict['device'],
+        self.nr_of_instances_seen = state_dict['nr_of_instances_seen']

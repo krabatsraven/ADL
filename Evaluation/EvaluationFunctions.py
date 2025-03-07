@@ -44,7 +44,7 @@ def __evaluate_on_stream(
 
 
     name_string_of_stream_data = stream_name if stream_name is not None else f"{stream_data.schema.dataset_name}/"
-    hyperparameter_part_of_name_string = "_".join((f"{str(key).replace('_', ' ')}={str(value).replace('_', ' ')}" for key, value in rename_values.items()))
+    hyperparameter_part_of_name_string = "_".join((f"{str(key).replace('_', ' ')}={f'{value:.3g}' if type(value) == float else str(value).replace('_', ' ')}" for key, value in rename_values.items()))
     results_dir_path = Path("results/runs")
     results_dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -64,7 +64,7 @@ def __evaluate_on_stream(
     )
 
     assert hasattr(adl_classifier, "record_of_model_shape"), f"ADL classifier {adl_classifier} does not keep track of model shape, and cannot be evaluated"
-    
+
     total_time_start = time.time_ns()
     results_ht = prequential_evaluation(stream=stream_data, learner=adl_classifier, window_size=100, optimise=True, store_predictions=False, store_y=False, max_instances=MAX_INSTANCES_TEST)
     total_time_end = time.time_ns()
@@ -98,6 +98,11 @@ def __evaluate_on_stream(
 
 def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
     runs_folder = Path(f"results/runs/runID={run_id}")
+    if (runs_folder / "summary.csv").exists():
+        previous_summary = pd.read_csv(runs_folder / "summary.csv", sep="\t")
+    else:
+        previous_summary = None
+
     summary = pd.DataFrame(
         columns=list(
             {
@@ -138,6 +143,8 @@ def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
             i += 1
 
     summary = summary.rename(columns=rename)
+    if previous_summary is not None:
+        summary = pd.concat([previous_summary, summary]).reset_index()
     runs_folder.mkdir(exist_ok=True, parents=True)
     order_of_columns = (
             [filtered_param if filtered_param not in rename else rename[filtered_param] for filtered_param in [added_parameter for added_parameter in user_added_hyperparameter if added_parameter != "classifier"]]
@@ -328,31 +335,21 @@ def _test_example(name: Optional[str] = None, with_co_2: bool = False):
 
 def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
     streams = list(map(config_handling.config_to_stream, STREAM_STRINGS))
-    nr_of_combinations = len(streams) 
+    nr_of_combinations = len(streams)
     stream_names = STREAM_STRINGS
-    # best_config = list(map(get_best_config_for_stream_name, STREAM_STRINGS))
-    standard_config = {
-        'lr': 0.125,
-        'layer_weight_learning_rate': 0.153329,
-        'adwin-delta': 0.000239152,
-        'mci': 3.50888e-07,
-        'grace_period': (256, 'layer_grace'),
-        'loss_fn': 'NLLLoss',
-        'learner': ('input_preprocessing', 'vectorized', 'winning_layer', 'decoupled_lrs'),
-    }
-    best_config = [standard_config] * len(STREAM_STRINGS)
+    best_config = list(map(get_best_config_for_stream_name, STREAM_STRINGS))
 
     classifiers = [
-        extend_classifier_for_evaluation(input_preprocessing, winning_layer_training, vectorized_for_loop, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(delete_deleted_layers, input_preprocessing, winning_layer_training, vectorized_for_loop, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(disabeling_deleted_layers, input_preprocessing, winning_layer_training, vectorized_for_loop, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(input_preprocessing, vectorized_for_loop, winning_layer_training, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(delete_deleted_layers, input_preprocessing, vectorized_for_loop, winning_layer_training, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(disabeling_deleted_layers, input_preprocessing, vectorized_for_loop, winning_layer_training, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
         extend_classifier_for_evaluation(input_preprocessing, vectorized_for_loop, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(winning_layer_training, vectorized_for_loop, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(vectorized_for_loop, winning_layer_training, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
         extend_classifier_for_evaluation(input_preprocessing, winning_layer_training, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(input_preprocessing, winning_layer_training, vectorized_for_loop, with_emissions=with_co_2),
+        extend_classifier_for_evaluation(input_preprocessing, vectorized_for_loop, winning_layer_training, with_emissions=with_co_2),
         extend_classifier_for_evaluation(vectorized_for_loop, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
         extend_classifier_for_evaluation(winning_layer_training, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(winning_layer_training, vectorized_for_loop, with_emissions=with_co_2),
+        extend_classifier_for_evaluation( vectorized_for_loop, winning_layer_training, with_emissions=with_co_2),
         extend_classifier_for_evaluation(input_preprocessing, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
         extend_classifier_for_evaluation(input_preprocessing, vectorized_for_loop, with_emissions=with_co_2),
         extend_classifier_for_evaluation(input_preprocessing, winning_layer_training, with_emissions=with_co_2),
@@ -362,12 +359,12 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
         extend_classifier_for_evaluation(winning_layer_training, with_emissions=with_co_2)
     ]
 
-    run_id = __get_run_id()
+    run_id = 43
 
     for i in range(nr_of_combinations):
         for classifier in classifiers:
             print(classifier.name())
-            adl_parameter, rename_values, added_names = adl_run_data_from_config(best_config[i], with_weight_lr=('WithUserChosenWeightLR' in classifier.name()))
+            adl_parameter, rename_values, added_names = adl_run_data_from_config(best_config[i], with_weight_lr=('WithUserChosenWeightLR' in classifier.name()), with_co2=with_co_2, learner_name=classifier.name())
             __evaluate_on_stream(
                 classifier=classifier,
                 stream_data=streams[i],
@@ -378,7 +375,6 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
             )
             __write_summary(run_id, added_names)
             __plot_and_save_result(run_id, show=False)
-            return
         return
 
     if name is not None:
