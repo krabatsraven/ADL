@@ -369,22 +369,19 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
         ('winning_layer',),
         ('decoupled_lrs',),
     ]
-    # todo: add grace period to classifier
     run_id = 43
 
     for i in range(nr_of_combinations):
         for classifier in classifiers:
             for with_grace in [True, False]:
                 current_config = best_config[i]
+                grace_period = current_config['grace_period']
                 if not with_grace:
-                    grace_period = current_config.pop('grace_period', None)
-                    if grace_period is None:
+                    if current_config['grace_period'] is None:
                         continue
-                elif with_grace:
-                    grace_period = current_config.get('grace_period', None)
-                else:
-                    grace_period = None
-                current_classifier = config_to_learner(*classifier, grace_period=grace_period, with_co2=with_co_2)
+                    else:
+                        current_config['grace_period'] = None
+                current_classifier = config_to_learner(*classifier, grace_period=current_config['grace_period'], with_co2=with_co_2)
                 print(current_classifier.name())
                 adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=('decoupled_lrs' in classifier), with_co2=with_co_2, learner_name=config_to_learner(*classifier, grace_period=None, with_co2=with_co_2).name())
                 __evaluate_on_stream(
@@ -397,6 +394,7 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
                 )
                 __write_summary(run_id, added_names)
                 __plot_and_save_result(run_id, show=False)
+                current_config['grace_period'] = grace_period
         return
 
     if name is not None:
