@@ -16,7 +16,7 @@ from ADLClassifier import ADLClassifier, global_grace_period, grace_period_per_l
 from Evaluation import config_handling
 from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_all_of_one_run
 from Evaluation._config import ADWIN_DELTA_STANDIN, MAX_INSTANCES_TEST, STREAM_STRINGS
-from Evaluation.config_handling import get_best_config_for_stream_name, adl_run_data_from_config
+from Evaluation.config_handling import get_best_config_for_stream_name, adl_run_data_from_config, config_to_learner
 
 
 def __get_run_id() -> int:
@@ -337,7 +337,7 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
     streams = list(map(config_handling.config_to_stream, STREAM_STRINGS))
     nr_of_combinations = len(streams)
     stream_names = STREAM_STRINGS
-    # best_config = list(map(get_best_config_for_stream_name, STREAM_STRINGS))
+    best_config = list(map(get_best_config_for_stream_name, STREAM_STRINGS))
 
     standard_config = {
         'lr': 0.190064,
@@ -348,44 +348,53 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
         'grace_period': (128, 'layer_grace'),
         'loss_fn': 'NLLLoss'
     }
-    best_config = [standard_config] * nr_of_combinations
+    # best_config = [standard_config] * nr_of_combinations
 
     classifiers = [
-        extend_classifier_for_evaluation(input_preprocessing, vectorized_for_loop, winning_layer_training, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(delete_deleted_layers, input_preprocessing, vectorized_for_loop, winning_layer_training, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(disabeling_deleted_layers, input_preprocessing, vectorized_for_loop, winning_layer_training, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(input_preprocessing, vectorized_for_loop, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(vectorized_for_loop, winning_layer_training, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(input_preprocessing, winning_layer_training, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(input_preprocessing, vectorized_for_loop, winning_layer_training, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(vectorized_for_loop, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(winning_layer_training, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
-        extend_classifier_for_evaluation( vectorized_for_loop, winning_layer_training, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(input_preprocessing, add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(input_preprocessing, vectorized_for_loop, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(input_preprocessing, winning_layer_training, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(input_preprocessing, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(vectorized_for_loop, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(add_weight_correction_parameter_to_user_choices, with_emissions=with_co_2),
-        extend_classifier_for_evaluation(winning_layer_training, with_emissions=with_co_2)
+        ('input_preprocessing', 'vectorized', 'winning_layer', 'decoupled_lrs'),
+        ('delete_deleted_layer', 'input_preprocessing', 'vectorized', 'winning_layer', 'decoupled_lrs'),
+        ('disable_deleted_layer', 'input_preprocessing', 'vectorized', 'winning_layer', 'decoupled_lrs'),
+        ('input_preprocessing', 'vectorized', 'decoupled_lrs'),
+        ('vectorized', 'winning_layer', 'decoupled_lrs'),
+        ('input_preprocessing', 'winning_layer', 'decoupled_lrs'),
+        ('input_preprocessing', 'vectorized', 'winning_layer'),
+        ('vectorized', 'decoupled_lrs'),
+        ('winning_layer', 'decoupled_lrs'),
+        ('vectorized', 'winning_layer'),
+        ('input_preprocessing', 'decoupled_lrs'),
+        ('input_preprocessing', 'vectorized'),
+        ('input_preprocessing', 'winning_layer'),
+        ('input_preprocessing',),
+        ('vectorized',),
+        ('winning_layer',),
+        ('decoupled_lrs',),
     ]
-
     run_id = 43
 
     for i in range(nr_of_combinations):
         for classifier in classifiers:
-            print(classifier.name())
-            adl_parameter, rename_values, added_names = adl_run_data_from_config(best_config[i], with_weight_lr=('WithUserChosenWeightLR' in classifier.name()), with_co2=with_co_2, learner_name=classifier.name())
-            __evaluate_on_stream(
-                classifier=classifier,
-                stream_data=streams[i],
-                stream_name=stream_names[i],
-                adl_parameters=adl_parameter,
-                rename_values=rename_values,
-                run_id=run_id
-            )
-            __write_summary(run_id, added_names)
-            __plot_and_save_result(run_id, show=False)
+            for with_grace in [True, False]:
+                current_config = best_config[i]
+                grace_period = current_config['grace_period']
+                if not with_grace:
+                    if current_config['grace_period'] is None:
+                        continue
+                    else:
+                        current_config['grace_period'] = None
+                current_classifier = config_to_learner(*classifier, grace_period=current_config['grace_period'], with_co2=with_co_2)
+                print(current_classifier.name())
+                adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=('decoupled_lrs' in classifier), with_co2=with_co_2, learner_name=config_to_learner(*classifier, grace_period=None, with_co2=with_co_2).name())
+                __evaluate_on_stream(
+                    classifier=current_classifier,
+                    stream_data=streams[i],
+                    stream_name=stream_names[i],
+                    adl_parameters=adl_parameter,
+                    rename_values=rename_values,
+                    run_id=run_id
+                )
+                __write_summary(run_id, added_names)
+                __plot_and_save_result(run_id, show=False)
+                current_config['grace_period'] = grace_period
         return
 
     if name is not None:
