@@ -4,4 +4,3 @@ from Evaluation.benchmark_protokoll import run_bench
 
 if __name__ == "__main__":
     run_bench()
-    # todo: effects compare normalization, one hot_encoding

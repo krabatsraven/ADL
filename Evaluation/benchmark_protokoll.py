@@ -8,27 +8,27 @@ def run_bench():
     #  stream                 lr     ...ght_learning_rate     adwin-delta           mci   grace_period           loss_fn       iter     total time (s)     score
     # electricity   0.190064                 0.153329        0.000239152   3.50888e-07   (128, 'layer_grace')   NLLLoss      45312           771.649    92.0418
   
-    # print("hyperparameter for adl")
-    # runs = [*range(23, 32)]
-    # for run in runs:
-    #     stream = STREAM_STRINGS[run - 23]
-    #     print("stream: ", stream)
-    #     runs.append(hyperparameter_search_for_ADL(nr_of_trials=NR_OF_TRIALS, stream_name=stream, run_id=run))
-    #
-    # # evaluate hyperparameters
-    # for run in runs:
-    #     evaluate_adl_run(run)
-    #
-    # # compare to simple dnn: set a size that averages the adl node count
-    # runs.clear()
-    # # compare to small simple dnn
-    # print("hyperparameter for dnn")
-    # for stream in STREAM_STRINGS:
-    #     print("stream: ", stream)
-    #     runs.append(hyperparameter_search_for_SimpleDNN(nr_of_trials=NR_OF_TRIALS, stream_name=stream))
-    # runs = [*range(34, 43)]
-    # for run in runs:
-    #     evaluate_simple_run(run)
+    print("hyperparameter for adl")
+    runs = [*range(23, 32)]
+    for run in runs:
+        stream = STREAM_STRINGS[run - 23]
+        print("stream: ", stream)
+        runs.append(hyperparameter_search_for_ADL(nr_of_trials=NR_OF_TRIALS, stream_name=stream, run_id=run))
+
+    # evaluate hyperparameters
+    for run in runs:
+        evaluate_adl_run(run)
+
+    # compare to simple dnn: set a size that averages the adl node count
+    runs.clear()
+    # compare to small simple dnn
+    print("hyperparameter for dnn")
+    for stream in STREAM_STRINGS:
+        print("stream: ", stream)
+        runs.append(hyperparameter_search_for_SimpleDNN(nr_of_trials=NR_OF_TRIALS, stream_name=stream))
+    runs = [*range(34, 43)]
+    for run in runs:
+        evaluate_simple_run(run)
 
     # # run: best hyperparameter set also with co2 emission
     # # and run: best hyperparameter set for different classifier also with co2 emmisions:

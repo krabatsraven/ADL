@@ -152,15 +152,15 @@ class ADLClassifier(Classifier):
 
         self._adjust_weights(true_label=y, step_size=self.learning_rate)
 
-        # Backpropagation
-        self._backpropagation(prediction=pred, true_label=y)
 
         self.drift_detector.add_element(self._drift_criterion(y, pred))
 
         # todo: # 71
         self._high_lvl_learning(true_label=y, data=X)
         self._low_lvl_learning(true_label=y)
-        self.optimizer.zero_grad()
+
+        # Backpropagation
+        self._backpropagation(prediction=pred, true_label=y)
 
     def _backpropagation(self, prediction, true_label):
         self.__backpropagation(prediction, true_label)
@@ -173,6 +173,7 @@ class ADLClassifier(Classifier):
             self._reset_learning_rate()
 
         self.optimizer.step()
+        self.optimizer.zero_grad()
 
     def _preprocess_trainings_instance(self, instance):
         X = self._preprocess_instance(instance)
