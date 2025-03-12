@@ -37,18 +37,20 @@ def __evaluate_on_stream(
         classifier: type(ADLClassifier),
         rename_values: Dict[str, float],
         stream_name: Optional[str] = None,
+        force: bool = False,
 ) -> None:
-    print("--------------------------------------------------------------------------")
-    print(f"---------------Start time: {datetime.now()}---------------------")
-
-
 
     name_string_of_stream_data = stream_name if stream_name is not None else f"{stream_data.schema.dataset_name}/"
     hyperparameter_part_of_name_string = "_".join((f"{str(key).replace('_', ' ')}={f'{value:.3g}' if type(value) == float else str(value).replace('_', ' ')}" for key, value in rename_values.items()))
     results_dir_path = Path("results/runs")
-    results_dir_path.mkdir(parents=True, exist_ok=True)
-
     results_path = results_dir_path / f"runID={run_id}" / hyperparameter_part_of_name_string / name_string_of_stream_data
+    if (results_path / "metrics.pickle").exists() and not force:
+        print("skipping, already evaluated, set force=True to overwrite")
+        return
+
+    print("--------------------------------------------------------------------------")
+    print(f"---------------Start time: {datetime.now()}---------------------")
+
     results_path.mkdir(parents=True, exist_ok=True)
 
     os.environ["CODECARBON_OUTPUT_DIR"] = str(results_path)
@@ -98,11 +100,6 @@ def __evaluate_on_stream(
 
 def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
     runs_folder = Path(f"results/runs/runID={run_id}")
-    if (runs_folder / "summary.csv").exists():
-        previous_summary = pd.read_csv(runs_folder / "summary.csv", sep="\t")
-    else:
-        previous_summary = None
-
     summary = pd.DataFrame(
         columns=list(
             {
@@ -143,8 +140,6 @@ def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
             i += 1
 
     summary = summary.rename(columns=rename)
-    if previous_summary is not None:
-        summary = pd.concat([previous_summary, summary]).reset_index()
     runs_folder.mkdir(exist_ok=True, parents=True)
     order_of_columns = (
             [filtered_param if filtered_param not in rename else rename[filtered_param] for filtered_param in [added_parameter for added_parameter in user_added_hyperparameter if added_parameter != "classifier"]]
@@ -350,6 +345,10 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
     }
     # best_config = [standard_config] * nr_of_combinations
 
+    # ADLWithInputProcessingWithoutForLoopWithWinningLayerTrainingWithGraphWithEmWithGlobalGracePeriodOf256Instances
+    # Start time: 2025-03-09 23:12
+    # Start time: 2025-03-12 02:12
+
     classifiers = [
         ('input_preprocessing', 'vectorized', 'winning_layer', 'decoupled_lrs'),
         ('delete_deleted_layer', 'input_preprocessing', 'vectorized', 'winning_layer', 'decoupled_lrs'),
@@ -373,7 +372,7 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
 
     for i in range(nr_of_combinations):
         for classifier in classifiers:
-            for with_grace in [True, False]:
+            for with_grace in [True]:
                 current_config = best_config[i]
                 grace_period = current_config['grace_period']
                 if not with_grace:
@@ -395,14 +394,13 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
                 __write_summary(run_id, added_names)
                 __plot_and_save_result(run_id, show=False)
                 current_config['grace_period'] = grace_period
-        return
 
-    if name is not None:
-        folder = Path("/home/david/PycharmProjects/ADL/results/experiment_data_selected") / name
-        run_folder = Path(f"/home/david/PycharmProjects/ADL/results/runs/runID={run_id}")
-        comparision_folder = Path("/home/david/PycharmProjects/ADL/results/comparisons/comparison=0")
-
-        if folder.exists():
-            shutil.rmtree(folder)
-        shutil.move(run_folder, folder)
-        shutil.move(comparision_folder, folder)
+    # if name is not None:
+    #     folder = Path("/home/david/PycharmProjects/ADL/results/experiment_data_selected") / name
+    #     run_folder = Path(f"/home/david/PycharmProjects/ADL/results/runs/runID={run_id}")
+    #     comparision_folder = Path("/home/david/PycharmProjects/ADL/results/comparisons/comparison=0")
+    #
+    #     if folder.exists():
+    #         shutil.rmtree(folder)
+    #     shutil.move(run_folder, folder)
+    #     shutil.move(comparision_folder, folder)

@@ -13,9 +13,9 @@ from Evaluation.PlottingFunctions import __plot_and_save_result
 from Evaluation.config_handling import load_config, config_to_stream, config_to_learner, config_to_loss_fn
 
 
-def evaluate_adl_run(run_id):
+def evaluate_adl_run(run_id, force: bool = False):
     config = load_config(run_id)
-    return evaluate_adl_run_config(config, run_id)
+    return evaluate_adl_run_config(config, run_id, force)
 
 
 def evaluate_simple_run(run_id):
@@ -23,13 +23,18 @@ def evaluate_simple_run(run_id):
     return evaluate_simple_dnn_config(config, run_id)
 
 
-def evaluate_simple_dnn_config(config, run_id):
+def evaluate_simple_dnn_config(config, run_id, force: bool =False):
     stream = config_to_stream(config['stream'])
     learner = SimpleDNNClassifier(
         schema=stream.schema,
         lr=config['lr'],
         model_structure=config['model_structure'],
     )
+    results_path = Path("results/runs") / f"runID={run_id}" / f"lr={config['lr']:.4e}_modelStructure={config['model_structure']}" / config['stream']
+    if (results_path / "metrics.pickle").exists() and not force:
+        print("skipping, already evaluated, set force=True to overwrite")
+        return
+
     print("--------------------------------------------------------------------------")
     print(f"---------------Start time: {datetime.now()}---------------------")
     total_time_start = time.time_ns()
@@ -41,7 +46,6 @@ def evaluate_simple_dnn_config(config, run_id):
     print("--------------------------------------------------------------------------")
     print("--------------------------------------------------------------------------")
 
-    results_path = Path("results/runs") / f"runID={run_id}" / f"lr={config['lr']:.4e}_modelStructure={config['model_structure']}" / config['stream']
     results_path.mkdir(parents=True, exist_ok=True)
     results_at_end = pd.DataFrame([results_ht.cumulative.metrics()], columns=results_ht.cumulative.metrics_header())
     results_at_end['lr'] = config['lr']
@@ -51,7 +55,7 @@ def evaluate_simple_dnn_config(config, run_id):
     results_at_end.to_csv(results_path / "summary.csv")
 
 
-def evaluate_adl_run_config(config, run_id):
+def evaluate_adl_run_config(config, run_id, force: bool=False):
     classifier = config_to_learner(*config['learner'], grace_period=config['grace_period'])
     added_params = {
         "mci_threshold_for_layer_pruning": config['mci'],
@@ -86,6 +90,7 @@ def evaluate_adl_run_config(config, run_id):
         adl_parameters=added_params,
         rename_values=renames,
         stream_name=config['stream'],
+        force=force,
     )
     __write_summary(run_id, added_names)
     __plot_and_save_result(run_id, show=False, force_replot=True)

@@ -9,11 +9,10 @@ def run_bench():
     # electricity   0.190064                 0.153329        0.000239152   3.50888e-07   (128, 'layer_grace')   NLLLoss      45312           771.649    92.0418
   
     print("hyperparameter for adl")
-    runs = [*range(23, 32)]
-    for run in runs:
-        stream = STREAM_STRINGS[run - 23]
+    runs = []
+    for stream in STREAM_STRINGS:
         print("stream: ", stream)
-        runs.append(hyperparameter_search_for_ADL(nr_of_trials=NR_OF_TRIALS, stream_name=stream, run_id=run))
+        runs.append(hyperparameter_search_for_ADL(nr_of_trials=NR_OF_TRIALS, stream_name=stream))
 
     # evaluate hyperparameters
     for run in runs:
@@ -41,3 +40,6 @@ def run_bench():
         stream = STREAM_STRINGS[run - 23]
         print("stream: ", stream)
         runs.append(hyperparameter_search_for_ADL(nr_of_trials=NR_OF_TRIALS, stream_name=stream, append_existing_run=run))
+
+    for run in runs:
+        evaluate_adl_run(run, force=True)

@@ -471,14 +471,12 @@ def __plot_and_save_result(result_id: int, show: bool = True, force_replot:bool 
             continue
 
         for datastream_folder in datastream_folders:
-            metrics_overview_path = datastream_folder / "metrics.pickle"
 
+            metrics_overview_path = datastream_folder / "metrics.pickle"
             if not metrics_overview_path.exists():
                 print(
                     f"runID={result_id}: No metrics overview file found for hyperparameter={hyperparameter_folder.name} and datastream={datastream_folder.name}, skipping")
                 continue
-
-            metrics_overview = pd.read_pickle(metrics_overview_path)
 
             all_metrics_path = datastream_folder / "metrics_per_window.pickle"
             if not all_metrics_path.exists():
@@ -486,8 +484,18 @@ def __plot_and_save_result(result_id: int, show: bool = True, force_replot:bool 
                     f"runID={result_id}: No metrics file found for hyperparameter={hyperparameter_folder.name} and datastream={datastream_folder.name}, skipping")
                 continue
 
+            plot_folder = datastream_folder / "plots"
+            plot_folder.mkdir(exist_ok=True)
+
+            if any(plot_folder.iterdir()) and not force_replot:
+                print(f"skipping {hyperparameter_folder.name}/{datastream_folder.name} as already plotted (force replot to prevent this)")
+                continue
+            print(f"plotting {hyperparameter_folder.name}/{datastream_folder.name}...")
+
+            metrics_overview = pd.read_pickle(metrics_overview_path)
             results_csv = pd.read_pickle(all_metrics_path)
             emissions_path = datastream_folder / "emissions.csv"
+
             emissions_plotting = False
             if emissions_path.exists():
                 emissions = pd.read_csv(emissions_path)
@@ -503,15 +511,9 @@ def __plot_and_save_result(result_id: int, show: bool = True, force_replot:bool 
             sub_title_string_middle = "\n".join((f"{key}={hyperparameter_dict_from_string[key]}," for key in hyperparameter_dict_from_string if key != "classifier"))
             sub_title_string = (sub_title_string_head + sub_title_string_middle + sub_title_string_tail)
 
-            plot_folder = datastream_folder / "plots"
-            plot_folder.mkdir(exist_ok=True)
 
             contains_winning_layer_column = len(results_csv.filter(regex="^winning_layer$").columns) > 0
-            if any(plot_folder.iterdir()) and not force_replot:
-                print(f"skipping {hyperparameter_folder.name}/{datastream_folder.name} as already plotted (force replot to prevent this)")
-                continue
 
-            print(f"plotting {hyperparameter_folder.name}/{datastream_folder.name}...")
             _all_plots(
                 data=results_csv,
                 plot_folder=plot_folder,
