@@ -149,6 +149,8 @@ class ADLClassifier(Classifier):
 
         # Compute prediction error
         pred = self.model(X)
+        # Backpropagation
+        self._backpropagation(prediction=pred, true_label=y)
 
         self._adjust_weights(true_label=y, step_size=self.learning_rate)
 
@@ -158,9 +160,6 @@ class ADLClassifier(Classifier):
         # todo: # 71
         self._high_lvl_learning(true_label=y, data=X)
         self._low_lvl_learning(true_label=y)
-
-        # Backpropagation
-        self._backpropagation(prediction=pred, true_label=y)
 
     def _backpropagation(self, prediction, true_label):
         self.__backpropagation(prediction, true_label)
