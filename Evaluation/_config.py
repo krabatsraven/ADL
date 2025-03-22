@@ -45,3 +45,5 @@ CLASSIFIERS = [
     ('winning_layer',),
     ('decoupled_lrs',),
 ]
+
+AMOUNT_OF_CLASSIFIERS = len(CLASSIFIERS)

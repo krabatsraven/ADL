@@ -51,13 +51,14 @@ def run_bench():
 
 
 def run_bench_mogon(stream_idx: int, classifier_idx: int) -> None:
-    if stream_idx * len(STREAM_STRINGS) + classifier_idx == 0:
+    run_idx = stream_idx * len(CLASSIFIERS) + classifier_idx
+    if run_idx == 0:
         logger = logging.getLogger(f"logger_runID={99}")
         logger.info("Starting MOGON RUN")
     logging.basicConfig(filename=Path("mogon_run.log").absolute().as_posix(), level=logging.INFO)
-    run_name = f"{stream_idx * len(STREAM_STRINGS) + classifier_idx}/{len(STREAM_STRINGS)*len(CLASSIFIERS)}"
+    run_name = f"{run_idx}/{len(STREAM_STRINGS)*len(CLASSIFIERS) - 1}"
     _test_one_combination(stream_idx=stream_idx, classifier_idx=classifier_idx, with_co_2=True, run_name=run_name)
-    if stream_idx * len(STREAM_STRINGS) + classifier_idx == len(STREAM_STRINGS)*len(CLASSIFIERS):
+    if run_idx == len(STREAM_STRINGS)*len(CLASSIFIERS):
         logger = logging.getLogger(f"logger_runID={99}")
         logger.info("FINISHED MOGON RUN")
 
