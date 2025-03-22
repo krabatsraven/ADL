@@ -332,22 +332,23 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
     streams = list(map(config_handling.config_to_stream, STREAM_STRINGS))
     nr_of_combinations = len(streams)
     stream_names = STREAM_STRINGS
-    best_config = list(map(get_best_config_for_stream_name, STREAM_STRINGS))
+    # best_config = list(map(get_best_config_for_stream_name, STREAM_STRINGS))
 
     standard_config = {
-        'lr': 0.190064,
+        'lr': 0.104083,
         'learner': extend_classifier_for_evaluation(),
-        'layer_weight_learning_rate': 0.153329,
-        'adwin-delta': 0.000239152,
-        'mci': 3.50888e-07,
-        'grace_period': (128, 'layer_grace'),
+        'layer_weight_learning_rate': 0.450039,
+        'adwin-delta': 3.63053e-05,
+        'mci': 9.34633e-07,
+        'grace_period': 369,
+        'grace_type': 'layer_grace',
         'loss_fn': 'NLLLoss'
     }
-    # best_config = [standard_config] * nr_of_combinations
+    best_config = [standard_config] * nr_of_combinations
 
     # ADLWithInputProcessingWithoutForLoopWithWinningLayerTrainingWithGraphWithEmWithGlobalGracePeriodOf256Instances
-    # Start time: 2025-03-09 23:12
-    # Start time: 2025-03-12 02:12
+    # Start time: 2025-03-17 17:14:04
+    # End time: 2025-03-19 21:02:31
 
     classifiers = [
         ('input_preprocessing', 'vectorized', 'winning_layer', 'decoupled_lrs'),
@@ -355,7 +356,7 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
         ('disable_deleted_layer', 'input_preprocessing', 'vectorized', 'winning_layer', 'decoupled_lrs'),
         ('input_preprocessing', 'vectorized', 'decoupled_lrs'),
         ('vectorized', 'winning_layer', 'decoupled_lrs'),
-        ('input_preprocessing', 'winning_layer', 'decoupled_lrs'),
+        ('input_preprocess  ing', 'winning_layer', 'decoupled_lrs'),
         ('input_preprocessing', 'vectorized', 'winning_layer'),
         ('vectorized', 'decoupled_lrs'),
         ('winning_layer', 'decoupled_lrs'),
@@ -368,32 +369,24 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
         ('winning_layer',),
         ('decoupled_lrs',),
     ]
-    run_id = 43
+    run_id = 58
 
     for i in range(nr_of_combinations):
         for classifier in classifiers:
-            for with_grace in [True]:
-                current_config = best_config[i]
-                grace_period = current_config['grace_period']
-                if not with_grace:
-                    if current_config['grace_period'] is None:
-                        continue
-                    else:
-                        current_config['grace_period'] = None
-                current_classifier = config_to_learner(*classifier, grace_period=current_config['grace_period'], with_co2=with_co_2)
-                print(current_classifier.name())
-                adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=('decoupled_lrs' in classifier), with_co2=with_co_2, learner_name=config_to_learner(*classifier, grace_period=None, with_co2=with_co_2).name())
-                __evaluate_on_stream(
-                    classifier=current_classifier,
-                    stream_data=streams[i],
-                    stream_name=stream_names[i],
-                    adl_parameters=adl_parameter,
-                    rename_values=rename_values,
-                    run_id=run_id
-                )
-                __write_summary(run_id, added_names)
-                __plot_and_save_result(run_id, show=False)
-                current_config['grace_period'] = grace_period
+            current_config = best_config[i]
+            current_classifier = config_to_learner(*classifier, grace_period=(current_config['grace_period'], current_config['grace_type']), with_co2=with_co_2)
+            print(current_classifier.name())
+            adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=('decoupled_lrs' in classifier), with_co2=with_co_2, learner_name=config_to_learner(*classifier, grace_period=None, with_co2=with_co_2).name())
+            __evaluate_on_stream(
+                classifier=current_classifier,
+                stream_data=streams[i],
+                stream_name=stream_names[i],
+                adl_parameters=adl_parameter,
+                rename_values=rename_values,
+                run_id=run_id
+            )
+            __write_summary(run_id, added_names)
+    __plot_and_save_result(run_id, show=False)
 
     # if name is not None:
     #     folder = Path("/home/david/PycharmProjects/ADL/results/experiment_data_selected") / name

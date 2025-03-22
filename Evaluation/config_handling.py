@@ -49,11 +49,11 @@ def adl_run_data_from_config(config, with_weight_lr: bool, with_co2: bool = Fals
     }
     added_names = {'MCICutOff', 'classifier', 'stream', ADWIN_DELTA_STANDIN, 'lr', 'loss_fn'}
 
-    if config['grace_period'] is not None and config['grace_period'][1] == 'global_grace':
-        renames['globalGracePeriod'] = config['grace_period'][0]
+    if config['grace_period'] is not None and config['grace_type'] == 'global_grace':
+        renames['globalGracePeriod'] = config['grace_period']
         added_names.add('globalGracePeriod')
-    elif config['grace_period'] is not None and config['grace_period'][1] == 'layer_grace':
-        renames['gracePeriodPerLayer'] = config['grace_period'][0]
+    elif config['grace_period'] is not None and config['grace_type'] == 'layer_grace':
+        renames['gracePeriodPerLayer'] = config['grace_period']
         added_names.add('gracePeriodPerLayer')
     if with_weight_lr:
         added_params['layer_weight_learning_rate'] = config['layer_weight_learning_rate']
@@ -135,7 +135,7 @@ def config_to_learner(*traits: str, grace_period: Optional[Tuple[int, str]], wit
     if grace_period is not None and grace_period[1] == "global_grace":
         learner = grace_period_per_layer(grace_period[0])(learner)
     elif grace_period is not None and grace_period[1] == "layer_grace":
-        learner = global_grace_period(grace_period[0])(learner)
+        learner = grace_period_per_layer(grace_period[0])(learner)
 
     return learner
 

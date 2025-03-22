@@ -10,24 +10,24 @@ def run_bench():
   
     print("hyperparameter for adl")
     runs = []
-    for stream in STREAM_STRINGS:
-        print("stream: ", stream)
-        runs.append(hyperparameter_search_for_ADL(nr_of_trials=NR_OF_TRIALS, stream_name=stream))
+    # for stream in STREAM_STRINGS:
+    #     print("stream: ", stream)
+    #     runs.append(hyperparameter_search_for_ADL(nr_of_trials=NR_OF_TRIALS, stream_name=stream))
 
     # evaluate hyperparameters
-    for run in runs:
+    for run in [*range(47, 56)]:
         evaluate_adl_run(run)
 
     # compare to simple dnn: set a size that averages the adl node count
     runs.clear()
-    # compare to small simple dnn
-    print("hyperparameter for dnn")
-    for stream in STREAM_STRINGS:
-        print("stream: ", stream)
-        runs.append(hyperparameter_search_for_SimpleDNN(nr_of_trials=NR_OF_TRIALS, stream_name=stream))
-    runs = [*range(34, 43)]
-    for run in runs:
-        evaluate_simple_run(run)
+    # # compare to small simple dnn
+    # print("hyperparameter for dnn")
+    # for stream in STREAM_STRINGS:
+    #     print("stream: ", stream)
+    #     runs.append(hyperparameter_search_for_SimpleDNN(nr_of_trials=NR_OF_TRIALS, stream_name=stream))
+    # runs = [*range(34, 43)]
+    # for run in runs:
+    #     evaluate_simple_run(run)
 
     # # run: best hyperparameter set also with co2 emission
     # # and run: best hyperparameter set for different classifier also with co2 emmisions:
@@ -35,9 +35,9 @@ def run_bench():
     _test_best_combination(name="best_hyper_parameter_all_models_all_streams_with_co2", with_co_2=True)
 
     print("hyperparameter for adl")
-    runs = [*range(23, 32)]
+    runs = [*range(47, 56)]
     for run in runs:
-        stream = STREAM_STRINGS[run - 23]
+        stream = STREAM_STRINGS[run - 47]
         print("stream: ", stream)
         runs.append(hyperparameter_search_for_ADL(nr_of_trials=NR_OF_TRIALS, stream_name=stream, append_existing_run=run))
 

@@ -56,7 +56,7 @@ def evaluate_simple_dnn_config(config, run_id, force: bool =False):
 
 
 def evaluate_adl_run_config(config, run_id, force: bool=False):
-    classifier = config_to_learner(*config['learner'], grace_period=config['grace_period'])
+    classifier = config_to_learner(*config['learner'], grace_period=(config['grace_period'], config['grace_type']))
     added_params = {
         "mci_threshold_for_layer_pruning": config['mci'],
         'drift_detector': ADWIN(config['adwin-delta']),
@@ -72,11 +72,11 @@ def evaluate_adl_run_config(config, run_id, force: bool=False):
     }
     added_names = {'MCICutOff', 'classifier', 'stream', ADWIN_DELTA_STANDIN, 'lr', 'loss_fn'}
 
-    if config['grace_period'] is not None and config['grace_period'][1] == 'global_grace':
-        renames['globalGracePeriod'] = config['grace_period'][0]
+    if config['grace_period'] is not None and config['grace_type'] == 'global_grace':
+        renames['globalGracePeriod'] = config['grace_period']
         added_names.add('globalGracePeriod')
-    elif config['grace_period'] is not None and config['grace_period'][1] == 'layer_grace':
-        renames['gracePeriodPerLayer'] = config['grace_period'][0]
+    elif config['grace_period'] is not None and config['grace_type'] == 'layer_grace':
+        renames['gracePeriodPerLayer'] = config['grace_period']
         added_names.add('gracePeriodPerLayer')
     if 'WithUserChosenWeightLR' in classifier.name():
         added_params['layer_weight_learning_rate'] = config['layer_weight_learning_rate']
@@ -93,4 +93,4 @@ def evaluate_adl_run_config(config, run_id, force: bool=False):
         force=force,
     )
     __write_summary(run_id, added_names)
-    __plot_and_save_result(run_id, show=False, force_replot=True)
+    __plot_and_save_result(run_id, show=False, force_replot=force)

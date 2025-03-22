@@ -13,7 +13,7 @@ from Evaluation._config import MAX_INSTANCES, MIN_INSTANCES
 
 def ADLTrainable(config):
     stream = config_to_stream(config['stream'])
-    learner = config_to_learner(*config['learner'], grace_period=config['grace_period'])
+    learner = config_to_learner(*config['learner'], grace_period=(config['grace_period'], config['grace_type']))
 
     if 'WithUserChosenWeightLR' in learner.name():
         learner = learner(

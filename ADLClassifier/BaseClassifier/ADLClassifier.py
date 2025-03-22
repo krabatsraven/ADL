@@ -154,7 +154,6 @@ class ADLClassifier(Classifier):
 
         self._adjust_weights(true_label=y, step_size=self.learning_rate)
 
-
         self.drift_detector.add_element(self._drift_criterion(y, pred))
 
         # todo: # 71
@@ -198,9 +197,7 @@ class ADLClassifier(Classifier):
         for corrects_on_data_point in correctly_predicted_layers_mask_on_batch:
             # if layer predicted correctly increase weight correction factor p^(l) by step_size "zeta"
             # p^(l) = p^(l) + step_size
-            if corrects_on_data_point.shape != weight_correction_factor_values.shape:
-                print(weight_correction_factor_values)
-                print(self.model.weight_correction_factor)
+
             weight_correction_factor_values[corrects_on_data_point] += step_size_tensor
             # if layer predicted erroneous decrease weight correction factor p^(l) by step size
             # p^(l) = p^(l) - step_size
