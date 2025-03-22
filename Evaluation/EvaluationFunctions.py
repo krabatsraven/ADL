@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import time
@@ -15,8 +16,9 @@ from ADLClassifier import ADLClassifier, global_grace_period, grace_period_per_l
     delete_deleted_layers, input_preprocessing, add_weight_correction_parameter_to_user_choices
 from Evaluation import config_handling
 from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_all_of_one_run
-from Evaluation._config import ADWIN_DELTA_STANDIN, MAX_INSTANCES_TEST, STREAM_STRINGS
-from Evaluation.config_handling import get_best_config_for_stream_name, adl_run_data_from_config, config_to_learner
+from Evaluation._config import ADWIN_DELTA_STANDIN, MAX_INSTANCES_TEST, STREAM_STRINGS, STANDARD_CONFIG, CLASSIFIERS
+from Evaluation.config_handling import get_best_config_for_stream_name, adl_run_data_from_config, config_to_learner, \
+    config_to_stream
 
 
 def __get_run_id() -> int:
@@ -38,27 +40,28 @@ def __evaluate_on_stream(
         rename_values: Dict[str, float],
         stream_name: Optional[str] = None,
         force: bool = False,
+        run_name: Optional[str] = None
 ) -> None:
+    logger = logging.getLogger(f"logger_runID={run_id}")
+    call_identifier = run_name if not run_name is None else f'runID={run_id}'
 
     name_string_of_stream_data = stream_name if stream_name is not None else f"{stream_data.schema.dataset_name}/"
     hyperparameter_part_of_name_string = "_".join((f"{str(key).replace('_', ' ')}={f'{value:.3g}' if type(value) == float else str(value).replace('_', ' ')}" for key, value in rename_values.items()))
     results_dir_path = Path("results/runs")
     results_path = results_dir_path / f"runID={run_id}" / hyperparameter_part_of_name_string / name_string_of_stream_data
     if (results_path / "metrics.pickle").exists() and not force:
-        print("skipping, already evaluated, set force=True to overwrite")
+        logger.info(f"skipping {classifier} + {name_string_of_stream_data} + {adl_parameters}, already evaluated, set force=True to overwrite")
         return
 
-    print("--------------------------------------------------------------------------")
-    print(f"---------------Start time: {datetime.now()}---------------------")
+    logger.info(f"---------------Start time {call_identifier}: {datetime.now()}---------------")
 
     results_path.mkdir(parents=True, exist_ok=True)
 
     os.environ["CODECARBON_OUTPUT_DIR"] = str(results_path)
-    # os.environ["CODECARBON_TRACKING_MODE"] = "process"
+    os.environ["CODECARBON_TRACKING_MODE"] = "process"
     os.environ["CODECARBON_LOG_LEVEL"] = "CRITICAL"
 
-    print(f"summary for training:\nrunId={run_id}\nstream={name_string_of_stream_data}\n" + "\n".join((f"{str(key).replace('_', ' ')}={str(value).replace('_', ' ')}" for key, value in rename_values.items())) + ":")
-    print("--------------------------------------------------------------------------")
+    logger.info(f"\nsummary for training {call_identifier}:\nrunId={run_id}\nstream={name_string_of_stream_data}\n" + "\n".join((f"{str(key).replace('_', ' ')}={str(value).replace('_', ' ')}" for key, value in rename_values.items())) + "\n----------")
 
     adl_classifier = classifier(
         schema=stream_data.schema,
@@ -71,10 +74,10 @@ def __evaluate_on_stream(
     results_ht = prequential_evaluation(stream=stream_data, learner=adl_classifier, window_size=100, optimise=True, store_predictions=False, store_y=False, max_instances=MAX_INSTANCES_TEST)
     total_time_end = time.time_ns()
 
-    print(f"total time spend training the network: {(total_time_end - total_time_start):.2E}ns, that equals {(total_time_end - total_time_start) / 10 ** 9:.2E}s or {(total_time_end - total_time_start) / 10 ** 9 /60:.2f}min")
+    logger.info(f"total time spend training the network {call_identifier}: {(total_time_end - total_time_start):.2E}ns, that equals {(total_time_end - total_time_start) / 10 ** 9:.2E}s or {(total_time_end - total_time_start) / 10 ** 9 /60:.2f}min")
 
-    print(f"\n\tThe cumulative results:")
-    print(f"instances={results_ht.cumulative.metrics_dict()['instances']}, accuracy={results_ht.cumulative.metrics_dict()['accuracy']}")
+    logger.info(f"\n\tThe cumulative results {call_identifier}:")
+    logger.info(f"instances={results_ht.cumulative.metrics_dict()['instances']}, accuracy={results_ht.cumulative.metrics_dict()['accuracy']}")
 
     metrics_at_end = pd.DataFrame([adl_classifier.evaluator.metrics()], columns=adl_classifier.evaluator.metrics_header())
 
@@ -93,9 +96,7 @@ def __evaluate_on_stream(
     windowed_results.to_pickle(results_path / "metrics_per_window.pickle")
 
     results_ht.write_to_file(results_path.absolute().as_posix())
-    print(f"---------------End time: {datetime.now()}-----------------------")
-    print("--------------------------------------------------------------------------")
-    print()
+    logger.info(f"---------------End time {call_identifier}: {datetime.now()}-----------------------")
 
 
 def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
@@ -334,41 +335,14 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
     stream_names = STREAM_STRINGS
     # best_config = list(map(get_best_config_for_stream_name, STREAM_STRINGS))
 
-    standard_config = {
-        'lr': 0.104083,
-        'learner': extend_classifier_for_evaluation(),
-        'layer_weight_learning_rate': 0.450039,
-        'adwin-delta': 3.63053e-05,
-        'mci': 9.34633e-07,
-        'grace_period': 369,
-        'grace_type': 'layer_grace',
-        'loss_fn': 'NLLLoss'
-    }
+    standard_config = STANDARD_CONFIG
     best_config = [standard_config] * nr_of_combinations
 
     # ADLWithInputProcessingWithoutForLoopWithWinningLayerTrainingWithGraphWithEmWithGlobalGracePeriodOf256Instances
     # Start time: 2025-03-17 17:14:04
     # End time: 2025-03-19 21:02:31
 
-    classifiers = [
-        ('input_preprocessing', 'vectorized', 'winning_layer', 'decoupled_lrs'),
-        ('delete_deleted_layer', 'input_preprocessing', 'vectorized', 'winning_layer', 'decoupled_lrs'),
-        ('disable_deleted_layer', 'input_preprocessing', 'vectorized', 'winning_layer', 'decoupled_lrs'),
-        ('input_preprocessing', 'vectorized', 'decoupled_lrs'),
-        ('vectorized', 'winning_layer', 'decoupled_lrs'),
-        ('input_preprocess  ing', 'winning_layer', 'decoupled_lrs'),
-        ('input_preprocessing', 'vectorized', 'winning_layer'),
-        ('vectorized', 'decoupled_lrs'),
-        ('winning_layer', 'decoupled_lrs'),
-        ('vectorized', 'winning_layer'),
-        ('input_preprocessing', 'decoupled_lrs'),
-        ('input_preprocessing', 'vectorized'),
-        ('input_preprocessing', 'winning_layer'),
-        ('input_preprocessing',),
-        ('vectorized',),
-        ('winning_layer',),
-        ('decoupled_lrs',),
-    ]
+    classifiers = CLASSIFIERS
     run_id = 58
 
     for i in range(nr_of_combinations):
@@ -388,12 +362,20 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
             __write_summary(run_id, added_names)
     __plot_and_save_result(run_id, show=False)
 
-    # if name is not None:
-    #     folder = Path("/home/david/PycharmProjects/ADL/results/experiment_data_selected") / name
-    #     run_folder = Path(f"/home/david/PycharmProjects/ADL/results/runs/runID={run_id}")
-    #     comparision_folder = Path("/home/david/PycharmProjects/ADL/results/comparisons/comparison=0")
-    #
-    #     if folder.exists():
-    #         shutil.rmtree(folder)
-    #     shutil.move(run_folder, folder)
-    #     shutil.move(comparision_folder, folder)
+
+def _test_one_combination(stream_idx: int, classifier_idx: int, with_co_2: bool, run_name: str, force: bool = False):
+    run_id = 99
+    current_config = STANDARD_CONFIG
+    current_classifier = config_to_learner(*CLASSIFIERS[classifier_idx], grace_period=(current_config['grace_period'], current_config['grace_type']), with_co2=with_co_2)
+    adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=('decoupled_lrs' in CLASSIFIERS[classifier_idx]), with_co2=with_co_2, learner_name=config_to_learner(*CLASSIFIERS[classifier_idx], grace_period=None, with_co2=with_co_2).name())
+    __evaluate_on_stream(
+        classifier=current_classifier,
+        stream_data=config_to_stream(STREAM_STRINGS[stream_idx]),
+        stream_name=STREAM_STRINGS[stream_idx],
+        adl_parameters=adl_parameter,
+        rename_values=rename_values,
+        run_id=run_id,
+        run_name=run_name,
+        force=force
+    )
+    __write_summary(run_id, added_names)

@@ -1,7 +1,12 @@
+import asyncio
+import logging
+from pathlib import Path
+
 from Evaluation.RayTuneResources import hyperparameter_search_for_ADL, hyperparameter_search_for_SimpleDNN
 from Evaluation.RayTuneResources.evaluate_runs import evaluate_adl_run, evaluate_simple_run
-from Evaluation.EvaluationFunctions import _test_best_combination
-from Evaluation._config import NR_OF_TRIALS, STREAM_STRINGS
+from Evaluation.EvaluationFunctions import _test_best_combination, _test_one_combination
+from Evaluation._config import NR_OF_TRIALS, STREAM_STRINGS, CLASSIFIERS
+
 
 def run_bench():
     # find best hyperparameters for all streams with adl
@@ -43,3 +48,28 @@ def run_bench():
 
     for run in runs:
         evaluate_adl_run(run, force=True)
+
+
+def run_bench_mogon(stream_idx: int, classifier_idx: int) -> None:
+    if stream_idx * len(STREAM_STRINGS) + classifier_idx == 0:
+        logger = logging.getLogger(f"logger_runID={99}")
+        logger.info("Starting MOGON RUN")
+    logging.basicConfig(filename=Path("mogon_run.log").absolute().as_posix(), level=logging.INFO)
+    run_name = f"{stream_idx * len(STREAM_STRINGS) + classifier_idx}/{len(STREAM_STRINGS)*len(CLASSIFIERS)}"
+    _test_one_combination(stream_idx=stream_idx, classifier_idx=classifier_idx, with_co_2=True, run_name=run_name)
+    if stream_idx * len(STREAM_STRINGS) + classifier_idx == len(STREAM_STRINGS)*len(CLASSIFIERS):
+        logger = logging.getLogger(f"logger_runID={99}")
+        logger.info("FINISHED MOGON RUN")
+
+
+async def async_run_bench_mogon(stream_idx: int, classifier_idx: int) -> None:
+    await asyncio.to_thread(run_bench_mogon, stream_idx, classifier_idx)
+
+
+async def simulate_bench_mogon():
+    tasks = []
+    for stream_idx in range(len(STREAM_STRINGS)):
+        for classifier_idx in range(len(CLASSIFIERS)):
+            tasks.append(async_run_bench_mogon(stream_idx, classifier_idx))
+
+    await asyncio.gather(*tasks)
