@@ -344,12 +344,14 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
 
     classifiers = CLASSIFIERS
     run_id = 58
+    logging.basicConfig(filename=Path(f"best_combination_runID={run_id}.log").absolute().as_posix(), level=logging.INFO)
+    logger = logging.getLogger(f"logger_runID={run_id}")
 
     for i in range(nr_of_combinations):
         for classifier in classifiers:
             current_config = best_config[i]
             current_classifier = config_to_learner(*classifier, grace_period=(current_config['grace_period'], current_config['grace_type']), with_co2=with_co_2)
-            print(current_classifier.name())
+            logger.info(current_classifier.name())
             adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=('decoupled_lrs' in classifier), with_co2=with_co_2, learner_name=config_to_learner(*classifier, grace_period=None, with_co2=with_co_2).name())
             __evaluate_on_stream(
                 classifier=current_classifier,
