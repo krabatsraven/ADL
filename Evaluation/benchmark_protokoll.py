@@ -12,7 +12,7 @@ def run_bench():
     # find best hyperparameters for all streams with adl
     #  stream                 lr     ...ght_learning_rate     adwin-delta           mci   grace_period           loss_fn       iter     total time (s)     score
     # electricity   0.190064                 0.153329        0.000239152   3.50888e-07   (128, 'layer_grace')   NLLLoss      45312           771.649    92.0418
-  
+    logging.basicConfig(filename=Path("benchmark.log").absolute().as_posix(), level=logging.INFO)
     print("hyperparameter for adl")
     runs = []
     # for stream in STREAM_STRINGS:
@@ -63,14 +63,14 @@ def run_bench_mogon(stream_idx: int, classifier_idx: int) -> None:
         logger.info("FINISHED MOGON RUN")
 
 
-async def async_run_bench_mogon(stream_idx: int, classifier_idx: int) -> None:
+async def async_run_bench(stream_idx: int, classifier_idx: int) -> None:
     await asyncio.to_thread(run_bench_mogon, stream_idx, classifier_idx)
 
 
-async def simulate_bench_mogon():
+async def bench_async():
     tasks = []
     for stream_idx in range(len(STREAM_STRINGS)):
         for classifier_idx in range(len(CLASSIFIERS)):
-            tasks.append(async_run_bench_mogon(stream_idx, classifier_idx))
+            tasks.append(async_run_bench(stream_idx, classifier_idx))
 
     await asyncio.gather(*tasks)

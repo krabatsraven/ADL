@@ -2,7 +2,7 @@
 
 #------------------------------- SBATCH -------------------------------
 #SBATCH -J jobname # Job name
-#SBATCH --partition=topml      # very slow: smp
+#SBATCH --partition=m2_datamining      # very slow: smp
 #SBATCH -o outputfile.%j.out         # Specify stdout output file (%j expands to jobId)
 #SBATCH --account=ki-topml
 #SBATCH -t 120:00:00                  # Run time (hh:mm:ss)
