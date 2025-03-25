@@ -1,14 +1,14 @@
 #!/bin/bash
 
 #------------------------------- SBATCH -------------------------------
-#SBATCH -J jobname # Job name
-#SBATCH --partition=m2_datamining      # very slow: smp
+#SBATCH -J bench_adl # Job name
+#SBATCH --partition=parallel      # very slow: smp
 #SBATCH -o outputfile.%j.out         # Specify stdout output file (%j expands to jobId)
-#SBATCH --account=ki-topml
+#SBATCH --account=m2_datamining
 #SBATCH -t 120:00:00                  # Run time (hh:mm:ss)
 #SBATCH --mem=3000
 #------------------------------- Parallelize -------------------------------
-#SBATCH --array=0-152:1
+#SBATCH --array=0-10:1
 #------------------------------- Modules -------------------------------
 #module load lang/Java
 #------------------------------- Virtual Environment -------------------------------

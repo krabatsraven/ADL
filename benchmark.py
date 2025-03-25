@@ -1,11 +1,16 @@
+import logging
 import os
+from pathlib import Path
 
 from Evaluation._config import AMOUNT_OF_CLASSIFIERS
 from Evaluation.benchmark_protokoll import run_bench_mogon
 
 if __name__ == "__main__":
+    logging.basicConfig(Path("mogon_benchmark.log"))
+    logger = logging.getLogger("mogon_bench")
     job_id = int(os.environ['SLURM_ARRAY_TASK_ID'])
-    print(f"{job_id} / 152")
+    logger.info(f"{job_id} / 10")
+    print(f"{job_id} / 10")
     string_id = job_id // AMOUNT_OF_CLASSIFIERS
     classifier_id = job_id % AMOUNT_OF_CLASSIFIERS
     print(f"{string_id}, {classifier_id}")
