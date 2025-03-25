@@ -1,3 +1,5 @@
+from itertools import combinations
+
 from ADLClassifier import extend_classifier_for_evaluation
 
 NR_OF_TRIALS = 500
@@ -25,25 +27,13 @@ STANDARD_CONFIG = {
     'grace_type': 'layer_grace',
     'loss_fn': 'NLLLoss'
 }
+singular_classifier_features_to_test = ['input_preprocessing', 'vectorized', 'winning_layer']
+pairwise_classifier_features_to_test = [('delete_deleted_layer', 'disable_deleted_layer')]
+classifier_features_to_always_include = ['decoupled_lrs']
 
-CLASSIFIERS = [
-    ('input_preprocessing', 'vectorized', 'winning_layer', 'decoupled_lrs'),
-    ('delete_deleted_layer', 'input_preprocessing', 'vectorized', 'winning_layer', 'decoupled_lrs'),
-    ('disable_deleted_layer', 'input_preprocessing', 'vectorized', 'winning_layer', 'decoupled_lrs'),
-    ('input_preprocessing', 'vectorized', 'decoupled_lrs'),
-    ('vectorized', 'winning_layer', 'decoupled_lrs'),
-    ('input_preprocessing', 'winning_layer', 'decoupled_lrs'),
-    ('input_preprocessing', 'vectorized', 'winning_layer'),
-    ('vectorized', 'decoupled_lrs'),
-    ('winning_layer', 'decoupled_lrs'),
-    ('vectorized', 'winning_layer'),
-    ('input_preprocessing', 'decoupled_lrs'),
-    ('input_preprocessing', 'vectorized'),
-    ('input_preprocessing', 'winning_layer'),
-    ('input_preprocessing',),
-    ('vectorized',),
-    ('winning_layer',),
-    ('decoupled_lrs',),
-]
+singular_combinations = [t for i in range(len(singular_classifier_features_to_test) + 1) for t in combinations(singular_classifier_features_to_test, r=i)]
+combs = [ext + s_combi for s_combi in singular_combinations for pair in pairwise_classifier_features_to_test for ext in [x for i in range(2) for x in combinations(pair, r=i)]]
+combs.sort(key=lambda x: len(x), reverse=True)
+CLASSIFIERS = [combi + (ext,) for combi in combs for ext in classifier_features_to_always_include]
 
 AMOUNT_OF_CLASSIFIERS = len(CLASSIFIERS)
