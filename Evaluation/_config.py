@@ -18,7 +18,8 @@ STREAM_STRINGS = [
     'sea_no_drift', 'sea_single_drift', 'sea_three_drifts', 'sea_four_drifts'
 ]
 
-STANDARD_LEARNER = reversed((grace_period_per_layer(369), add_weight_correction_parameter_to_user_choices, winning_layer_training, vectorized_for_loop, input_preprocessing))
+STANDARD_LEARNER = [grace_period_per_layer(369), add_weight_correction_parameter_to_user_choices, winning_layer_training, vectorized_for_loop, input_preprocessing]
+STANDARD_LEARNER.reverse()
 
 STANDARD_CONFIG = {
     'lr': 0.104083,

@@ -52,11 +52,11 @@ def input_preprocessing(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
                 sparse_threshold=0)
 
         def __str__(self):
-            return f"{super().__str__()}WithInputProcessing"
+            return f"{super().__str__()}WithInput"
 
         @classmethod
         def name(cls) -> str:
-            return f"{adl_classifier.name()}WithInputProcessing"
+            return f"{adl_classifier.name()}WithInput"
 
         def _preprocess_instance(self, instance):
             if len(instance.x.shape) < 2:

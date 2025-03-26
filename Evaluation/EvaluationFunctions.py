@@ -373,7 +373,6 @@ def _test_one_feature(stream_idx: int, classifier_idx: int, with_co_2: bool, run
     current_config = STANDARD_CONFIG
     current_classifier = config_to_learner(*CLASSIFIERS[classifier_idx], grace_period=(current_config['grace_period'], current_config['grace_type']), with_co2=with_co_2)
     adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=('decoupled_lrs' in CLASSIFIERS[classifier_idx]), with_co2=with_co_2, learner_name=config_to_learner(*CLASSIFIERS[classifier_idx], grace_period=None, with_co2=with_co_2).name())
-    logging.getLogger(f"logger_runID={run_id}").info(f'one feature {stream_idx + classifier_idx * AMOUNT_OF_STRINGS}/{AMOUNT_OF_CLASSIFIERS * AMOUNT_OF_STRINGS - 1}')
     return 
     __evaluate_on_stream(
         classifier=current_classifier,

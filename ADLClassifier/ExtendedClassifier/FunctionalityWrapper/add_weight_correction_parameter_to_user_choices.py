@@ -23,11 +23,11 @@ def add_weight_correction_parameter_to_user_choices(adl_classifier: type(ADLClas
             super().__init__(*args, **kwargs)
 
         def __str__(self):
-            return f"{super().__str__()}WithUserChosenWeightLR"
+            return f"{super().__str__()}WithWeightLR"
 
         @classmethod
         def name(cls) -> str:
-            return f"{adl_classifier.name()}WithUserChosenWeightLR"
+            return f"{adl_classifier.name()}WithWeightLR"
 
         def _adjust_weights(self, true_label: torch.Tensor, step_size: float):
             super()._adjust_weights(true_label, self.layer_weight_learning_rate)
@@ -43,5 +43,5 @@ def add_weight_correction_parameter_to_user_choices(adl_classifier: type(ADLClas
             adl_classifier.state_dict.__set__(self, state_dict)
             self.layer_weight_learning_rate = state_dict['layer_weight_learning_rate']
 
-    AddWeightCorrectionParameterToUserChoicesWrapper.__name__ = f"{adl_classifier.__name__}WithUserChosenWeightLR"
+    AddWeightCorrectionParameterToUserChoicesWrapper.__name__ = f"{adl_classifier.__name__}WithWeightLR"
     return AddWeightCorrectionParameterToUserChoicesWrapper

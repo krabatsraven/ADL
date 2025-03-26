@@ -17,11 +17,11 @@ def winning_layer_training(adl_classifier: type(ADLClassifier)) -> type(ADLClass
         """
 
         def __str__(self):
-            return f"{super().__str__()}WithWinningLayerTraining"
+            return f"{super().__str__()}WithWLTraining"
 
         @classmethod
         def name(cls) -> str:
-            return f"{adl_classifier.name()}WithWinningLayerTraining"
+            return f"{adl_classifier.name()}WithWLTraining"
 
         def _backpropagation(self, prediction: torch.Tensor, true_label: torch.Tensor):
             layers_to_disable = self.model.active_and_learning_layer_keys_wo_winning_layer().tolist()
@@ -29,5 +29,5 @@ def winning_layer_training(adl_classifier: type(ADLClassifier)) -> type(ADLClass
             super()._backpropagation(prediction=prediction, true_label=true_label)
             self.model._enable_layers_for_training(layers_to_disable)
 
-    WithWinningLayerTrainingWrapper.__name__ = f"WinningLayer{adl_classifier.__name__}"
+    WithWinningLayerTrainingWrapper.__name__ = f"{adl_classifier.__name__}WithWLTraining"
     return WithWinningLayerTrainingWrapper
