@@ -8,13 +8,12 @@ from capymoa.stream import Stream, ARFFStream
 from torch.nn import CrossEntropyLoss
 
 import Evaluation
-from ADLClassifier import global_grace_period, grace_period_per_layer, extend_classifier_for_evaluation, \
+from ADLClassifier import grace_period_per_layer, extend_classifier_for_evaluation, \
     winning_layer_training, vectorized_for_loop, ADLClassifier, add_weight_correction_parameter_to_user_choices, \
     input_preprocessing, disabeling_deleted_layers, delete_deleted_layers
 from ADLClassifier.Resources.NLLLoss import NLLLoss
 
-from Evaluation.SynteticStreams import agrawal_no_drift, agrawal_single_drift, agrawal_three_drifts, \
-    agrawal_four_drifts_concepts, agrawal_four_drifts
+from Evaluation.SynteticStreams.SynteticAgrawalStreams import agrawal_no_drift, agrawal_single_drift, agrawal_three_drifts, agrawal_four_drifts
 from Evaluation.SynteticStreams.SyntheticSEAStreams import sea_no_drift, sea_single_drift, sea_three_drifts, sea_four_drifts
 from Evaluation._config import ADWIN_DELTA_STANDIN
 
@@ -61,7 +60,6 @@ def adl_run_data_from_config(config, with_weight_lr: bool, with_co2: bool = Fals
         added_names.add('layerWeightLR')
 
     return added_params, renames, added_names
-
 
 
 def write_config(config, run_id: Optional[int] = None, run_name: str = ''):
@@ -113,6 +111,7 @@ def config_to_stream(stream_name: str) -> type(Stream):
 
 def config_to_learner(*traits: str, grace_period: Optional[Tuple[int, str]], with_co2: bool = False) -> type(ADLClassifier):
     decorators = []
+
     for trait in traits:
         match trait:
             case 'vectorized':
@@ -130,12 +129,12 @@ def config_to_learner(*traits: str, grace_period: Optional[Tuple[int, str]], wit
             case _:
                 raise ValueError(f"unknown trait: {trait}")
 
-    learner = extend_classifier_for_evaluation(*decorators, with_emissions=with_co2)
-
     if grace_period is not None and grace_period[1] == "global_grace":
-        learner = grace_period_per_layer(grace_period[0])(learner)
+        decorators.append(grace_period_per_layer(grace_period[0]))
     elif grace_period is not None and grace_period[1] == "layer_grace":
-        learner = grace_period_per_layer(grace_period[0])(learner)
+        decorators.append(grace_period_per_layer(grace_period[0]))
+
+    learner = extend_classifier_for_evaluation(*decorators, with_emissions=with_co2)
 
     return learner
 

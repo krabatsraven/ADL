@@ -16,7 +16,10 @@ from ADLClassifier import ADLClassifier, global_grace_period, grace_period_per_l
     delete_deleted_layers, input_preprocessing, add_weight_correction_parameter_to_user_choices
 from Evaluation import config_handling
 from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_all_of_one_run
-from Evaluation._config import ADWIN_DELTA_STANDIN, MAX_INSTANCES_TEST, STREAM_STRINGS, STANDARD_CONFIG, CLASSIFIERS
+from Evaluation._config import ADWIN_DELTA_STANDIN, MAX_INSTANCES_TEST, STREAM_STRINGS, STANDARD_CONFIG, CLASSIFIERS, \
+    STANDARD_CONFIG_WITH_CO2, UNSTABLE_CONFIG, UNSTABLE_STRING_IDX, STABLE_STRING_IDX, STABLE_CONFIG, \
+    HYPERPARAMETER_KEYS, HYPERPARAMETERS, AMOUNT_OF_STRINGS, AMOUNT_OF_CLASSIFIERS, AMOUNT_HYPERPARAMETERS, \
+    TOTAL_AMOUNT_HYPERPARAMETERS, AMOUNT_HYPERPARAMETER_TESTS, AMOUNT_HYPERPARAMETERS_BEFORE
 from Evaluation.config_handling import get_best_config_for_stream_name, adl_run_data_from_config, config_to_learner, \
     config_to_stream
 
@@ -365,11 +368,84 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
     __plot_and_save_result(run_id, show=False)
 
 
-def _test_one_combination(stream_idx: int, classifier_idx: int, with_co_2: bool, run_name: str, force: bool = False):
+def _test_one_feature(stream_idx: int, classifier_idx: int, with_co_2: bool, run_name: str, force: bool = False) -> None:
     run_id = 99
     current_config = STANDARD_CONFIG
     current_classifier = config_to_learner(*CLASSIFIERS[classifier_idx], grace_period=(current_config['grace_period'], current_config['grace_type']), with_co2=with_co_2)
     adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=('decoupled_lrs' in CLASSIFIERS[classifier_idx]), with_co2=with_co_2, learner_name=config_to_learner(*CLASSIFIERS[classifier_idx], grace_period=None, with_co2=with_co_2).name())
+    logging.getLogger(f"logger_runID={run_id}").info(f'one feature {stream_idx + classifier_idx * AMOUNT_OF_STRINGS}/{AMOUNT_OF_CLASSIFIERS * AMOUNT_OF_STRINGS - 1}')
+    return 
+    __evaluate_on_stream(
+        classifier=current_classifier,
+        stream_data=config_to_stream(STREAM_STRINGS[stream_idx]),
+        stream_name=STREAM_STRINGS[stream_idx],
+        adl_parameters=adl_parameter,
+        rename_values=rename_values,
+        run_id=run_id,
+        run_name=run_name,
+        force=force
+    )
+    __write_summary(run_id, added_names)
+
+
+def _test_one_hyperparameter(hyperparameter_key_idx: int, hyperparameter_idx: int, stream_idx: int, with_co_2: bool, run_name: str, force: bool = False) -> None:
+    assert 0 <= hyperparameter_key_idx < len(HYPERPARAMETER_KEYS), f"Invalid hyperparameter key index {hyperparameter_key_idx}"
+    assert 0 <= hyperparameter_idx < len(HYPERPARAMETERS[HYPERPARAMETER_KEYS[hyperparameter_key_idx]]), f"invalid hyperparameter index {hyperparameter_idx}"
+    assert 0 <= stream_idx < AMOUNT_OF_STRINGS, f"Invalid stream index {stream_idx}"
+    run_id = 99
+    if with_co_2:
+        current_config = STANDARD_CONFIG_WITH_CO2
+    else:
+        current_config = STANDARD_CONFIG
+
+    current_classifier = current_config['learner']
+    hyperparameter_key = HYPERPARAMETER_KEYS[hyperparameter_key_idx]
+    if hyperparameter_key == 'grace':
+        current_config['grace_type'] = HYPERPARAMETERS[hyperparameter_key][0]
+        current_config['grace_period'] = HYPERPARAMETERS[hyperparameter_key][1]
+    else:
+        current_config[hyperparameter_key] = HYPERPARAMETERS[hyperparameter_key][hyperparameter_idx]
+
+
+    adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=True, with_co2=with_co_2, learner_name=current_config['learner'].name())
+    __evaluate_on_stream(
+        classifier=current_classifier,
+        stream_data=config_to_stream(STREAM_STRINGS[stream_idx]),
+        stream_name=STREAM_STRINGS[stream_idx],
+        adl_parameters=adl_parameter,
+        rename_values=rename_values,
+        run_id=run_id,
+        run_name=run_name,
+        force=force
+    )
+    __write_summary(run_id, added_names)
+
+
+def _test_stable(with_co_2: bool, run_name: str, force: bool = False) -> None:
+    run_id = 99
+    current_config = STABLE_CONFIG
+    current_classifier = current_config['learner']
+    stream_idx = STABLE_STRING_IDX
+    adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=True, with_co2=with_co_2, learner_name=current_config['learner'].name())
+    __evaluate_on_stream(
+        classifier=current_classifier,
+        stream_data=config_to_stream(STREAM_STRINGS[stream_idx]),
+        stream_name=STREAM_STRINGS[stream_idx],
+        adl_parameters=adl_parameter,
+        rename_values=rename_values,
+        run_id=run_id,
+        run_name=run_name,
+        force=force
+    )
+    __write_summary(run_id, added_names)
+
+
+def _test_unstable(with_co_2: bool, run_name: str, force: bool = False) -> None:
+    run_id = 99
+    current_config = UNSTABLE_CONFIG
+    current_classifier = current_config['learner']
+    stream_idx = UNSTABLE_STRING_IDX
+    adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=True, with_co2=with_co_2, learner_name=current_config['learner'].name())
     __evaluate_on_stream(
         classifier=current_classifier,
         stream_data=config_to_stream(STREAM_STRINGS[stream_idx]),

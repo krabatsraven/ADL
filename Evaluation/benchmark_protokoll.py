@@ -2,10 +2,12 @@ import asyncio
 import logging
 from pathlib import Path
 
-from Evaluation.RayTuneResources import hyperparameter_search_for_ADL, hyperparameter_search_for_SimpleDNN
-from Evaluation.RayTuneResources.evaluate_runs import evaluate_adl_run, evaluate_simple_run
-from Evaluation.EvaluationFunctions import _test_best_combination, _test_one_combination
-from Evaluation._config import NR_OF_TRIALS, STREAM_STRINGS, CLASSIFIERS
+from Evaluation.RayTuneResources import hyperparameter_search_for_ADL
+from Evaluation.RayTuneResources.evaluate_runs import evaluate_adl_run
+from Evaluation.EvaluationFunctions import _test_best_combination, _test_one_feature, _test_one_hyperparameter, \
+    _test_stable, _test_unstable
+from Evaluation._config import NR_OF_TRIALS, STREAM_STRINGS, AMOUNT_OF_CLASSIFIERS, AMOUNT_OF_STRINGS, \
+    AMOUNT_HYPERPARAMETER_TESTS, AMOUNT_HYPERPARAMETERS_BEFORE, TOTAL_AMOUNT_HYPERPARAMETERS
 
 
 def run_bench():
@@ -50,27 +52,76 @@ def run_bench():
         evaluate_adl_run(run, force=True)
 
 
-def run_bench_mogon(stream_idx: int, classifier_idx: int) -> None:
-    run_idx = stream_idx * len(CLASSIFIERS) + classifier_idx
-    if run_idx == 0:
-        logger = logging.getLogger(f"logger_runID={99}")
-        logger.info("Starting MOGON RUN")
-    logging.basicConfig(filename=Path("mogon_run.log").absolute().as_posix(), level=logging.INFO)
-    run_name = f"{run_idx}/{len(STREAM_STRINGS)*len(CLASSIFIERS) - 1}"
-    _test_one_combination(stream_idx=stream_idx, classifier_idx=classifier_idx, with_co_2=True, run_name=run_name)
-    if run_idx == len(STREAM_STRINGS)*len(CLASSIFIERS):
-        logger = logging.getLogger(f"logger_runID={99}")
-        logger.info("FINISHED MOGON RUN")
+def bench_one_feature(run_idx: int, run_name: str) -> None:
+    assert run_idx <= AMOUNT_OF_STRINGS*AMOUNT_OF_CLASSIFIERS - 1, f"run_idx {run_idx} out of range for feature test {AMOUNT_OF_STRINGS*AMOUNT_OF_CLASSIFIERS - 1}"
+    stream_idx = run_idx // AMOUNT_OF_CLASSIFIERS
+    classifier_idx = run_idx % AMOUNT_OF_CLASSIFIERS
+    _test_one_feature(stream_idx=stream_idx, classifier_idx=classifier_idx, with_co_2=True, run_name=run_name)
 
 
-async def async_run_bench(stream_idx: int, classifier_idx: int) -> None:
-    await asyncio.to_thread(run_bench_mogon, stream_idx, classifier_idx)
+def bench_one_hyperparameter_isolated(run_idx: int, run_name: str) -> None:
+    relevant_run_idx = run_idx - (AMOUNT_OF_STRINGS*AMOUNT_OF_CLASSIFIERS)
+    assert 0 <= relevant_run_idx <= AMOUNT_HYPERPARAMETER_TESTS, f"run_idx: {run_idx}, relevant: {relevant_run_idx} out of range for hyperparameter test {AMOUNT_HYPERPARAMETER_TESTS}"
+    key_idx_plus_idx = relevant_run_idx % TOTAL_AMOUNT_HYPERPARAMETERS
+    tmp = [amount_before > key_idx_plus_idx for amount_before in AMOUNT_HYPERPARAMETERS_BEFORE]
+    hyperparameter_key_idx = tmp.index(True) - 1 if True in tmp else len(AMOUNT_HYPERPARAMETERS_BEFORE) - 1
+    hyperparameter_idx = key_idx_plus_idx - AMOUNT_HYPERPARAMETERS_BEFORE[hyperparameter_key_idx]
+    stream_idx = relevant_run_idx // TOTAL_AMOUNT_HYPERPARAMETERS
+    _test_one_hyperparameter(
+        hyperparameter_key_idx=hyperparameter_key_idx,
+        hyperparameter_idx=hyperparameter_idx,
+        stream_idx=stream_idx,
+        with_co_2=True,
+        run_name=run_name
+    )
+
+
+def bench_stable(run_idx: int, run_name: str) -> None:
+    relevant_run_idx = run_idx - (AMOUNT_OF_STRINGS*AMOUNT_OF_CLASSIFIERS - 1) - AMOUNT_HYPERPARAMETER_TESTS
+    assert relevant_run_idx == 1, f"run_idx: {run_idx}, relevant: {relevant_run_idx} out of range for stable test {1}"
+    _test_stable(with_co_2=True, run_name=run_name)
+
+
+def bench_unstable(run_idx: int, run_name: str) -> None:
+    relevant_run_idx = run_idx - (AMOUNT_OF_STRINGS*AMOUNT_OF_CLASSIFIERS - 1) - AMOUNT_HYPERPARAMETER_TESTS
+    assert relevant_run_idx == 2, f"run_idx: {run_idx}, relevant: {relevant_run_idx} out of range for stable test {2}"
+    _test_unstable(with_co_2=True, run_name=run_name)
+
+
+async def async_run_feature_test(run_idx: int, run_name:str) -> None:
+    await asyncio.to_thread(bench_one_feature, run_idx, run_name)
+
+
+async def async_run_hyper_test(run_idx: int, run_name:str) -> None:
+    await asyncio.to_thread(bench_one_hyperparameter_isolated,run_idx, run_name)
+
+
+async def async_run_stable(run_idx: int, run_name: str) -> None:
+    await asyncio.to_thread(bench_stable, run_idx, run_name)
+
+
+async def async_run_unstable(run_idx: int, run_name:str) -> None:
+    await asyncio.to_thread(bench_unstable, run_idx, run_name)
 
 
 async def bench_async():
+    logging.basicConfig(filename=Path("bench_async.log").absolute().as_posix(), level=logging.INFO)
     tasks = []
-    for stream_idx in range(len(STREAM_STRINGS)):
-        for classifier_idx in range(len(CLASSIFIERS)):
-            tasks.append(async_run_bench(stream_idx, classifier_idx))
+
+    total_amount_of_runs = AMOUNT_HYPERPARAMETER_TESTS - 1 + (AMOUNT_OF_STRINGS * AMOUNT_OF_CLASSIFIERS - 1) + 2
+    run_idx = 0
+    for stream_idx in range(AMOUNT_OF_STRINGS):
+        for classifier_idx in range(AMOUNT_OF_CLASSIFIERS):
+            tasks.append(async_run_feature_test(run_idx, f'{run_idx}/{total_amount_of_runs}'))
+            run_idx += 1
+
+    for _ in range(AMOUNT_HYPERPARAMETER_TESTS):
+        tasks.append(async_run_hyper_test(run_idx, f'{run_idx}/{total_amount_of_runs}'))
+        run_idx += 1
+
+    tasks.append(async_run_stable(run_idx, f'{run_idx}/{total_amount_of_runs}'))
+    run_idx += 1
+
+    tasks.append(async_run_unstable(run_idx, f'{run_idx}/{total_amount_of_runs}'))
 
     await asyncio.gather(*tasks)
