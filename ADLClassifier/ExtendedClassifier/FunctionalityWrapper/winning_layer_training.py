@@ -3,6 +3,9 @@ import torch
 from ADLClassifier.BaseClassifier import ADLClassifier
 
 
+WINNING_LAYER_TRAINING_NAME = 'WithWLTraining'
+
+
 def winning_layer_training(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
     """
     Changes the training/backpropagation of the decorated/passed class of ADLClassifier to only change the winning layer
@@ -17,11 +20,11 @@ def winning_layer_training(adl_classifier: type(ADLClassifier)) -> type(ADLClass
         """
 
         def __str__(self):
-            return f"{super().__str__()}WithWLTraining"
+            return f"{super().__str__()}{WINNING_LAYER_TRAINING_NAME}"
 
         @classmethod
         def name(cls) -> str:
-            return f"{adl_classifier.name()}WithWLTraining"
+            return f"{adl_classifier.name()}{WINNING_LAYER_TRAINING_NAME}"
 
         def _backpropagation(self, prediction: torch.Tensor, true_label: torch.Tensor):
             layers_to_disable = self.model.active_and_learning_layer_keys_wo_winning_layer().tolist()
@@ -29,5 +32,5 @@ def winning_layer_training(adl_classifier: type(ADLClassifier)) -> type(ADLClass
             super()._backpropagation(prediction=prediction, true_label=true_label)
             self.model._enable_layers_for_training(layers_to_disable)
 
-    WithWinningLayerTrainingWrapper.__name__ = f"{adl_classifier.__name__}WithWLTraining"
+    WithWinningLayerTrainingWrapper.__name__ = f"{adl_classifier.__name__}{WINNING_LAYER_TRAINING_NAME}"
     return WithWinningLayerTrainingWrapper

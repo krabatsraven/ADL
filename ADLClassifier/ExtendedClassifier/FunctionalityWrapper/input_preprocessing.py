@@ -16,6 +16,7 @@ from ADLClassifier.Resources.LearningRateProgressions import BaseLearningRatePro
 from ADLClassifier.BaseClassifier import ADLClassifier
 from Model import AutoDeepLearner
 
+INPUT_PREPROCESSING_NAME = 'WithInput'
 
 def input_preprocessing(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
 
@@ -52,11 +53,11 @@ def input_preprocessing(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
                 sparse_threshold=0)
 
         def __str__(self):
-            return f"{super().__str__()}WithInput"
+            return f"{super().__str__()}{INPUT_PREPROCESSING_NAME}"
 
         @classmethod
         def name(cls) -> str:
-            return f"{adl_classifier.name()}WithInput"
+            return f"{adl_classifier.name()}{INPUT_PREPROCESSING_NAME}"
 
         def _preprocess_instance(self, instance):
             if len(instance.x.shape) < 2:
@@ -85,7 +86,7 @@ def input_preprocessing(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
             adl_classifier.state_dict.__set__(self, state_dict)
             self.input_transformer = Unpickler(state_dict['input_transformer']).load()
 
-
+    PrecocessingInputWrapper.__name__ = f"{adl_classifier.__name__}{INPUT_PREPROCESSING_NAME}"
     return PrecocessingInputWrapper
 
 

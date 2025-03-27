@@ -108,20 +108,20 @@ async def bench_async():
     logging.basicConfig(filename=Path("bench_async.log").absolute().as_posix(), level=logging.INFO)
     tasks = []
 
-    total_amount_of_runs = AMOUNT_HYPERPARAMETER_TESTS - 1 + (AMOUNT_OF_STRINGS * AMOUNT_OF_CLASSIFIERS - 1) + 2
+    biggest_run_index = AMOUNT_HYPERPARAMETER_TESTS + (AMOUNT_OF_STRINGS * AMOUNT_OF_CLASSIFIERS) + 2 - 1
     run_idx = 0
     for stream_idx in range(AMOUNT_OF_STRINGS):
         for classifier_idx in range(AMOUNT_OF_CLASSIFIERS):
-            tasks.append(async_run_feature_test(run_idx, f'{run_idx}/{total_amount_of_runs}'))
+            tasks.append(async_run_feature_test(run_idx, f'{run_idx}/{biggest_run_index}'))
             run_idx += 1
 
     for _ in range(AMOUNT_HYPERPARAMETER_TESTS):
-        tasks.append(async_run_hyper_test(run_idx, f'{run_idx}/{total_amount_of_runs}'))
+        tasks.append(async_run_hyper_test(run_idx, f'{run_idx}/{biggest_run_index}'))
         run_idx += 1
 
-    tasks.append(async_run_stable(run_idx, f'{run_idx}/{total_amount_of_runs}'))
+    tasks.append(async_run_stable(run_idx, f'{run_idx}/{biggest_run_index}'))
     run_idx += 1
 
-    tasks.append(async_run_unstable(run_idx, f'{run_idx}/{total_amount_of_runs}'))
+    tasks.append(async_run_unstable(run_idx, f'{run_idx}/{biggest_run_index}'))
 
     await asyncio.gather(*tasks)

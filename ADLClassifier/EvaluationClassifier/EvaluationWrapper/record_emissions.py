@@ -7,6 +7,8 @@ from codecarbon import OfflineEmissionsTracker
 from ADLClassifier.BaseClassifier import ADLClassifier
 
 
+EMISSION_RECORDER_NAME = 'WithEm'
+
 def record_emissions(adl_classifier: type(ADLClassifier)):
 
     class EmissionsRecorder(adl_classifier):
@@ -23,11 +25,11 @@ def record_emissions(adl_classifier: type(ADLClassifier)):
             self.emissions_data = []
 
         def __str__(self):
-            return f"{super().__str__()}WithEm"
+            return f"{super().__str__()}{EMISSION_RECORDER_NAME}"
 
         @classmethod
         def name(cls) -> str:
-            return f"{adl_classifier.name()}WithEm"
+            return f"{adl_classifier.name()}{EMISSION_RECORDER_NAME}"
 
         # @track_emissions(offline=True, country_iso_code="DEU")
         def _train(self, instance):
@@ -45,4 +47,5 @@ def record_emissions(adl_classifier: type(ADLClassifier)):
         def __del__(self):
             pd.DataFrame(self.emissions_data).to_csv(self.file_path())
 
+    EmissionsRecorder.__name__ = f"{adl_classifier.__name__}{EMISSION_RECORDER_NAME}"
     return EmissionsRecorder

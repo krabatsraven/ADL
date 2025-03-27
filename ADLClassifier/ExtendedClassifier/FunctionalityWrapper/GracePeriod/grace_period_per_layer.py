@@ -5,6 +5,9 @@ import torch
 from ADLClassifier.BaseClassifier import ADLClassifier
 
 
+GRACE_PERIOD_PER_LAYER_NAME = 'WithGPPerLayerOf'
+GRACE_PERIOD_PER_LAYER_NAME_LAMBDA = lambda duration: f"{GRACE_PERIOD_PER_LAYER_NAME}{duration}Insts"
+
 def grace_period_per_layer(duration: int = 1000) -> Callable[[type(ADLClassifier)], type(ADLClassifier)]:
     return lambda adl_class: _grace_period_per_layer(adl_classifier=adl_class, duration=duration)
 
@@ -33,11 +36,11 @@ def _grace_period_per_layer(adl_classifier: type(ADLClassifier), duration: int) 
             self.model_changed_this_iteration: torch.Tensor = torch.zeros(self.model.nr_of_active_layers, dtype=torch.bool)
 
         def __str__(self):
-            return f"{super().__str__()}WithGPPerLayerOf{self.__duration}Insts"
+            return f"{super().__str__()}{GRACE_PERIOD_PER_LAYER_NAME_LAMBDA(duration)}"
 
         @classmethod
         def name(cls) -> str:
-            return f"{adl_classifier.name()}WithGPPerLayerOf{duration}Insts"
+            return f"{adl_classifier.name()}{GRACE_PERIOD_PER_LAYER_NAME_LAMBDA(duration)}"
 
         def train(self, instance):
             self.model_changed_this_iteration = torch.zeros(self.model.nr_of_active_layers, dtype=torch.bool)
@@ -110,5 +113,5 @@ def _grace_period_per_layer(adl_classifier: type(ADLClassifier), duration: int) 
             self.model_changed_this_iteration = state_dict['model_changed_this_iteration']
             self.__duration = state_dict['duration']
 
-    GracePeriodPerLayerWrapper.__name__ = f"{adl_classifier.__name__}WithGPPerLayerOf{duration}Insts"
+    GracePeriodPerLayerWrapper.__name__ = f"{adl_classifier.__name__}{GRACE_PERIOD_PER_LAYER_NAME_LAMBDA(duration)}"
     return GracePeriodPerLayerWrapper

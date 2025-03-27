@@ -13,26 +13,56 @@ from capymoa.stream import Stream
 
 from ADLClassifier import ADLClassifier, global_grace_period, grace_period_per_layer, extend_classifier_for_evaluation, \
     winning_layer_training, vectorized_for_loop, BaseLearningRateProgression, disabeling_deleted_layers, \
-    delete_deleted_layers, input_preprocessing, add_weight_correction_parameter_to_user_choices
+    delete_deleted_layers, input_preprocessing, add_weight_correction_parameter_to_user_choices, EMISSION_RECORDER_NAME
+from ADLClassifier.ExtendedClassifier.FunctionalityWrapper.add_weight_correction_parameter_to_user_choices import \
+    ADD_WEIGHT_CORRECTION_PARAMETER_NAME
 from Evaluation import config_handling
 from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_all_of_one_run
 from Evaluation._config import ADWIN_DELTA_STANDIN, MAX_INSTANCES_TEST, STREAM_STRINGS, STANDARD_CONFIG, CLASSIFIERS, \
     STANDARD_CONFIG_WITH_CO2, UNSTABLE_CONFIG, UNSTABLE_STRING_IDX, STABLE_STRING_IDX, STABLE_CONFIG, \
-    HYPERPARAMETER_KEYS, HYPERPARAMETERS, AMOUNT_OF_STRINGS, AMOUNT_OF_CLASSIFIERS, AMOUNT_HYPERPARAMETERS, \
-    TOTAL_AMOUNT_HYPERPARAMETERS, AMOUNT_HYPERPARAMETER_TESTS, AMOUNT_HYPERPARAMETERS_BEFORE
-from Evaluation.config_handling import get_best_config_for_stream_name, adl_run_data_from_config, config_to_learner, \
-    config_to_stream
+    HYPERPARAMETER_KEYS, HYPERPARAMETERS, AMOUNT_OF_STRINGS, RESULTS_DIR_PATH, PROJECT_FOLDER_PATH
+from Evaluation.config_handling import adl_run_data_from_config, config_to_learner, config_to_stream, \
+    standardize_learner_name
 
 
 def __get_run_id() -> int:
-    results_dir_path = Path("results/runs/")
-    results_dir_path.mkdir(parents=True, exist_ok=True)
-    if any(results_dir_path.iterdir()):
-        *_, elem = results_dir_path.iterdir()
+    RESULTS_DIR_PATH.mkdir(parents=True, exist_ok=True)
+    if any(RESULTS_DIR_PATH.iterdir()):
+        *_, elem = RESULTS_DIR_PATH.iterdir()
         name, running_nr = elem.stem.split("=")
         return int(running_nr) + 1
     else:
         return 1
+
+
+def rename_folders(run_id: int):
+    """Rename all folders under a given run id to fit the name of the hyperparameters used in the experiment."""
+    for hyperparameter_folder in [d for d in (RESULTS_DIR_PATH / f"runID={run_id}").iterdir() if d.is_dir()]:
+        old_name = hyperparameter_folder.name
+        name_parts = dict(tuple(p.split('=')) for p in old_name.split('_'))
+        name_parts['classifier'] = standardize_learner_name(name_parts['classifier'])
+
+        new_name = '_'.join(("=".join(part) for part in name_parts.items()))
+        if len(new_name) == 0 or len(name_parts['classifier']) == 0:
+            raise Exception("i did something stupid again")
+        shutil.move(hyperparameter_folder.parent / old_name, hyperparameter_folder.parent / new_name)
+
+
+def _find_path_by_config_with_learner_object(run_id: int, config: Dict[str, Any], stream_name: str) -> Path:
+
+    adl_parameter, rename_values, added_names = adl_run_data_from_config(
+        config=config, 
+        with_weight_lr=(ADD_WEIGHT_CORRECTION_PARAMETER_NAME in config.keys()), 
+        with_co2=(EMISSION_RECORDER_NAME in config['learner'].name()), 
+        learner_name=config['learner'].name()
+    )
+    hyperparameter_part_of_name_string = "_".join((f"{str(key).replace('_', ' ')}={f'{value:.3g}' if type(value) == float else str(value).replace('_', ' ')}" for key, value in rename_values.items()))
+    results_path = RESULTS_DIR_PATH / f"runID={run_id}" / hyperparameter_part_of_name_string / stream_name
+
+    if not results_path.exists():
+        logging.getLogger(f"logger_runID={run_id}").exception(f"no folder exists for config {config}, stream name: {stream_name}, run id: {run_id}")
+
+    return results_path
 
 
 def __evaluate_on_stream(
@@ -50,8 +80,7 @@ def __evaluate_on_stream(
 
     name_string_of_stream_data = stream_name if stream_name is not None else f"{stream_data.schema.dataset_name}/"
     hyperparameter_part_of_name_string = "_".join((f"{str(key).replace('_', ' ')}={f'{value:.3g}' if type(value) == float else str(value).replace('_', ' ')}" for key, value in rename_values.items()))
-    results_dir_path = Path("results/runs")
-    results_path = results_dir_path / f"runID={run_id}" / hyperparameter_part_of_name_string / name_string_of_stream_data
+    results_path = RESULTS_DIR_PATH / f"runID={run_id}" / hyperparameter_part_of_name_string / name_string_of_stream_data
     if (results_path / "metrics.pickle").exists() and not force:
         logger.info(f"skipping {classifier} + {name_string_of_stream_data} + {adl_parameters}, already evaluated, set force=True to overwrite")
         return
@@ -98,12 +127,12 @@ def __evaluate_on_stream(
     metrics_at_end.to_pickle(results_path / "metrics.pickle")
     windowed_results.to_pickle(results_path / "metrics_per_window.pickle")
 
-    results_ht.write_to_file(results_path.absolute().as_posix())
+    # results_ht.write_to_file(results_path.absolute().as_posix())
     logger.info(f"---------------End time {call_identifier}: {datetime.now()}-----------------------")
 
 
 def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
-    runs_folder = Path(f"results/runs/runID={run_id}")
+    runs_folder = RESULTS_DIR_PATH / f"runID={run_id}"
     summary = pd.DataFrame(
         columns=list(
             {
@@ -125,7 +154,7 @@ def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
     i = 0
     for root, dirs, files in os.walk(runs_folder):
         if "metrics.pickle" in files:
-            runIdStr, hyperparameter_string, stream_name = root.split("/")[2:]
+            runIdStr, hyperparameter_string, stream_name = Path(root).relative_to(PROJECT_FOLDER_PATH).as_posix().split("/")[2:]
             hyperparameter_dict_from_string = {key.replace(' ', '_'): value.replace(' ', '_') for key, value in [pair_string.split("=") for pair_string in hyperparameter_string.split("_")]}
 
             metrics = pd.read_pickle(Path(root) / "metrics.pickle")
@@ -193,7 +222,7 @@ def _evaluate_parameters(
                             else:
                                 added_parameters.pop('drift_detector', None)
                                 values_of_renames.pop(ADWIN_DELTA_STANDIN, None)
-    
+
                             if lr is not None:
                                 added_parameters["lr"] = lr
                                 values_of_renames["lr"] = lr
@@ -210,7 +239,7 @@ def _evaluate_parameters(
                             else:
                                 added_parameters.pop('layer_weight_learning_rate', None)
                                 values_of_renames.pop('layerWeightLR', None)
-    
+
                             if mci_threshold is not None:
                                 added_parameters["mci_threshold_for_layer_pruning"] = mci_threshold
                                 values_of_renames["MCICutOff"] = mci_threshold
@@ -218,7 +247,7 @@ def _evaluate_parameters(
                             else:
                                 added_parameters.pop("mci_threshold_for_layer_pruning", None)
                                 values_of_renames.pop("MCICutOff", None)
-    
+
                             for grace_period in (grace_periods_global or ([None] if grace_periods_for_layer is None else [])):
                                 if grace_period is not None:
                                     classifier_to_give = global_grace_period(grace_period)(classifier_wo_grace)
@@ -227,7 +256,7 @@ def _evaluate_parameters(
                                 else:
                                     classifier_to_give = classifier_wo_grace
                                     values_of_renames.pop('globalGracePeriod', None)
-    
+
                                 print(f"---------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
                                 print(f"------running since: {start}, for {(time.time_ns() - start_time) / (1e9 * 60) :.2f}min = {(time.time_ns() - start_time) / (1e9 * 60**2) :.2f}h------")
                                 print(f"---------------expected finish: {start + ((datetime.now() - start) * total_nr_of_runs/current_run_index)} ---------------")
@@ -240,9 +269,9 @@ def _evaluate_parameters(
                                     stream_name=stream_name
                                 )
                                 current_run_index += 1
-    
+
                                 values_of_renames.pop("globalGracePeriod", None)
-    
+
                             for grace_period in grace_periods_for_layer or []:
                                 if grace_period is not None:
                                     classifier_to_give = grace_period_per_layer(grace_period)(classifier_wo_grace)
@@ -262,7 +291,7 @@ def _evaluate_parameters(
                                     rename_values=values_of_renames,
                                     stream_name=stream_name
                                 )
-    
+
                                 current_run_index += 1
                                 values_of_renames.pop("gracePeriodPerLayer", None)
 
@@ -338,7 +367,7 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
     stream_names = STREAM_STRINGS
     # best_config = list(map(get_best_config_for_stream_name, STREAM_STRINGS))
 
-    standard_config = STANDARD_CONFIG
+    standard_config = STANDARD_CONFIG.copy()
     best_config = [standard_config] * nr_of_combinations
 
     # ADLWithInputProcessingWithoutForLoopWithWinningLayerTrainingWithGraphWithEmWithGlobalGracePeriodOf256Instances
@@ -370,10 +399,9 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
 
 def _test_one_feature(stream_idx: int, classifier_idx: int, with_co_2: bool, run_name: str, force: bool = False) -> None:
     run_id = 99
-    current_config = STANDARD_CONFIG
+    current_config = STANDARD_CONFIG.copy()
     current_classifier = config_to_learner(*CLASSIFIERS[classifier_idx], grace_period=(current_config['grace_period'], current_config['grace_type']), with_co2=with_co_2)
     adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=('decoupled_lrs' in CLASSIFIERS[classifier_idx]), with_co2=with_co_2, learner_name=config_to_learner(*CLASSIFIERS[classifier_idx], grace_period=None, with_co2=with_co_2).name())
-    return 
     __evaluate_on_stream(
         classifier=current_classifier,
         stream_data=config_to_stream(STREAM_STRINGS[stream_idx]),
@@ -393,9 +421,9 @@ def _test_one_hyperparameter(hyperparameter_key_idx: int, hyperparameter_idx: in
     assert 0 <= stream_idx < AMOUNT_OF_STRINGS, f"Invalid stream index {stream_idx}"
     run_id = 99
     if with_co_2:
-        current_config = STANDARD_CONFIG_WITH_CO2
+        current_config = STANDARD_CONFIG_WITH_CO2.copy()
     else:
-        current_config = STANDARD_CONFIG
+        current_config = STANDARD_CONFIG.copy()
 
     current_classifier = current_config['learner']
     hyperparameter_key = HYPERPARAMETER_KEYS[hyperparameter_key_idx]
@@ -404,7 +432,6 @@ def _test_one_hyperparameter(hyperparameter_key_idx: int, hyperparameter_idx: in
         current_config['grace_period'] = HYPERPARAMETERS[hyperparameter_key][1]
     else:
         current_config[hyperparameter_key] = HYPERPARAMETERS[hyperparameter_key][hyperparameter_idx]
-
 
     adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=True, with_co2=with_co_2, learner_name=current_config['learner'].name())
     __evaluate_on_stream(
@@ -422,7 +449,7 @@ def _test_one_hyperparameter(hyperparameter_key_idx: int, hyperparameter_idx: in
 
 def _test_stable(with_co_2: bool, run_name: str, force: bool = False) -> None:
     run_id = 99
-    current_config = STABLE_CONFIG
+    current_config = STABLE_CONFIG.copy()
     current_classifier = current_config['learner']
     stream_idx = STABLE_STRING_IDX
     adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=True, with_co2=with_co_2, learner_name=current_config['learner'].name())
@@ -441,7 +468,7 @@ def _test_stable(with_co_2: bool, run_name: str, force: bool = False) -> None:
 
 def _test_unstable(with_co_2: bool, run_name: str, force: bool = False) -> None:
     run_id = 99
-    current_config = UNSTABLE_CONFIG
+    current_config = UNSTABLE_CONFIG.copy()
     current_classifier = current_config['learner']
     stream_idx = UNSTABLE_STRING_IDX
     adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=True, with_co2=with_co_2, learner_name=current_config['learner'].name())

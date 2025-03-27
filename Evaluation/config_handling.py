@@ -11,11 +11,14 @@ import Evaluation
 from ADLClassifier import grace_period_per_layer, extend_classifier_for_evaluation, \
     winning_layer_training, vectorized_for_loop, ADLClassifier, add_weight_correction_parameter_to_user_choices, \
     input_preprocessing, disabeling_deleted_layers, delete_deleted_layers
+from ADLClassifier import NETWORK_GRAPH_NAME, EMISSION_RECORDER_NAME, DELETE_DELETED_LAYERS_NAME, \
+    DISABLED_DELETED_LAYERS_NAME, WINNING_LAYER_TRAINING_NAME, VECTORIZED_FOR_LOOP_NAME, INPUT_PREPROCESSING_NAME, \
+    ADD_WEIGHT_CORRECTION_PARAMETER_NAME, GRACE_PERIOD_PER_LAYER_NAME, GLOBAL_GRACE_PERIOD_NAME
 from ADLClassifier.Resources.NLLLoss import NLLLoss
 
 from Evaluation.SynteticStreams.SynteticAgrawalStreams import agrawal_no_drift, agrawal_single_drift, agrawal_three_drifts, agrawal_four_drifts
 from Evaluation.SynteticStreams.SyntheticSEAStreams import sea_no_drift, sea_single_drift, sea_three_drifts, sea_four_drifts
-from Evaluation._config import ADWIN_DELTA_STANDIN
+from Evaluation._config import ADWIN_DELTA_STANDIN, LEARNER_PART_NAMES
 
 
 def get_best_config_for_stream_name(stream_name: str) -> Dict[str, Any]:
@@ -42,7 +45,7 @@ def adl_run_data_from_config(config, with_weight_lr: bool, with_co2: bool = Fals
     renames = {
         "MCICutOff": f"{config['mci']:4e}",
         ADWIN_DELTA_STANDIN: f"{config['adwin-delta']:.4e}",
-        'classifier': config_to_learner(*config['learner'], grace_period=None, with_co2=with_co2).name() if learner_name is None else learner_name,
+        'classifier': standardize_learner_name(config_to_learner(*config['learner'], grace_period=None, with_co2=with_co2).name() if learner_name is None else learner_name),
         'lr': f"{config['lr']:.4e}",
         'loss_fn': config['loss_fn'],
     }
@@ -145,3 +148,76 @@ def config_to_loss_fn(loss_fn_name: str):
             return CrossEntropyLoss()
         case 'NLLLoss':
             return NLLLoss
+
+
+def standardize_learner_name(learner_name: str) -> str:
+    parts = []
+
+    if NETWORK_GRAPH_NAME in learner_name:
+        parts.append(LEARNER_PART_NAMES[NETWORK_GRAPH_NAME])
+    if LEARNER_PART_NAMES[NETWORK_GRAPH_NAME] in learner_name:
+        parts.append(LEARNER_PART_NAMES[NETWORK_GRAPH_NAME])
+    if 'WithGraph' in learner_name:
+        parts.append(LEARNER_PART_NAMES[NETWORK_GRAPH_NAME])
+
+    if EMISSION_RECORDER_NAME in learner_name:
+        parts.append(LEARNER_PART_NAMES[EMISSION_RECORDER_NAME])
+    if LEARNER_PART_NAMES[EMISSION_RECORDER_NAME] in learner_name:
+        parts.append(LEARNER_PART_NAMES[EMISSION_RECORDER_NAME])
+    if 'WithEmissions' in learner_name:
+        parts.append(LEARNER_PART_NAMES[EMISSION_RECORDER_NAME])
+
+    if DELETE_DELETED_LAYERS_NAME in learner_name:
+        parts.append(LEARNER_PART_NAMES[DELETE_DELETED_LAYERS_NAME])
+    if LEARNER_PART_NAMES[DELETE_DELETED_LAYERS_NAME] in learner_name:
+        parts.append(LEARNER_PART_NAMES[DELETE_DELETED_LAYERS_NAME])
+
+    if DISABLED_DELETED_LAYERS_NAME in learner_name:
+        parts.append(LEARNER_PART_NAMES[DISABLED_DELETED_LAYERS_NAME])
+    if LEARNER_PART_NAMES[DISABLED_DELETED_LAYERS_NAME] in learner_name:
+        parts.append(LEARNER_PART_NAMES[DISABLED_DELETED_LAYERS_NAME])
+
+    if WINNING_LAYER_TRAINING_NAME in learner_name:
+        parts.append(LEARNER_PART_NAMES[WINNING_LAYER_TRAINING_NAME])
+    if LEARNER_PART_NAMES[WINNING_LAYER_TRAINING_NAME] in learner_name:
+        parts.append(LEARNER_PART_NAMES[WINNING_LAYER_TRAINING_NAME])
+    if 'WithWinning' in learner_name:
+        parts.append(LEARNER_PART_NAMES[WINNING_LAYER_TRAINING_NAME])
+
+    if VECTORIZED_FOR_LOOP_NAME in learner_name:
+        parts.append(LEARNER_PART_NAMES[VECTORIZED_FOR_LOOP_NAME])
+    if LEARNER_PART_NAMES[VECTORIZED_FOR_LOOP_NAME] in learner_name:
+        parts.append(LEARNER_PART_NAMES[VECTORIZED_FOR_LOOP_NAME])
+    if 'WithoutForLoop' in learner_name:
+        parts.append(LEARNER_PART_NAMES[VECTORIZED_FOR_LOOP_NAME])
+
+    if INPUT_PREPROCESSING_NAME in learner_name:
+        parts.append(LEARNER_PART_NAMES[INPUT_PREPROCESSING_NAME])
+    if LEARNER_PART_NAMES[INPUT_PREPROCESSING_NAME] in learner_name:
+        parts.append(LEARNER_PART_NAMES[INPUT_PREPROCESSING_NAME])
+    if 'WithInputProcessing' in learner_name:
+        parts.append(LEARNER_PART_NAMES[INPUT_PREPROCESSING_NAME])
+
+    if ADD_WEIGHT_CORRECTION_PARAMETER_NAME in learner_name:
+        parts.append(LEARNER_PART_NAMES[ADD_WEIGHT_CORRECTION_PARAMETER_NAME])
+    if LEARNER_PART_NAMES[ADD_WEIGHT_CORRECTION_PARAMETER_NAME] in learner_name:
+        parts.append(LEARNER_PART_NAMES[ADD_WEIGHT_CORRECTION_PARAMETER_NAME])
+    if 'WithUserChosenWeight' in learner_name:
+        parts.append(LEARNER_PART_NAMES[ADD_WEIGHT_CORRECTION_PARAMETER_NAME])
+
+    if GRACE_PERIOD_PER_LAYER_NAME in learner_name:
+        parts.append(LEARNER_PART_NAMES[GRACE_PERIOD_PER_LAYER_NAME])
+    if LEARNER_PART_NAMES[GRACE_PERIOD_PER_LAYER_NAME] in learner_name:
+        parts.append(LEARNER_PART_NAMES[GRACE_PERIOD_PER_LAYER_NAME])
+    if 'WithGracePeriodPerLayer' in learner_name:
+        parts.append(LEARNER_PART_NAMES[GRACE_PERIOD_PER_LAYER_NAME])
+
+    if GLOBAL_GRACE_PERIOD_NAME in learner_name:
+        parts.append(LEARNER_PART_NAMES[GLOBAL_GRACE_PERIOD_NAME])
+    if LEARNER_PART_NAMES[GLOBAL_GRACE_PERIOD_NAME] in learner_name:
+        parts.append(LEARNER_PART_NAMES[GLOBAL_GRACE_PERIOD_NAME])
+    if 'WithGlobalGrace' in learner_name:
+        parts.append(LEARNER_PART_NAMES[GLOBAL_GRACE_PERIOD_NAME])
+
+    parts = sorted(list(set(parts)))
+    return ''.join(parts)

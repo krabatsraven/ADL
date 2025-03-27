@@ -1,6 +1,27 @@
 from itertools import combinations
+from pathlib import Path
 
-from ADLClassifier import extend_classifier_for_evaluation, grace_period_per_layer, input_preprocessing, vectorized_for_loop, winning_layer_training, add_weight_correction_parameter_to_user_choices
+from ADLClassifier import extend_classifier_for_evaluation, grace_period_per_layer, input_preprocessing, \
+    vectorized_for_loop, winning_layer_training, add_weight_correction_parameter_to_user_choices, NETWORK_GRAPH_NAME, \
+    EMISSION_RECORDER_NAME, DELETE_DELETED_LAYERS_NAME, DISABLED_DELETED_LAYERS_NAME, WINNING_LAYER_TRAINING_NAME, \
+    VECTORIZED_FOR_LOOP_NAME, INPUT_PREPROCESSING_NAME, ADD_WEIGHT_CORRECTION_PARAMETER_NAME, \
+    GRACE_PERIOD_PER_LAYER_NAME, GLOBAL_GRACE_PERIOD_NAME
+
+PROJECT_FOLDER_PATH = Path(__file__).parent.parent.resolve().absolute()
+RESULTS_DIR_PATH = PROJECT_FOLDER_PATH / 'results' / 'runs'
+
+LEARNER_PART_NAMES = {
+    NETWORK_GRAPH_NAME: 'Graph',
+    EMISSION_RECORDER_NAME: 'Emission',
+    DELETE_DELETED_LAYERS_NAME: 'Delete',
+    DISABLED_DELETED_LAYERS_NAME: 'Disable',
+    WINNING_LAYER_TRAINING_NAME: 'Winning',
+    VECTORIZED_FOR_LOOP_NAME: 'Vector',
+    INPUT_PREPROCESSING_NAME: 'Input',
+    ADD_WEIGHT_CORRECTION_PARAMETER_NAME: 'Weight',
+    GRACE_PERIOD_PER_LAYER_NAME: 'Layer',
+    GLOBAL_GRACE_PERIOD_NAME: 'Global',
+}
 
 NR_OF_TRIALS = 500
 #  todo: reset max instancens
@@ -29,16 +50,16 @@ STANDARD_CONFIG = {
     'mci': 9.34633e-07,
     'grace_period': 369,
     'grace_type': 'layer_grace',
-    'loss_fn': 'NLLLoss'
+    'loss_fn': 'NLLLoss',
 }
 
-STANDARD_CONFIG_WITH_CO2 = STANDARD_CONFIG
+STANDARD_CONFIG_WITH_CO2 = STANDARD_CONFIG.copy()
 STANDARD_CONFIG_WITH_CO2['learner'] = extend_classifier_for_evaluation(*STANDARD_LEARNER, with_emissions=True)
 
-STABLE_CONFIG = STANDARD_CONFIG_WITH_CO2
+STABLE_CONFIG = STANDARD_CONFIG_WITH_CO2.copy()
 STABLE_STRING_IDX = 0
 # todo: find unstable config
-UNSTABLE_CONFIG = STANDARD_CONFIG_WITH_CO2
+UNSTABLE_CONFIG = STANDARD_CONFIG_WITH_CO2.copy()
 UNSTABLE_STRING_IDX = STABLE_STRING_IDX
 
 singular_classifier_features_to_test = ['input_preprocessing', 'vectorized', 'winning_layer']
@@ -55,9 +76,9 @@ AMOUNT_OF_STRINGS = 9
 
 HYPERPARAMETER_KEYS = ['lr', 'layer_weight_learning_rate', 'adwin-delta', 'mci', 'grace']
 HYPERPARAMETERS = {
-    'lr': [1, 0.1, 0.001],
-    'layer_weight_learning_rate': [1, 0.5, 0.001],
-    'adwin-delta': [1, 1e-5, 1e-10],
+    'lr': [0.999, 0.1, 0.001],
+    'layer_weight_learning_rate': [0.999, 0.5, 0.001],
+    'adwin-delta': [0.999, 1e-5, 1e-10],
     'mci': [0.1, 1e-8, 1e-12],
     'grace': [(grace_type, count) for grace_type in ['layer_grace', 'global_grace'] for count in [1, 400, 5000]],
 }

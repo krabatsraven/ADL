@@ -1,6 +1,9 @@
 from ADLClassifier import ADLClassifier
 
 
+DELETE_DELETED_LAYERS_NAME = 'WithDeleteDeletedLayers'
+
+
 def delete_deleted_layers(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
     """
     extends an existing ADLClassifier class 
@@ -16,11 +19,11 @@ def delete_deleted_layers(adl_classifier: type(ADLClassifier)) -> type(ADLClassi
         """
 
         def __str__(self):
-            return f"{super().__str__()}WithDeleteDeletedLayers"
+            return f"{super().__str__()}{DELETE_DELETED_LAYERS_NAME}"
 
         @classmethod
         def name(cls) -> str:
-            return f"{adl_classifier.name()}WithDeleteDeletedLayers"
+            return f"{adl_classifier.name()}{DELETE_DELETED_LAYERS_NAME}"
 
         def _delete_layer(self, layer_index: int) -> bool:
             # not exactly the same output, as we remove a sigmoid function between both layers in the forward stack
@@ -30,5 +33,5 @@ def delete_deleted_layers(adl_classifier: type(ADLClassifier)) -> type(ADLClassi
             else:
                 return False
 
-    DeleteDeletedLayersWrapper.__name__ = f"{adl_classifier.__name__}WithDeleteDeletedLayers"
+    DeleteDeletedLayersWrapper.__name__ = f"{adl_classifier.__name__}{DELETE_DELETED_LAYERS_NAME}"
     return DeleteDeletedLayersWrapper

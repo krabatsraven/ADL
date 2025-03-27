@@ -3,6 +3,9 @@ from typing import Dict, Any
 from ADLClassifier.BaseClassifier import ADLClassifier
 
 
+DISABLED_DELETED_LAYERS_NAME = 'WithDisabledDeletedLayers'
+
+
 def disabeling_deleted_layers(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
     """
     extends an existing ADLClassifier class 
@@ -18,11 +21,11 @@ def disabeling_deleted_layers(adl_classifier: type(ADLClassifier)) -> type(ADLCl
         """
 
         def __str__(self):
-            return f"{super().__str__()}WithDisabledDeletedLayers"
+            return f"{super().__str__()}{DISABLED_DELETED_LAYERS_NAME}"
 
         @classmethod
         def name(cls) -> str:
-            return f"{adl_classifier.name()}WithDisabledDeletedLayers"
+            return f"{adl_classifier.name()}{DISABLED_DELETED_LAYERS_NAME}"
 
         def _delete_layer(self, layer_index: int) -> bool:
             if super()._delete_layer(layer_index):
@@ -42,5 +45,5 @@ def disabeling_deleted_layers(adl_classifier: type(ADLClassifier)) -> type(ADLCl
                 if idx not in state_dict['active_layer_keys']:
                     self.model.layers[idx].requires_grad_(False)
 
-    DisabelingDeletedLayersWrapper.__name__ = f"{adl_classifier.__name__}WithDisabledDeletedLayers"
+    DisabelingDeletedLayersWrapper.__name__ = f"{adl_classifier.__name__}{DISABLED_DELETED_LAYERS_NAME}"
     return DisabelingDeletedLayersWrapper

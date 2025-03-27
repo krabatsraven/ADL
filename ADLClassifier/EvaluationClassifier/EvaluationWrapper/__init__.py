@@ -1,2 +1,2 @@
-from ADLClassifier.EvaluationClassifier.EvaluationWrapper.record_emissions import record_emissions
-from ADLClassifier.EvaluationClassifier.EvaluationWrapper.record_network_graph import record_network_graph
+from ADLClassifier.EvaluationClassifier.EvaluationWrapper.record_emissions import record_emissions, EMISSION_RECORDER_NAME
+from ADLClassifier.EvaluationClassifier.EvaluationWrapper.record_network_graph import record_network_graph, NETWORK_GRAPH_NAME

@@ -5,6 +5,9 @@ import torch
 
 from ADLClassifier.BaseClassifier import ADLClassifier
 
+GLOBAL_GRACE_PERIOD_NAME = 'WithGlobalGPOf'
+GLOBAL_GRACE_PERIOD_NAME_LAMBDA = lambda duration: f"{GLOBAL_GRACE_PERIOD_NAME}{duration}Insts"
+
 
 def global_grace_period(duration: int = 1000) -> Callable[[type(ADLClassifier)], type(ADLClassifier)]:
     return lambda adl_class: _global_grace_period(adl_classifier=adl_class, duration=duration)
@@ -34,11 +37,11 @@ def _global_grace_period(adl_classifier: type(ADLClassifier), duration: int) -> 
             self.model_changed_this_iteration: bool = False
 
         def __str__(self):
-            return f"{super().__str__()}WithGlobalGPOf{duration}Insts"
+            return f"{super().__str__()}{GLOBAL_GRACE_PERIOD_NAME_LAMBDA(duration)}"
 
         @classmethod
         def name(cls) -> str:
-            return f"{adl_classifier.name()}WithGlobalGPOf{duration}Insts"
+            return f"{adl_classifier.name()}{GLOBAL_GRACE_PERIOD_NAME_LAMBDA(duration)}"
 
         def train(self, instance):
             self.model_changed_this_iteration = False
@@ -106,5 +109,5 @@ def _global_grace_period(adl_classifier: type(ADLClassifier), duration: int) -> 
             self.model_changed_this_iteration = state_dict['model_changed_this_iteration']
             self.__duration = state_dict['duration']
 
-    GlobalGracePeriodWrapper.__name__ = f"{adl_classifier.__name__}WithGlobalGPOf{duration}Insts"
+    GlobalGracePeriodWrapper.__name__ = f"{adl_classifier.__name__}{GLOBAL_GRACE_PERIOD_NAME_LAMBDA(duration)}"
     return GlobalGracePeriodWrapper

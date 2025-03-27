@@ -8,6 +8,8 @@ from capymoa.evaluation import ClassificationEvaluator
 from ADLClassifier import ADLClassifier
 
 
+NETWORK_GRAPH_NAME = 'WithGraph'
+
 def record_network_graph(adl_classifier: type(ADLClassifier)):
 
     class NetworkGraphRecorder(adl_classifier):
@@ -26,11 +28,11 @@ def record_network_graph(adl_classifier: type(ADLClassifier)):
             self.evaluator = ClassificationEvaluator(self.schema, window_size=1)
 
         def __str__(self):
-            return f"{super().__str__()}WithGraph"
+            return f"{super().__str__()}{NETWORK_GRAPH_NAME}"
 
         @classmethod
         def name(cls) -> str:
-            return f"{adl_classifier.name()}WithGraph"
+            return f"{adl_classifier.name()}{NETWORK_GRAPH_NAME}"
 
         def train(self, instance):
             if self.model is None:
@@ -72,4 +74,5 @@ def record_network_graph(adl_classifier: type(ADLClassifier)):
             self.evaluator.__dict__.update(JUnpickler(state_dict['evaluator']).load())
             state_dict['record_of_model_shape'] = {key: list(value) for key, value in self.record_of_model_shape.items()}
 
+    NetworkGraphRecorder.__name__ = f"{adl_classifier.__name__}{NETWORK_GRAPH_NAME}"
     return NetworkGraphRecorder

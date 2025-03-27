@@ -8,6 +8,8 @@ from capymoa._pickle import JPickler, JUnpickler
 from ADLClassifier.BaseClassifier import ADLClassifier
 
 
+VECTORIZED_FOR_LOOP_NAME = 'Vectorized'
+
 def vectorized_for_loop(adl_classifier: type(ADLClassifier)) -> type(ADLClassifier):
     """
     Vectorizes the triple for loop in the calculation of the mci score to determine correlated pairs of output layers
@@ -21,11 +23,11 @@ def vectorized_for_loop(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
         """
 
         def __str__(self):
-            return f"{super().__str__()}Vectorized"
+            return f"{super().__str__()}{VECTORIZED_FOR_LOOP_NAME}"
 
         @classmethod
         def name(cls) -> str:
-            return f"{adl_classifier.name()}Vectorized"
+            return f"{adl_classifier.name()}{VECTORIZED_FOR_LOOP_NAME}"
 
         def _get_correlated_pairs_of_output_layers(self) -> List[Tuple[int, int]]:
             # find correlated layers:
@@ -200,5 +202,5 @@ def vectorized_for_loop(adl_classifier: type(ADLClassifier)) -> type(ADLClassifi
             self.sum_of_output_probability_deviation_products = state_dict['sum_of_output_probability_deviation_products']
 
 
-    WithoutForLoopWrapper.__name__ = f"{adl_classifier.__name__}Vectorized"
+    WithoutForLoopWrapper.__name__ = f"{adl_classifier.__name__}{VECTORIZED_FOR_LOOP_NAME}"
     return WithoutForLoopWrapper
