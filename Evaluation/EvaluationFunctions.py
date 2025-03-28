@@ -590,6 +590,7 @@ def find_incomplete_directories(run_id: int) -> List[Path]:
     logger = logging.getLogger('find_incomplete_directories')
     for found_path in set(found):
         logger.info(f'found incomplete dir: {found_path.name}\n{found_path.absolute()}')
+    logger.info(f"found {len(found)} incomplete directories")
     return found
 
 
