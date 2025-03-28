@@ -11,7 +11,7 @@ if __name__ == "__main__":
     logging.basicConfig(filename=Path('bench_async.log').absolute().as_posix(), level=logging.INFO)
     run_id = 99
     find_incomplete_directories(run_id)
-    # rename_folders(run_id)
-    # clean_incomplete_directories(run_id)
-    # asyncio.run(bench_async())
+    rename_folders(run_id)
+    clean_incomplete_directories(run_id)
+    asyncio.run(bench_async())
     # run_bench()

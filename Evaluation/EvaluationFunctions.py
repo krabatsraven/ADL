@@ -159,7 +159,7 @@ def __evaluate_on_stream(
 
     results_path.mkdir(parents=True, exist_ok=True)
 
-    os.environ["CODECARBON_OUTPUT_DIR"] = str(results_path)
+    os.environ["CODECARBON_OUTPUT_DIR"] = results_path.absolute().as_posix()
     os.environ["CODECARBON_TRACKING_MODE"] = "process"
     os.environ["CODECARBON_LOG_LEVEL"] = "CRITICAL"
 
@@ -199,6 +199,7 @@ def __evaluate_on_stream(
         raise FileNotFoundError
     metrics_at_end.to_pickle(results_path / "metrics.pickle")
     windowed_results.to_pickle(results_path / "metrics_per_window.pickle")
+    adl_classifier.save_emissions_data((results_path / "emissions.csv").absolute().as_posix())
 
     # results_ht.write_to_file(results_path.absolute().as_posix())
     logger.info(f"---------------End time {call_identifier}: {datetime.now()}-----------------------")

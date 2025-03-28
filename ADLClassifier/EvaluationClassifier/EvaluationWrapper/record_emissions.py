@@ -44,8 +44,13 @@ def record_emissions(adl_classifier: type(ADLClassifier)):
             save_path_dir.mkdir(parents=True, exist_ok=True)
             return (save_path_dir / 'emissions.csv').absolute().as_posix()
 
+        def save_emissions_data(self, path: str) -> None:
+            '''save emissions data to csv file'''
+            pd.DataFrame(self.emissions_data).to_csv(path)
+
         def __del__(self):
-            pd.DataFrame(self.emissions_data).to_csv(self.file_path())
+            self.save_emissions_data(self.file_path())
+
 
     EmissionsRecorder.__name__ = f"{adl_classifier.__name__}{EMISSION_RECORDER_NAME}"
     return EmissionsRecorder

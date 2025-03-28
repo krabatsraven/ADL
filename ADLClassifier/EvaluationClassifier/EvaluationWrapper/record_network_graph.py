@@ -74,5 +74,10 @@ def record_network_graph(adl_classifier: type(ADLClassifier)):
             self.evaluator.__dict__.update(JUnpickler(state_dict['evaluator']).load())
             state_dict['record_of_model_shape'] = {key: list(value) for key, value in self.record_of_model_shape.items()}
 
+        def save_emissions_data(self, path: str) -> None:
+            """does nothing there is no emissions data here"""
+            print("no emissions data exists")
+            pass
+
     NetworkGraphRecorder.__name__ = f"{adl_classifier.__name__}{NETWORK_GRAPH_NAME}"
     return NetworkGraphRecorder
