@@ -3,6 +3,7 @@ import os
 import shutil
 import time
 from datetime import datetime
+from filecmp import dircmp
 from pathlib import Path
 from typing import Dict, List, Union, Any, Set, Optional
 
@@ -20,7 +21,8 @@ from Evaluation import config_handling
 from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_all_of_one_run
 from Evaluation._config import ADWIN_DELTA_STANDIN, MAX_INSTANCES_TEST, STREAM_STRINGS, STANDARD_CONFIG, CLASSIFIERS, \
     STANDARD_CONFIG_WITH_CO2, UNSTABLE_CONFIG, UNSTABLE_STRING_IDX, STABLE_STRING_IDX, STABLE_CONFIG, \
-    HYPERPARAMETER_KEYS, HYPERPARAMETERS, AMOUNT_OF_STRINGS, RESULTS_DIR_PATH, PROJECT_FOLDER_PATH
+    HYPERPARAMETER_KEYS, HYPERPARAMETERS, AMOUNT_OF_STRINGS, RESULTS_DIR_PATH, PROJECT_FOLDER_PATH, \
+    STABLE_CONFIG_WITH_CO2, UNSTABLE_CONFIG_WITH_CO2
 from Evaluation.config_handling import adl_run_data_from_config, config_to_learner, config_to_stream, \
     standardize_learner_name
 
@@ -35,17 +37,83 @@ def __get_run_id() -> int:
         return 1
 
 
+def standardize_hyperparamter_folder_name(old_name: str) -> str:
+    """
+    Standardizes the name of the hyperparameter folder
+    :param old_name: old name of the hyperparameter folder
+    :return: standardized name
+    """
+    name_parts = dict(tuple(p.split('=')) for p in old_name.split('_'))
+    name_parts['classifier'] = standardize_learner_name(name_parts['classifier'])
+    name_parts = list(name_parts.items())
+    name_parts.sort(key=lambda x: x[0].lower())
+
+    new_name = '_'.join(("=".join(part) for part in name_parts))
+    if len(new_name) == 0 or len(dict(name_parts)['classifier']) == 0:
+        raise Exception("i did something stupid again")
+
+    return new_name
+
+
+def directories_are_same(dir1, dir2):
+    """
+    Compare two directory trees content.
+    Return False if they differ, True is they are the same.
+    """
+    compared = dircmp(dir1, dir2)
+    if (compared.left_only or compared.right_only or compared.diff_files
+            or compared.funny_files):
+        return False
+    for subdir in compared.common_dirs:
+        if not directories_are_same(os.path.join(dir1, subdir), os.path.join(dir2, subdir)):
+            return False
+    return True
+
+
+def camel_case_split(str):
+    """
+    splits a string in camel case into word parts
+    :param str: word in camel case
+    :return: parts each beginning with a capital letter
+    """
+    words = [[str[0]]]
+
+    for c in str[1:]:
+        if words[-1][-1].islower() and c.isupper():
+            words.append(list(c))
+        else:
+            words[-1].append(c)
+
+    return [''.join(word) for word in words]
+
+
 def rename_folders(run_id: int):
     """Rename all folders under a given run id to fit the name of the hyperparameters used in the experiment."""
+    logger = logging.getLogger('rename_folders')
+    run_folder_path = RESULTS_DIR_PATH / f"runID={run_id}"
+    if not run_folder_path.exists():
+        logger.error(f'run folder {run_id} does not exist')
+        raise Exception('run folder does not exist')
+
+    i = 0
+    tmp_folder = PROJECT_FOLDER_PATH / 'tmp' / f"runID={run_id}" / f'{i}'
+
+    while True:
+        if tmp_folder.exists() and directories_are_same(tmp_folder, run_folder_path):
+            logger.info(f"runfolder already backed up under i={i}")
+            break
+        elif tmp_folder.exists():
+            i += 1
+            tmp_folder = PROJECT_FOLDER_PATH / 'tmp' / f"runID={run_id}" / f'{i}'
+        else:
+            logger.info(f"back up to i={i}")
+            shutil.copytree(RESULTS_DIR_PATH / f"runID={run_id}", tmp_folder)
+            break
+
     for hyperparameter_folder in [d for d in (RESULTS_DIR_PATH / f"runID={run_id}").iterdir() if d.is_dir()]:
         old_name = hyperparameter_folder.name
-        name_parts = dict(tuple(p.split('=')) for p in old_name.split('_'))
-        name_parts['classifier'] = standardize_learner_name(name_parts['classifier'])
-
-        new_name = '_'.join(("=".join(part) for part in name_parts.items()))
-        if len(new_name) == 0 or len(name_parts['classifier']) == 0:
-            raise Exception("i did something stupid again")
-        shutil.move(hyperparameter_folder.parent / old_name, hyperparameter_folder.parent / new_name)
+        new_name = standardize_hyperparamter_folder_name(old_name)
+        shutil.move(RESULTS_DIR_PATH / f"runID={run_id}" / old_name, RESULTS_DIR_PATH / f"runID={run_id}" / new_name)
 
 
 def _find_path_by_config_with_learner_object(run_id: int, config: Dict[str, Any], stream_name: str) -> Path:
@@ -56,11 +124,13 @@ def _find_path_by_config_with_learner_object(run_id: int, config: Dict[str, Any]
         with_co2=(EMISSION_RECORDER_NAME in config['learner'].name()), 
         learner_name=config['learner'].name()
     )
-    hyperparameter_part_of_name_string = "_".join((f"{str(key).replace('_', ' ')}={f'{value:.3g}' if type(value) == float else str(value).replace('_', ' ')}" for key, value in rename_values.items()))
+    hyperparameter_part_of_name_string = standardize_hyperparamter_folder_name("_".join((f"{str(key).replace('_', ' ')}={f'{value:.3g}' if type(value) == float else str(value).replace('_', ' ')}" for key, value in rename_values.items())))
     results_path = RESULTS_DIR_PATH / f"runID={run_id}" / hyperparameter_part_of_name_string / stream_name
 
     if not results_path.exists():
-        logging.getLogger(f"logger_runID={run_id}").exception(f"no folder exists for config {config}, stream name: {stream_name}, run id: {run_id}")
+        config_description = hyperparameter_part_of_name_string.replace('_', '\n')
+        logging.getLogger(f"logger_runID={run_id}").exception(f"no folder or result file exists for:\n config:\n {config_description},\n stream name: {stream_name},\n run id: {run_id},\n path:{results_path}\n\n")
+        raise Exception(f'no folder exists for: {config}')
 
     return results_path
 
@@ -75,14 +145,14 @@ def __evaluate_on_stream(
         force: bool = False,
         run_name: Optional[str] = None
 ) -> None:
-    logger = logging.getLogger(f"logger_runID={run_id}")
+    logger = logging.getLogger(f"evaluate_on_stream_{run_name}:")
     call_identifier = run_name if not run_name is None else f'runID={run_id}'
 
     name_string_of_stream_data = stream_name if stream_name is not None else f"{stream_data.schema.dataset_name}/"
-    hyperparameter_part_of_name_string = "_".join((f"{str(key).replace('_', ' ')}={f'{value:.3g}' if type(value) == float else str(value).replace('_', ' ')}" for key, value in rename_values.items()))
+    hyperparameter_part_of_name_string = standardize_hyperparamter_folder_name("_".join((f"{str(key).replace('_', ' ')}={f'{value:.3g}' if type(value) == float else str(value).replace('_', ' ')}" for key, value in rename_values.items())))
     results_path = RESULTS_DIR_PATH / f"runID={run_id}" / hyperparameter_part_of_name_string / name_string_of_stream_data
     if (results_path / "metrics.pickle").exists() and not force:
-        logger.info(f"skipping {classifier} + {name_string_of_stream_data} + {adl_parameters}, already evaluated, set force=True to overwrite")
+        logger.info(f"skipping {classifier.name()} + {name_string_of_stream_data} + {adl_parameters}, already evaluated, set force=True to overwrite")
         return
 
     logger.info(f"---------------Start time {call_identifier}: {datetime.now()}---------------")
@@ -124,6 +194,9 @@ def __evaluate_on_stream(
     for key, val in rename_values.items():
         metrics_at_end.insert(loc=0, column=key, value=[str(val)])
 
+    if results_path.parent.parent.name != f"runID={run_id}":
+        print(results_path)
+        raise FileNotFoundError
     metrics_at_end.to_pickle(results_path / "metrics.pickle")
     windowed_results.to_pickle(results_path / "metrics_per_window.pickle")
 
@@ -173,7 +246,6 @@ def __write_summary(run_id: int, user_added_hyperparameter: Set[str]) -> None:
             i += 1
 
     summary = summary.rename(columns=rename)
-    runs_folder.mkdir(exist_ok=True, parents=True)
     order_of_columns = (
             [filtered_param if filtered_param not in rename else rename[filtered_param] for filtered_param in [added_parameter for added_parameter in user_added_hyperparameter if added_parameter != "classifier"]]
             + ["accuracy", "amount of hidden layers", "amount of active layers", 'amount of nodes', "overall time", "classifier", "amount of instances", "run id", "path", "stream"]
@@ -367,8 +439,11 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
     stream_names = STREAM_STRINGS
     # best_config = list(map(get_best_config_for_stream_name, STREAM_STRINGS))
 
-    standard_config = STANDARD_CONFIG.copy()
-    best_config = [standard_config] * nr_of_combinations
+    if with_co_2:
+        standard_config = STANDARD_CONFIG_WITH_CO2
+    else:
+        standard_config = STANDARD_CONFIG
+    best_config = [standard_config.copy() for _ in range(nr_of_combinations)]
 
     # ADLWithInputProcessingWithoutForLoopWithWinningLayerTrainingWithGraphWithEmWithGlobalGracePeriodOf256Instances
     # Start time: 2025-03-17 17:14:04
@@ -384,7 +459,7 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
             current_config = best_config[i]
             current_classifier = config_to_learner(*classifier, grace_period=(current_config['grace_period'], current_config['grace_type']), with_co2=with_co_2)
             logger.info(current_classifier.name())
-            adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=('decoupled_lrs' in classifier), with_co2=with_co_2, learner_name=config_to_learner(*classifier, grace_period=None, with_co2=with_co_2).name())
+            adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=('decoupled_lrs' in classifier), with_co2=with_co_2, learner_name=current_classifier.name())
             __evaluate_on_stream(
                 classifier=current_classifier,
                 stream_data=streams[i],
@@ -401,7 +476,8 @@ def _test_one_feature(stream_idx: int, classifier_idx: int, with_co_2: bool, run
     run_id = 99
     current_config = STANDARD_CONFIG.copy()
     current_classifier = config_to_learner(*CLASSIFIERS[classifier_idx], grace_period=(current_config['grace_period'], current_config['grace_type']), with_co2=with_co_2)
-    adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=('decoupled_lrs' in CLASSIFIERS[classifier_idx]), with_co2=with_co_2, learner_name=config_to_learner(*CLASSIFIERS[classifier_idx], grace_period=None, with_co2=with_co_2).name())
+    current_config['learner'] = current_classifier
+    adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=('decoupled_lrs' in CLASSIFIERS[classifier_idx]), with_co2=with_co_2, learner_name=current_classifier.name())
     __evaluate_on_stream(
         classifier=current_classifier,
         stream_data=config_to_stream(STREAM_STRINGS[stream_idx]),
@@ -449,7 +525,10 @@ def _test_one_hyperparameter(hyperparameter_key_idx: int, hyperparameter_idx: in
 
 def _test_stable(with_co_2: bool, run_name: str, force: bool = False) -> None:
     run_id = 99
-    current_config = STABLE_CONFIG.copy()
+    if with_co_2:
+        current_config = STABLE_CONFIG_WITH_CO2.copy()
+    else:
+        current_config = STABLE_CONFIG.copy()
     current_classifier = current_config['learner']
     stream_idx = STABLE_STRING_IDX
     adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=True, with_co2=with_co_2, learner_name=current_config['learner'].name())
@@ -468,7 +547,11 @@ def _test_stable(with_co_2: bool, run_name: str, force: bool = False) -> None:
 
 def _test_unstable(with_co_2: bool, run_name: str, force: bool = False) -> None:
     run_id = 99
-    current_config = UNSTABLE_CONFIG.copy()
+    if with_co_2:
+        current_config = UNSTABLE_CONFIG_WITH_CO2.copy()
+    else:
+        current_config = UNSTABLE_CONFIG.copy()
+
     current_classifier = current_config['learner']
     stream_idx = UNSTABLE_STRING_IDX
     adl_parameter, rename_values, added_names = adl_run_data_from_config(current_config, with_weight_lr=True, with_co2=with_co_2, learner_name=current_config['learner'].name())
@@ -483,3 +566,39 @@ def _test_unstable(with_co_2: bool, run_name: str, force: bool = False) -> None:
         force=force
     )
     __write_summary(run_id, added_names)
+
+
+def find_incomplete_directories(run_id: int) -> List[Path]:
+    """finds the dirs of all incomplete directories in given run id result folder and raises if it found any"""
+    run_folder_path = RESULTS_DIR_PATH / f"runID={run_id}"
+    allowed_names = {'emissions.csv', 'metrics.pickle', 'metrics_per_window.pickle'}
+    found = []
+    for temp in run_folder_path.rglob('*'):
+        if temp.is_dir() and len(list(temp.iterdir())) == 0:
+            found.append(temp)
+            continue
+        elif temp.is_dir() and temp.parent.name != run_folder_path.name:
+            if temp.name not in STREAM_STRINGS:
+                found.append(temp)
+        elif temp.is_file() and temp.name.startswith('summary'):
+            continue
+        elif temp.is_file() and (temp.name.startswith('emissions') or temp.name.startswith('metrics')):
+            set_dir = set(file.name for file in temp.parent.iterdir())
+            if any(name not in set_dir for name in allowed_names):
+                found.append(temp.parent)
+                continue
+    logger = logging.getLogger('find_incomplete_directories')
+    for found_path in set(found):
+        logger.info(f'found incomplete dir: {found_path.name}\n{found_path.absolute()}')
+    return found
+
+
+def clean_incomplete_directories(run_id: int) -> None:
+    """removes the dirs of all incomplete directories in given run id result folder and raises if it found any"""
+    logger = logging.getLogger('clean_incomplete_directories')
+    found = find_incomplete_directories(run_id)
+
+    for found_path in set(found):
+        logger.info(f'removed incomplete dir: {found_path.name}\n{found_path.absolute()}')
+        shutil.rmtree(found_path)
+    logger.info(f"removed {len(found)} incomplete directories")

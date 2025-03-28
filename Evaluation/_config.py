@@ -56,10 +56,12 @@ STANDARD_CONFIG = {
 STANDARD_CONFIG_WITH_CO2 = STANDARD_CONFIG.copy()
 STANDARD_CONFIG_WITH_CO2['learner'] = extend_classifier_for_evaluation(*STANDARD_LEARNER, with_emissions=True)
 
-STABLE_CONFIG = STANDARD_CONFIG_WITH_CO2.copy()
+STABLE_CONFIG = STANDARD_CONFIG.copy()
+STABLE_CONFIG_WITH_CO2 = STANDARD_CONFIG_WITH_CO2.copy()
 STABLE_STRING_IDX = 0
 # todo: find unstable config
-UNSTABLE_CONFIG = STANDARD_CONFIG_WITH_CO2.copy()
+UNSTABLE_CONFIG = STANDARD_CONFIG.copy()
+UNSTABLE_CONFIG_WITH_CO2 = STANDARD_CONFIG_WITH_CO2.copy()
 UNSTABLE_STRING_IDX = STABLE_STRING_IDX
 
 singular_classifier_features_to_test = ['input_preprocessing', 'vectorized', 'winning_layer']

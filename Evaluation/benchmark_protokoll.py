@@ -41,6 +41,26 @@ def run_bench():
     print("best combination")
     _test_best_combination(name="best_hyper_parameter_all_models_all_streams_with_co2", with_co_2=True)
 
+    print('single function ')
+    biggest_run_index = AMOUNT_HYPERPARAMETER_TESTS + (AMOUNT_OF_STRINGS * AMOUNT_OF_CLASSIFIERS) + 2 - 1
+    run_idx = 0
+    for stream_idx in range(AMOUNT_OF_STRINGS):
+        for classifier_idx in range(AMOUNT_OF_CLASSIFIERS):
+            bench_one_feature(run_idx, f'{run_idx}/{biggest_run_index}')
+            run_idx += 1
+
+    print('single hyperparameter')
+    for _ in range(AMOUNT_HYPERPARAMETER_TESTS):
+        bench_one_hyperparameter_isolated(run_idx, f'{run_idx}/{biggest_run_index}' )
+        run_idx += 1
+
+    print('stable')
+    bench_stable(run_idx, f'{run_idx}/{biggest_run_index}')
+    run_idx += 1
+
+    print('unstable')
+    bench_unstable(run_idx, f'{run_idx}/{biggest_run_index}')
+
     print("hyperparameter for adl")
     runs = [*range(47, 56)]
     for run in runs:
@@ -56,7 +76,12 @@ def bench_one_feature(run_idx: int, run_name: str) -> None:
     assert run_idx <= AMOUNT_OF_STRINGS*AMOUNT_OF_CLASSIFIERS - 1, f"run_idx {run_idx} out of range for feature test {AMOUNT_OF_STRINGS*AMOUNT_OF_CLASSIFIERS - 1}"
     stream_idx = run_idx // AMOUNT_OF_CLASSIFIERS
     classifier_idx = run_idx % AMOUNT_OF_CLASSIFIERS
-    _test_one_feature(stream_idx=stream_idx, classifier_idx=classifier_idx, with_co_2=True, run_name=run_name)
+    _test_one_feature(
+        stream_idx=stream_idx,
+        classifier_idx=classifier_idx,
+        with_co_2=True, 
+        run_name=run_name
+    )
 
 
 def bench_one_hyperparameter_isolated(run_idx: int, run_name: str) -> None:
@@ -105,7 +130,7 @@ async def async_run_unstable(run_idx: int, run_name:str) -> None:
 
 
 async def bench_async():
-    logging.basicConfig(filename=Path("bench_async.log").absolute().as_posix(), level=logging.INFO)
+    # logging.basicConfig(filename=Path("bench_async.log").absolute().as_posix(), level=logging.INFO)
     tasks = []
 
     biggest_run_index = AMOUNT_HYPERPARAMETER_TESTS + (AMOUNT_OF_STRINGS * AMOUNT_OF_CLASSIFIERS) + 2 - 1

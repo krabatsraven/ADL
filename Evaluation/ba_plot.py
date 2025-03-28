@@ -64,12 +64,12 @@ def plot_feature_comparision() -> None:
         )
         stream_name = STREAM_STRINGS[i // AMOUNT_OF_CLASSIFIERS]
         paths.append(_find_path_by_config_with_learner_object(run_id=99, config=config, stream_name=stream_name))
-
     data_frames = _load_paths(paths)
+    print(data_frames)
     for df in data_frames:
         print(df.head(5))
     # todo: plot all
-    raise NotImplemented
+    raise NotImplementedError
 
 
 def _load_paths(paths: List[Path]) -> List[pd.DataFrame]:
@@ -80,14 +80,15 @@ def _load_paths(paths: List[Path]) -> List[pd.DataFrame]:
 
 def _get_data_from_path(path: Path) -> pd.DataFrame:
     all_metrics_path = path / "metrics_per_window.pickle"
+    logger = logging.getLogger("get_data_from_path")
     if not all_metrics_path.exists():
-        logging.getLogger("ba_plotting").error(f"No metrics per window under {path}")
+        logger.error(f"No metrics per window under {path}")
         raise ValueError(f'No metrics file exists under this path: {path}')
     results_csv = pd.read_pickle(all_metrics_path)
-    if not (all_metrics_path / "emissions.csv").exists():
-        logging.getLogger("ba_plotting").error(f"No emissions per window under {path}")
+    if not (path / "emissions.csv").exists():
+        logger.error(f"No emissions per window under {path}")
         raise ValueError(f'No emissions file exists under this path: {path}')
-    results_csv = results_csv.merge(pd.read_csv(all_metrics_path / "emissions.csv"), right_index=True, left_index=True)
+    results_csv = results_csv.merge(pd.read_csv(path / "emissions.csv"), right_index=True, left_index=True)
     return results_csv
 
 
@@ -95,5 +96,5 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, filename=(PROJECT_FOLDER_PATH / 'ba_plot.log').as_posix())
     rename_folders(99)
     plot_feature_comparision()
-    plot_hyperparameter_in_iso()
-    plot_hyperparameter_stable_vs_unstable()
+    # plot_hyperparameter_in_iso()
+    # plot_hyperparameter_stable_vs_unstable()

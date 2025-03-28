@@ -155,68 +155,67 @@ def standardize_learner_name(learner_name: str) -> str:
 
     if NETWORK_GRAPH_NAME in learner_name:
         parts.append(LEARNER_PART_NAMES[NETWORK_GRAPH_NAME])
-    if LEARNER_PART_NAMES[NETWORK_GRAPH_NAME] in learner_name:
+    elif LEARNER_PART_NAMES[NETWORK_GRAPH_NAME] in learner_name:
         parts.append(LEARNER_PART_NAMES[NETWORK_GRAPH_NAME])
-    if 'WithGraph' in learner_name:
+    elif 'WithGraph' in learner_name:
         parts.append(LEARNER_PART_NAMES[NETWORK_GRAPH_NAME])
 
     if EMISSION_RECORDER_NAME in learner_name:
         parts.append(LEARNER_PART_NAMES[EMISSION_RECORDER_NAME])
-    if LEARNER_PART_NAMES[EMISSION_RECORDER_NAME] in learner_name:
+    elif LEARNER_PART_NAMES[EMISSION_RECORDER_NAME] in learner_name:
         parts.append(LEARNER_PART_NAMES[EMISSION_RECORDER_NAME])
-    if 'WithEmissions' in learner_name:
+    elif 'WithEmissions' in learner_name:
         parts.append(LEARNER_PART_NAMES[EMISSION_RECORDER_NAME])
-
-    if DELETE_DELETED_LAYERS_NAME in learner_name:
-        parts.append(LEARNER_PART_NAMES[DELETE_DELETED_LAYERS_NAME])
-    if LEARNER_PART_NAMES[DELETE_DELETED_LAYERS_NAME] in learner_name:
-        parts.append(LEARNER_PART_NAMES[DELETE_DELETED_LAYERS_NAME])
 
     if DISABLED_DELETED_LAYERS_NAME in learner_name:
         parts.append(LEARNER_PART_NAMES[DISABLED_DELETED_LAYERS_NAME])
-    if LEARNER_PART_NAMES[DISABLED_DELETED_LAYERS_NAME] in learner_name:
+    elif LEARNER_PART_NAMES[DISABLED_DELETED_LAYERS_NAME] in learner_name:
         parts.append(LEARNER_PART_NAMES[DISABLED_DELETED_LAYERS_NAME])
+    elif DELETE_DELETED_LAYERS_NAME in learner_name:
+        parts.append(LEARNER_PART_NAMES[DELETE_DELETED_LAYERS_NAME])
+    elif LEARNER_PART_NAMES[DELETE_DELETED_LAYERS_NAME] in learner_name:
+        parts.append(LEARNER_PART_NAMES[DELETE_DELETED_LAYERS_NAME])
 
     if WINNING_LAYER_TRAINING_NAME in learner_name:
         parts.append(LEARNER_PART_NAMES[WINNING_LAYER_TRAINING_NAME])
-    if LEARNER_PART_NAMES[WINNING_LAYER_TRAINING_NAME] in learner_name:
+    elif LEARNER_PART_NAMES[WINNING_LAYER_TRAINING_NAME] in learner_name:
         parts.append(LEARNER_PART_NAMES[WINNING_LAYER_TRAINING_NAME])
-    if 'WithWinning' in learner_name:
+    elif 'WithWinning' in learner_name:
         parts.append(LEARNER_PART_NAMES[WINNING_LAYER_TRAINING_NAME])
 
     if VECTORIZED_FOR_LOOP_NAME in learner_name:
         parts.append(LEARNER_PART_NAMES[VECTORIZED_FOR_LOOP_NAME])
-    if LEARNER_PART_NAMES[VECTORIZED_FOR_LOOP_NAME] in learner_name:
+    elif LEARNER_PART_NAMES[VECTORIZED_FOR_LOOP_NAME] in learner_name:
         parts.append(LEARNER_PART_NAMES[VECTORIZED_FOR_LOOP_NAME])
-    if 'WithoutForLoop' in learner_name:
+    elif 'WithoutForLoop' in learner_name:
         parts.append(LEARNER_PART_NAMES[VECTORIZED_FOR_LOOP_NAME])
 
     if INPUT_PREPROCESSING_NAME in learner_name:
         parts.append(LEARNER_PART_NAMES[INPUT_PREPROCESSING_NAME])
-    if LEARNER_PART_NAMES[INPUT_PREPROCESSING_NAME] in learner_name:
+    elif LEARNER_PART_NAMES[INPUT_PREPROCESSING_NAME] in learner_name:
         parts.append(LEARNER_PART_NAMES[INPUT_PREPROCESSING_NAME])
-    if 'WithInputProcessing' in learner_name:
+    elif 'WithInputProcessing' in learner_name:
         parts.append(LEARNER_PART_NAMES[INPUT_PREPROCESSING_NAME])
 
     if ADD_WEIGHT_CORRECTION_PARAMETER_NAME in learner_name:
         parts.append(LEARNER_PART_NAMES[ADD_WEIGHT_CORRECTION_PARAMETER_NAME])
-    if LEARNER_PART_NAMES[ADD_WEIGHT_CORRECTION_PARAMETER_NAME] in learner_name:
+    elif LEARNER_PART_NAMES[ADD_WEIGHT_CORRECTION_PARAMETER_NAME] in learner_name:
         parts.append(LEARNER_PART_NAMES[ADD_WEIGHT_CORRECTION_PARAMETER_NAME])
-    if 'WithUserChosenWeight' in learner_name:
+    elif 'WithUserChosenWeight' in learner_name:
         parts.append(LEARNER_PART_NAMES[ADD_WEIGHT_CORRECTION_PARAMETER_NAME])
 
     if GRACE_PERIOD_PER_LAYER_NAME in learner_name:
         parts.append(LEARNER_PART_NAMES[GRACE_PERIOD_PER_LAYER_NAME])
-    if LEARNER_PART_NAMES[GRACE_PERIOD_PER_LAYER_NAME] in learner_name:
+    elif LEARNER_PART_NAMES[GRACE_PERIOD_PER_LAYER_NAME] in learner_name:
         parts.append(LEARNER_PART_NAMES[GRACE_PERIOD_PER_LAYER_NAME])
-    if 'WithGracePeriodPerLayer' in learner_name:
+    elif 'WithGracePeriodPerLayer' in learner_name:
         parts.append(LEARNER_PART_NAMES[GRACE_PERIOD_PER_LAYER_NAME])
 
     if GLOBAL_GRACE_PERIOD_NAME in learner_name:
         parts.append(LEARNER_PART_NAMES[GLOBAL_GRACE_PERIOD_NAME])
-    if LEARNER_PART_NAMES[GLOBAL_GRACE_PERIOD_NAME] in learner_name:
+    elif LEARNER_PART_NAMES[GLOBAL_GRACE_PERIOD_NAME] in learner_name:
         parts.append(LEARNER_PART_NAMES[GLOBAL_GRACE_PERIOD_NAME])
-    if 'WithGlobalGrace' in learner_name:
+    elif 'WithGlobalGrace' in learner_name:
         parts.append(LEARNER_PART_NAMES[GLOBAL_GRACE_PERIOD_NAME])
 
     parts = sorted(list(set(parts)))
