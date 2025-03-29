@@ -134,7 +134,7 @@ def ADLTrainableUnstable(config):
         nr_of_active_layers_mean = nr_of_active_layers_new_mean
 
         if nr_of_instances_seen % max(MIN_INSTANCES // 100, 1) == 0:
-            metrics = {"score": learner.evaluator.accuracy() + (nr_of_active_layers_variance / nr_of_active_layers_mean ** 2), 'instances_seen': nr_of_instances_seen}
+            metrics = {"score": (learner.evaluator.accuracy() / 100.0) + (nr_of_active_layers_variance / nr_of_active_layers_mean ** 2), 'instances_seen': nr_of_instances_seen}
             if nr_of_instances_seen % max(MIN_INSTANCES, 1) == 0:
                 with tempfile.TemporaryDirectory() as tmpdir:
                     torch.save(
@@ -209,7 +209,7 @@ def ADLTrainableStable(config):
         nr_of_active_layers_mean = nr_of_active_layers_new_mean
 
         if nr_of_instances_seen % max(MIN_INSTANCES // 100, 1) == 0:
-            metrics = {"score": learner.evaluator.accuracy() - (nr_of_active_layers_variance / nr_of_active_layers_mean ** 2), 'instances_seen': nr_of_instances_seen}
+            metrics = {"score": (learner.evaluator.accuracy() / 100.0) - (nr_of_active_layers_variance / nr_of_active_layers_mean ** 2), 'instances_seen': nr_of_instances_seen}
             if nr_of_instances_seen % max(MIN_INSTANCES, 1) == 0:
                 with tempfile.TemporaryDirectory() as tmpdir:
                     torch.save(
