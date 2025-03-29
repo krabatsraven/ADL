@@ -23,6 +23,18 @@ LEARNER_PART_NAMES = {
     GLOBAL_GRACE_PERIOD_NAME: 'Global',
 }
 
+
+LEARNER_CONFIG_TO_NAMES = {
+    'input_preprocessing' : 'Input Normalization and One-Hot-Encoding',
+    'vectorized': 'Vectorized MCI Calculation',
+    'winning_layer': 'Winning Layer Training',
+    'delete_deleted_layer': 'Delete Pruned Layer',
+    'disable_deleted_layer': 'Disable Pruned Layer',
+    'decoupled_lrs': 'Different Learning Rates for Optimizer and Voting Weights',
+    'layer_grace': 'Grace Period Per Layer',
+    'global_grace': 'Global Grace Period',
+}
+
 NR_OF_TRIALS = 500
 #  todo: reset max instancens
 MAX_INSTANCES = 500
@@ -64,16 +76,16 @@ UNSTABLE_CONFIG = STANDARD_CONFIG.copy()
 UNSTABLE_CONFIG_WITH_CO2 = STANDARD_CONFIG_WITH_CO2.copy()
 UNSTABLE_STRING_IDX = STABLE_STRING_IDX
 
-singular_classifier_features_to_test = ['input_preprocessing', 'vectorized', 'winning_layer']
-pairwise_classifier_features_to_test = [('delete_deleted_layer', 'disable_deleted_layer')]
+SINGLE_CLASSIFIER_FEATURES_TO_TEST = ['input_preprocessing', 'vectorized', 'winning_layer']
+PAIRWISE_CLASSIFIER_FEATURES_TO_TEST = [('delete_deleted_layer', 'disable_deleted_layer')]
 classifier_features_to_always_include = ['decoupled_lrs']
 
-singular_combinations = [t for i in range(len(singular_classifier_features_to_test) + 1) for t in combinations(singular_classifier_features_to_test, r=i)]
-combs = [ext + s_combi for s_combi in singular_combinations for pair in pairwise_classifier_features_to_test for ext in [x for i in range(2) for x in combinations(pair, r=i)]]
+singular_combinations = [t for i in range(len(SINGLE_CLASSIFIER_FEATURES_TO_TEST) + 1) for t in combinations(SINGLE_CLASSIFIER_FEATURES_TO_TEST, r=i)]
+combs = [ext + s_combi for s_combi in singular_combinations for pair in PAIRWISE_CLASSIFIER_FEATURES_TO_TEST for ext in [x for i in range(2) for x in combinations(pair, r=i)]]
 combs.sort(key=lambda x: len(x), reverse=True)
 CLASSIFIERS = [combi + (ext,) for combi in combs for ext in classifier_features_to_always_include]
 
-AMOUNT_OF_CLASSIFIERS = 23
+AMOUNT_OF_CLASSIFIERS = 24
 AMOUNT_OF_STRINGS = 9
 
 HYPERPARAMETER_KEYS = ['lr', 'layer_weight_learning_rate', 'adwin-delta', 'mci', 'grace']

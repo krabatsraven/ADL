@@ -120,7 +120,7 @@ def _find_path_by_config_with_learner_object(run_id: int, config: Dict[str, Any]
 
     adl_parameter, rename_values, added_names = adl_run_data_from_config(
         config=config, 
-        with_weight_lr=(ADD_WEIGHT_CORRECTION_PARAMETER_NAME in config.keys()), 
+        with_weight_lr=(ADD_WEIGHT_CORRECTION_PARAMETER_NAME in config['learner'].name()), 
         with_co2=(EMISSION_RECORDER_NAME in config['learner'].name()), 
         learner_name=config['learner'].name()
     )
