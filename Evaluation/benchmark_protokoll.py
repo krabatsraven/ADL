@@ -10,7 +10,7 @@ from Evaluation.RayTuneResources.evaluate_runs import evaluate_adl_run, evaluate
 from Evaluation.EvaluationFunctions import _test_best_combination, _test_one_feature, _test_one_hyperparameter, \
     _test_stable, _test_unstable
 from Evaluation._config import NR_OF_TRIALS, STREAM_STRINGS, AMOUNT_OF_CLASSIFIERS, AMOUNT_OF_STRINGS, \
-    AMOUNT_HYPERPARAMETER_TESTS, AMOUNT_HYPERPARAMETERS_BEFORE, TOTAL_AMOUNT_HYPERPARAMETERS
+    AMOUNT_HYPERPARAMETER_TESTS, AMOUNT_HYPERPARAMETERS_BEFORE, TOTAL_AMOUNT_HYPERPARAMETERS, UNSTABLE_STRING_IDX
 
 
 def run_bench():
@@ -47,8 +47,10 @@ def run_bench():
     if not skip_ray_stable_unstable:
         logger.info(f'starting search for unstable: {datetime.datetime.now()}')
         search_for_unstable_hyperparameters(run_id=999, nr_of_trials=5000)
+        # todo: update unstable string idx with found stream idx from unstable search
+        return 
         logger.info(f'starting search for stable: {datetime.datetime.now()}')
-        search_for_stable_hyperparameters(run_id=998, nr_of_trials=5000)
+        search_for_stable_hyperparameters(stream_name=STREAM_STRINGS[UNSTABLE_STRING_IDX], run_id=998, nr_of_trials=5000)
         return
     else:
         logger.info('skipping hyperparameter search for unstable/stable adl')

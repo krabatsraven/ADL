@@ -9,6 +9,7 @@ from ray.tune import Tuner
 from ray.tune.search.hyperopt import HyperOptSearch
 
 from Evaluation.RayTuneResources.ADL.ADLScheduler import ADLScheduler
+from Evaluation.RayTuneResources.ADL.ADLSearchSpace import ADLSearchSpace
 from Evaluation.RayTuneResources.ADL.ADLTrainable import ADLTrainableUnstable, ADLTrainableStable
 from Evaluation.RayTuneResources.ADL.UnstableSeachSpace import UnStableStableSearchSpace
 from Evaluation.config_handling import write_config
@@ -59,13 +60,13 @@ def search_for_unstable_hyperparameters(run_id: int, nr_of_trials: int = 100, ap
     return out
 
 
-def search_for_stable_hyperparameters(run_id: int, nr_of_trials: int = 100, append_existing_run: Optional[int] = None):
+def search_for_stable_hyperparameters(run_id: int, stream_name: str, nr_of_trials: int = 100, append_existing_run: Optional[int] = None):
     project_folder = Path(__file__).resolve().parent.parent.parent.parent.absolute()
     tmp_dir = project_folder / 'rayTmp'
     storage_path = tmp_dir / "results"
     logging.basicConfig(filename=(project_folder / 'hyper_parameter_search.log').as_posix(), level=logging.INFO)
-    experiment_name = f"unstable_config_search_runID={run_id}"
-    logger = logging.getLogger('search_for_unstable')
+    experiment_name = f"stable_config_search_runID={run_id}"
+    logger = logging.getLogger('search_for_stable')
     ray.init(_temp_dir=tmp_dir.as_posix(), configure_logging=True, logging_level=logging.INFO)
     if append_existing_run is not None:
         run_id = append_existing_run
@@ -92,7 +93,7 @@ def search_for_stable_hyperparameters(run_id: int, nr_of_trials: int = 100, appe
                 name=experiment_name,
                 storage_path=storage_path.as_posix(),
             ),
-            param_space=UnStableStableSearchSpace,
+            param_space=ADLSearchSpace(stream_name=stream_name, learner=('input_preprocessing', 'vectorized', 'winning_layer', 'decoupled_lrs')),
         )
 
     results = tuner.fit()
