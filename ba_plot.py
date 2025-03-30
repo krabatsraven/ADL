@@ -21,6 +21,7 @@ COLOR_PALATE = 'colorblind'
 
 def plot_hyperparameter_in_iso() -> None:
     'plot comparision of hyperparameters'
+    sns.set_color_codes(COLOR_PALATE)
     paths = []
     indices_of_key_value = {(k, v): set() for k in HYPERPARAMETER_KEYS for v in HYPERPARAMETERS[k]}
     indices_of_stream = {stream_name: set() for stream_name in STREAM_STRINGS}
@@ -44,7 +45,7 @@ def plot_hyperparameter_in_iso() -> None:
         indices_of_stream[stream_name].add(i)
 
     data_frames = _load_paths(paths)
-    logger = logging.getLogger('hyperparameter_comparison') 
+    logger = logging.getLogger('hyperparameter_comparison')
     logger.info(f'hyperparameter comparison done on {len(data_frames[0])} instances')
     window_size = max(1, len(data_frames[0]) // 1000)
     logger.info(f'window size chosen: {window_size} instances')
@@ -84,7 +85,7 @@ def plot_hyperparameter_in_iso() -> None:
         axes[0].set_xlabel('Number of Instances')
         axes[0].set_ylabel('Accuracy [%]')
 
-        sns.lineplot(data=data, x='level_0', y='nr_of_active_layers', hue='hyperparameter_value', ax=axes[1], errorbar=None, legend=False)
+        sns.lineplot(data=data, x='level_0', y='nr_of_active_layers', markers='o', hue='hyperparameter_value', ax=axes[1], errorbar=None, legend=False)
         axes[1].set_title('Amount of Active Layers')
         axes[1].set_xlabel('Number of Instances')
         axes[1].set_ylabel('Amount of Active Layers')
@@ -124,7 +125,7 @@ def plot_hyperparameter_in_iso() -> None:
             axes[0].set_ylabel('Accuracy [%]')
 
             # Plot Nr of Active Layers
-            sns.lineplot(data=stream_data, x=stream_data.index, y='nr_of_active_layers', hue='hyperparameter_value', ax=axes[1], legend=False)
+            sns.lineplot(data=stream_data, x=stream_data.index, y='nr_of_active_layers', markers='o', hue='hyperparameter_value', ax=axes[1], legend=False)
             axes[1].set_title('Amount of Active Layers')
             axes[1].set_xlabel('Number of Instances')
             axes[1].set_ylabel('Amount of Active Layers')
@@ -138,12 +139,12 @@ def plot_hyperparameter_in_iso() -> None:
             handles, labels = axes[0].get_legend_handles_labels()
             g.legend().remove()
             fig.legend(handles, labels, loc ='lower center', ncols=3, bbox_to_anchor=(0.55, 0))
-    
+
             title = f"Compare {HYPERPARAMETERS_NAMES[hyperparameter_key]} on Stream: {STREAM_NAMES[stream_name]}"
             fig.suptitle(title, fontsize=16)
             plt.subplots_adjust(top=0.85)
             plt.tight_layout()
-    
+
             path = PLOT_DIR_BA / 'hyperparameter_comparision' / HYPERPARAMETERS_NAMES[hyperparameter_key]
             path.mkdir(parents=True, exist_ok=True)
             plt.savefig(path / stream_name, bbox_inches='tight')
@@ -155,6 +156,7 @@ def plot_hyperparameter_in_iso() -> None:
 
 
 def plot_hyperparameter_stable_vs_unstable() -> None:
+    sns.set_color_codes(COLOR_PALATE)
     all_configs = [STABLE_CONFIG.copy(), UNSTABLE_CONFIG.copy()]
     all_stream_names = [STREAM_STRINGS[STABLE_STRING_IDX], STREAM_STRINGS[UNSTABLE_STRING_IDX]]
     paths = [
@@ -258,11 +260,11 @@ def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature
 
         sns.lineplot(data=df, x=df.index, y='emissions', ax=axes[1], label=stream_name, legend=False)
 
-    axes[0].set_title('Accuracy vs Instances')
+    axes[0].set_title('$\\Delta$ Accuracy vs Instances')
     axes[0].set_xlabel('Number of Instances')
     axes[0].set_ylabel('$\\Delta$ Accuracy [%]')
 
-    axes[1].set_title('Emissions vs Instances')
+    axes[1].set_title('$\\Delta$ Emissions vs Instances')
     axes[1].set_xlabel('Number of Instances')
     axes[1].set_ylabel('$\\Delta$ Emissions [$kg\\ CO_2 \\text{equiv}$]')
 
@@ -299,15 +301,15 @@ def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], featu
         df['accuracy_per_emission'] = df['accuracy'] / df['emissions']
         sns.lineplot(data=df, x=df.index, y='accuracy_per_emission', ax=axes[2], label=stream_name, legend=False)
 
-    axes[0].set_title('Accuracy vs Instances')
+    axes[0].set_title('$\\Delta$ Accuracy vs Instances')
     axes[0].set_xlabel('Number of Instances')
     axes[0].set_ylabel('$\\Delta$ Accuracy [%]')
 
-    axes[1].set_title('Emissions vs Instances')
+    axes[1].set_title('$\\Delta$ Emissions vs Instances')
     axes[1].set_xlabel('Number of Instances')
     axes[1].set_ylabel('$\\Delta$ Emissions [$kg\\ CO_2 \\text{equiv}$]')
 
-    axes[2].set_title('Accuracy / Emissions vs Instances')
+    axes[2].set_title('$\\frac{\\text{Accuracy}}{\\text{Emissions}}$ vs Instances')
     axes[2].set_xlabel('Number of Instances')
     axes[2].set_ylabel('$\\Delta\\left(\\frac{\\text{Accuracy}}{\\text{Emissions}}\\right)$')
 
@@ -337,12 +339,12 @@ def two_feature_plots(x: pd.DataFrame, feature: str, window_size: int) -> None:
 
     #  3 subplots
     sns.lineplot(x['accuracy'], ax=axes[0])
-    axes[0].set_title('Accuracy vs Instances')
+    axes[0].set_title('$\\Delta$ Accuracy vs Instances')
     axes[0].set_xlabel('Number of Instances')
     axes[0].set_ylabel('$\\Delta$ Accuracy [%]')
 
     sns.lineplot(x['emissions'], ax=axes[1])
-    axes[1].set_title('Emissions vs Instances')
+    axes[1].set_title('$\\Delta$ Emissions vs Instances')
     axes[1].set_xlabel('Number of Instances')
     axes[1].set_ylabel('$\\Delta$ Emissions [$kg\\ CO_2 \\text{equiv}$]')
 
@@ -368,18 +370,18 @@ def three_feature_plots_mean(x: pd.DataFrame, feature: str, window_size: int) ->
 
     #  3 subplots
     sns.lineplot(x['accuracy'], ax=axes[0])
-    axes[0].set_title('Accuracy vs Instances')
+    axes[0].set_title('$\\Delta$ Accuracy vs Instances')
     axes[0].set_xlabel('Number of Instances')
     axes[0].set_ylabel('$\\Delta$ Accuracy [%]')
 
     sns.lineplot(x['emissions'], ax=axes[1])
-    axes[1].set_title('Emissions vs Instances')
+    axes[1].set_title('$\\Delta$ Emissions vs Instances')
     axes[1].set_xlabel('Number of Instances')
     axes[1].set_ylabel('$\\Delta$ Emissions [$kg\\ CO_2 \\text{equiv}$]')
 
     x['accuracy_per_emission'] = x['accuracy'] / (x['emissions'])
     sns.lineplot(data=x, x=x.index, y='accuracy_per_emission', ax=axes[2])
-    axes[2].set_title('Accuracy / Emissions vs Instances')
+    axes[2].set_title('$\\frac{\\Delta\\text{Accuracy}}{\\Delta\\text{Emissions}}$ vs Instances')
     axes[2].set_xlabel('Number of Instances')
     axes[2].set_ylabel('$\\Delta\\left(\\frac{\\text{Accuracy}}{\\text{Emissions}}\\right)$')
 
