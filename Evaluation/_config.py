@@ -51,6 +51,18 @@ STREAM_STRINGS = [
     'sea_no_drift', 'sea_single_drift', 'sea_three_drifts', 'sea_four_drifts'
 ]
 
+STREAM_NAMES = {
+    'electricity': 'Electricity',
+    'agraval_no_drift': 'Agrawal Without Drift',
+    'agraval_single_drift': 'Agrawal With One Drift',
+    'agraval_three_drifts': 'Agrawal With Three Drifts',
+    'agraval_four_drifts': 'Agrawal With Four Drifts',
+    'sea_no_drift': 'SEA Without Drift',
+    'sea_single_drift': 'SEA With One Drift',
+    'sea_three_drifts': 'SEA With Three Drifts', 
+    'sea_four_drifts': 'SEA With Four Drifts'
+}
+
 STANDARD_LEARNER = [grace_period_per_layer(369), add_weight_correction_parameter_to_user_choices, winning_layer_training, vectorized_for_loop, input_preprocessing]
 STANDARD_LEARNER.reverse()
 
@@ -96,6 +108,18 @@ HYPERPARAMETERS = {
     'mci': [0.1, 1e-8, 1e-12],
     'grace': [(grace_type, count) for grace_type in ['layer_grace', 'global_grace'] for count in [1, 400, 5000]],
 }
+
+HYPERPARAMETERS_NAMES = {
+    'lr': 'Learning Rate',
+    'layer_weight_learning_rate': 'Voting Weight Learning Rate',
+    'adwin-delta': 'Adwin-$\\delta$',
+    'mci': 'MCI-Cutoff',
+    'grace': 'Grace Period',
+    'layer_grace': 'Per Layer',
+    'global_grace': 'Global'
+}
+
+RENAME_VALUE = lambda x: (x[1], HYPERPARAMETERS_NAMES[x[0]]) if isinstance(x, tuple) else x
 
 AMOUNT_HYPERPARAMETERS = list(map(len, HYPERPARAMETERS.values()))
 AMOUNT_HYPERPARAMETERS_BEFORE = [sum(AMOUNT_HYPERPARAMETERS[:i]) for i in range(len(AMOUNT_HYPERPARAMETERS))]

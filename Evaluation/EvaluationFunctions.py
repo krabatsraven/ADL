@@ -505,8 +505,8 @@ def _test_one_hyperparameter(hyperparameter_key_idx: int, hyperparameter_idx: in
     current_classifier = current_config['learner']
     hyperparameter_key = HYPERPARAMETER_KEYS[hyperparameter_key_idx]
     if hyperparameter_key == 'grace':
-        current_config['grace_type'] = HYPERPARAMETERS[hyperparameter_key][0]
-        current_config['grace_period'] = HYPERPARAMETERS[hyperparameter_key][1]
+        current_config['grace_type'] = HYPERPARAMETERS[hyperparameter_key][hyperparameter_idx][0]
+        current_config['grace_period'] = HYPERPARAMETERS[hyperparameter_key][hyperparameter_idx][1]
     else:
         current_config[hyperparameter_key] = HYPERPARAMETERS[hyperparameter_key][hyperparameter_idx]
 
