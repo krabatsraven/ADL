@@ -11,12 +11,14 @@ from Evaluation._config import STANDARD_CONFIG_WITH_CO2, AMOUNT_OF_STRINGS, AMOU
     STREAM_STRINGS, UNSTABLE_CONFIG, STABLE_CONFIG, STABLE_STRING_IDX, UNSTABLE_STRING_IDX, RENAME_VALUE, \
     AMOUNT_HYPERPARAMETER_TESTS, TOTAL_AMOUNT_HYPERPARAMETERS, AMOUNT_HYPERPARAMETERS_BEFORE, HYPERPARAMETER_KEYS, \
     HYPERPARAMETERS, PROJECT_FOLDER_PATH, SINGLE_CLASSIFIER_FEATURES_TO_TEST, PAIRWISE_CLASSIFIER_FEATURES_TO_TEST, \
-    LEARNER_CONFIG_TO_NAMES, HYPERPARAMETERS_NAMES, STREAM_NAMES
+    LEARNER_CONFIG_TO_NAMES, HYPERPARAMETERS_NAMES, STREAM_NAMES, UNSTABLE_CONFIG_WITH_CO2, STABLE_CONFIG_WITH_CO2
 from Evaluation.config_handling import config_to_learner
 
 
 PLOT_DIR_BA = Path('/home/david/bachlorthesis/overleaf/images/plots')
 COLOR_PALATE = 'colorblind'
+SHOW_PLOTS = False
+MARKER_SIZE = 10
 
 
 def plot_hyperparameter_in_iso() -> None:
@@ -85,7 +87,7 @@ def plot_hyperparameter_in_iso() -> None:
         axes[0].set_xlabel('Number of Instances')
         axes[0].set_ylabel('Accuracy [%]')
 
-        sns.lineplot(data=data, x='level_0', y='nr_of_active_layers', markers='o', hue='hyperparameter_value', ax=axes[1], errorbar=None, legend=False)
+        sns.scatterplot(data=data, x='level_0', y='nr_of_active_layers', markers='o', hue='hyperparameter_value', ax=axes[1], s=MARKER_SIZE, legend=False)
         axes[1].set_title('Amount of Active Layers')
         axes[1].set_xlabel('Number of Instances')
         axes[1].set_ylabel('Amount of Active Layers')
@@ -108,7 +110,10 @@ def plot_hyperparameter_in_iso() -> None:
         path.mkdir(parents=True, exist_ok=True)
         plt.savefig(path / 'mean_of_all_streams', bbox_inches='tight')
 
-        plt.show()
+        if SHOW_PLOTS:
+            plt.show()
+        else:
+            plt.close()
 
         # compare hyperparameter per stream
         for stream_name in STREAM_STRINGS:
@@ -125,7 +130,7 @@ def plot_hyperparameter_in_iso() -> None:
             axes[0].set_ylabel('Accuracy [%]')
 
             # Plot Nr of Active Layers
-            sns.lineplot(data=stream_data, x=stream_data.index, y='nr_of_active_layers', markers='o', hue='hyperparameter_value', ax=axes[1], legend=False)
+            sns.scatterplot(data=stream_data, x=stream_data.index, y='nr_of_active_layers', s=MARKER_SIZE, markers='o', hue='hyperparameter_value', ax=axes[1], legend=False)
             axes[1].set_title('Amount of Active Layers')
             axes[1].set_xlabel('Number of Instances')
             axes[1].set_ylabel('Amount of Active Layers')
@@ -152,22 +157,70 @@ def plot_hyperparameter_in_iso() -> None:
             # Adjust layout for better spacing
             plt.tight_layout()
             plt.subplots_adjust(top=0.85)  # Make space for the main title
-            plt.show()
+            if SHOW_PLOTS:
+                plt.show()
+            else:
+                plt.close()
 
 
 def plot_hyperparameter_stable_vs_unstable() -> None:
+    '''compares stable hyperparameter run vs unstable hyperparameter run'''
     sns.set_color_codes(COLOR_PALATE)
-    all_configs = [STABLE_CONFIG.copy(), UNSTABLE_CONFIG.copy()]
+    all_configs = [STABLE_CONFIG_WITH_CO2.copy(), UNSTABLE_CONFIG_WITH_CO2.copy()]
     all_stream_names = [STREAM_STRINGS[STABLE_STRING_IDX], STREAM_STRINGS[UNSTABLE_STRING_IDX]]
     paths = [
         _find_path_by_config_with_learner_object(run_id=99, config=config, stream_name=stream_name) 
         for config, stream_name in zip(all_configs, all_stream_names)
     ]
     data_frames = _load_paths(paths)
-    for df in data_frames:
-        print(df.head(5))
-    # todo: plot all
-    raise NotImplementedError
+    logger = logging.getLogger('hyperparameter_comparison')
+    logger.info(f'hyperparameter comparison done on {len(data_frames[0])} instances')
+    window_size = max(1, len(data_frames[0]) // 1000)
+    logger.info(f'window size chosen: {window_size} instances')
+    data = pd.concat([
+        (
+            df
+            .assign(nr_of_active_layers=df['active_layers'].apply(len))
+            .loc[:, ['accuracy', 'nr_of_active_layers', 'emissions']]
+            .rolling(window_size, center=True, step=window_size)
+            .mean()
+            .assign(run_name='Stable' if i==0 else 'Unstable')
+        )
+        for i, df in enumerate(data_frames)
+    ])
+
+    fig, axes = plt.subplots(ncols=3)
+    g = sns.lineplot(data=data, x=data.index, y='accuracy', hue='run_name', ax=axes[0], errorbar=None)
+    axes[0].set_title('Accuracy')
+    axes[0].set_xlabel('Number of Instances')
+    axes[0].set_ylabel('Accuracy [%]')
+
+    sns.scatterplot(data=data, x=data.index, y='nr_of_active_layers', markers='o', hue='run_name', ax=axes[1], s=MARKER_SIZE, legend=False)
+    axes[1].set_title('Amount of Active Layers')
+    axes[1].set_xlabel('Number of Instances')
+    axes[1].set_ylabel('Amount of Active Layers')
+
+    sns.lineplot(data=data, x=data.index, y='emissions', hue='run_name', ax=axes[2], errorbar=None, legend=False)
+    axes[2].set_title('Emissions')
+    axes[2].set_xlabel('Number of Instances')
+    axes[2].set_ylabel('Emissions [$kg\\ CO_2 \\text{equiv}$]')
+
+    handles, labels = axes[0].get_legend_handles_labels()
+    g.legend().remove()
+    fig.legend(handles, labels, loc ='lower center', ncols=2, bbox_to_anchor=(0.55, 0))
+
+    title = f"Compare Stable vs Unstable Hyperparameter Configuration"
+    fig.suptitle(title, fontsize=16)
+    plt.subplots_adjust(top=0.85)
+    plt.tight_layout()
+
+    path = PLOT_DIR_BA / 'stable_vs_unstable'
+    path.mkdir(parents=True, exist_ok=True)
+    plt.savefig(path / 'stable_vs_unstable', bbox_inches='tight')
+    if SHOW_PLOTS:
+        plt.show()
+    else:
+        plt.close()
 
 
 def plot_feature_comparision() -> None:
@@ -245,6 +298,10 @@ def _get_data_from_path(path: Path) -> pd.DataFrame:
     return results_csv
 
 
+def plot_data_for_hyperparametercomparision(dataframes: List[pd.DataFrame]):
+    pass
+
+
 def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature: str, window_size: int) -> None:
     """Plot 2 metrics per stream for given feature and window_size"""
     sns.set_color_codes(COLOR_PALATE)
@@ -280,7 +337,10 @@ def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature
     path = PLOT_DIR_BA / 'feature_comparison' / 'two_plots' / title
     path.mkdir(parents=True, exist_ok=True)
     plt.savefig(path / 'one_line_per_stream', bbox_inches='tight')
-    plt.show()
+    if SHOW_PLOTS:
+        plt.show()
+    else:
+        plt.close()
 
 
 def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature: str, window_size: int) -> None:
@@ -325,7 +385,10 @@ def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], featu
     path = PLOT_DIR_BA / 'feature_comparison' / 'three_plots' / title
     path.mkdir(parents=True, exist_ok=True)
     plt.savefig(path / 'one_line_per_stream', bbox_inches='tight')
-    plt.show()
+    if SHOW_PLOTS:
+        plt.show()
+    else:
+        plt.close()
 
 
 def two_feature_plots(x: pd.DataFrame, feature: str, window_size: int) -> None:
@@ -356,7 +419,10 @@ def two_feature_plots(x: pd.DataFrame, feature: str, window_size: int) -> None:
     path = PLOT_DIR_BA / 'feature_comparison' / 'two_plots' / title
     path.mkdir(parents=True, exist_ok=True)
     plt.savefig(path / 'mean_of_all_streams', bbox_inches='tight')
-    plt.show()
+    if SHOW_PLOTS:
+        plt.show()
+    else:
+        plt.close()
 
 
 def three_feature_plots_mean(x: pd.DataFrame, feature: str, window_size: int) -> None:
@@ -393,7 +459,10 @@ def three_feature_plots_mean(x: pd.DataFrame, feature: str, window_size: int) ->
     path = PLOT_DIR_BA / 'feature_comparison' / 'three_plots' / title 
     path.mkdir(parents=True, exist_ok=True)
     plt.savefig(path / 'mean_of_all_streams', bbox_inches='tight')
-    plt.show()
+    if SHOW_PLOTS:
+        plt.show()
+    else:
+        plt.close()
 
 
 if __name__ == "__main__":
@@ -404,4 +473,4 @@ if __name__ == "__main__":
     rename_folders(99)
     plot_feature_comparision()
     plot_hyperparameter_in_iso()
-    # plot_hyperparameter_stable_vs_unstable()
+    plot_hyperparameter_stable_vs_unstable()
