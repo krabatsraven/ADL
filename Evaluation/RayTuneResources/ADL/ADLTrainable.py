@@ -185,6 +185,7 @@ def ADLTrainableStable(config):
             assert learner.model.nr_of_active_layers == checkpoint_dict['nr_of_active_layers']
 
     nr_of_instances_seen = 0
+    nr_of_active_layers_seen = []
 
     stream.restart()
     while stream.has_more_instances and nr_of_instances_seen < start and nr_of_instances_seen < MAX_INSTANCES:
@@ -193,6 +194,7 @@ def ADLTrainableStable(config):
         nr_of_instances_seen += 1
     nr_of_active_layers_mean = 1
     nr_of_active_layers_variance = 0
+    max_of_nr_of_active_layers_variance = 0
     metrics = {"score": 0, 'instances_seen': nr_of_instances_seen}
     while stream.has_more_instances() and nr_of_instances_seen < MAX_INSTANCES:
         instance = stream.next_instance()
@@ -200,12 +202,14 @@ def ADLTrainableStable(config):
 
         nr_of_instances_seen += 1
         nr_of_active_layers_current = learner.model.nr_of_active_layers
+        nr_of_active_layers_seen.append(nr_of_active_layers_current)
         nr_of_active_layers_new_mean = nr_of_active_layers_mean + (nr_of_active_layers_current - nr_of_active_layers_mean) /nr_of_instances_seen
         nr_of_active_layers_variance = nr_of_active_layers_variance + (nr_of_active_layers_current - nr_of_active_layers_new_mean) * (nr_of_active_layers_current - nr_of_active_layers_mean)/nr_of_instances_seen
         nr_of_active_layers_mean = nr_of_active_layers_new_mean
+        max_of_nr_of_active_layers_variance = max(max_of_nr_of_active_layers_variance, nr_of_active_layers_variance)
 
         if nr_of_instances_seen % max(MIN_INSTANCES // 100, 1) == 0:
-            metrics = {"score": (learner.evaluator.accuracy() / 100.0) - (nr_of_active_layers_variance / nr_of_active_layers_mean ** 2), 'instances_seen': nr_of_instances_seen}
+            metrics = {"score":  (learner.evaluator.accuracy() / 100.0) + (nr_of_active_layers_variance - 1)/(max_of_nr_of_active_layers_variance - 1), 'instances_seen': nr_of_instances_seen}
             if nr_of_instances_seen % max(MIN_INSTANCES, 1) == 0:
                 with tempfile.TemporaryDirectory() as tmpdir:
                     torch.save(
