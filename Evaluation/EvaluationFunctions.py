@@ -22,7 +22,7 @@ from Evaluation.PlottingFunctions import __plot_and_save_result, __compare_all_o
 from Evaluation._config import ADWIN_DELTA_STANDIN, MAX_INSTANCES_TEST, STREAM_STRINGS, STANDARD_CONFIG, CLASSIFIERS, \
     STANDARD_CONFIG_WITH_CO2, UNSTABLE_CONFIG, UNSTABLE_STRING_IDX, STABLE_STRING_IDX, STABLE_CONFIG, \
     HYPERPARAMETER_KEYS, HYPERPARAMETERS, AMOUNT_OF_STRINGS, RESULTS_DIR_PATH, PROJECT_FOLDER_PATH, \
-    STABLE_CONFIG_WITH_CO2, UNSTABLE_CONFIG_WITH_CO2
+    STABLE_CONFIG_WITH_CO2, UNSTABLE_CONFIG_WITH_CO2, STANDARD_RUN_ID
 from Evaluation.config_handling import adl_run_data_from_config, config_to_learner, config_to_stream, \
     standardize_learner_name
 
@@ -453,7 +453,7 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
     # End time: 2025-03-19 21:02:31
 
     classifiers = CLASSIFIERS
-    run_id = 58
+    run_id = STANDARD_RUN_ID
     logging.basicConfig(filename=Path(f"best_combination_runID={run_id}.log").absolute().as_posix(), level=logging.INFO)
     logger = logging.getLogger(f"logger_runID={run_id}")
 
@@ -476,7 +476,7 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
 
 
 def _test_one_feature(stream_idx: int, classifier_idx: int, with_co_2: bool, run_name: str, force: bool = False) -> None:
-    run_id = 99
+    run_id = STANDARD_RUN_ID
     logging.basicConfig(filename=Path(f"best_combination_runID={run_id}.log").absolute().as_posix(), level=logging.INFO)
     logger = logging.getLogger(f"logger_runID={run_id}")
     current_config = STANDARD_CONFIG.copy()
@@ -500,7 +500,7 @@ def _test_one_hyperparameter(hyperparameter_key_idx: int, hyperparameter_idx: in
     assert 0 <= hyperparameter_key_idx < len(HYPERPARAMETER_KEYS), f"Invalid hyperparameter key index {hyperparameter_key_idx}"
     assert 0 <= hyperparameter_idx < len(HYPERPARAMETERS[HYPERPARAMETER_KEYS[hyperparameter_key_idx]]), f"invalid hyperparameter index {hyperparameter_idx}"
     assert 0 <= stream_idx < AMOUNT_OF_STRINGS, f"Invalid stream index {stream_idx}"
-    run_id = 99
+    run_id = STANDARD_RUN_ID
     if with_co_2:
         current_config = STANDARD_CONFIG_WITH_CO2.copy()
     else:
@@ -529,7 +529,7 @@ def _test_one_hyperparameter(hyperparameter_key_idx: int, hyperparameter_idx: in
 
 
 def _test_stable(with_co_2: bool, run_name: str, force: bool = False) -> None:
-    run_id = 99
+    run_id = STANDARD_RUN_ID
     if with_co_2:
         current_config = STABLE_CONFIG_WITH_CO2.copy()
     else:
@@ -551,7 +551,7 @@ def _test_stable(with_co_2: bool, run_name: str, force: bool = False) -> None:
 
 
 def _test_unstable(with_co_2: bool, run_name: str, force: bool = False) -> None:
-    run_id = 99
+    run_id = STANDARD_RUN_ID
     if with_co_2:
         current_config = UNSTABLE_CONFIG_WITH_CO2.copy()
     else:

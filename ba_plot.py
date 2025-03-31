@@ -11,7 +11,8 @@ from Evaluation._config import STANDARD_CONFIG_WITH_CO2, AMOUNT_OF_STRINGS, AMOU
     STREAM_STRINGS, UNSTABLE_CONFIG, STABLE_CONFIG, STABLE_STRING_IDX, UNSTABLE_STRING_IDX, RENAME_VALUE, \
     AMOUNT_HYPERPARAMETER_TESTS, TOTAL_AMOUNT_HYPERPARAMETERS, AMOUNT_HYPERPARAMETERS_BEFORE, HYPERPARAMETER_KEYS, \
     HYPERPARAMETERS, PROJECT_FOLDER_PATH, SINGLE_CLASSIFIER_FEATURES_TO_TEST, PAIRWISE_CLASSIFIER_FEATURES_TO_TEST, \
-    LEARNER_CONFIG_TO_NAMES, HYPERPARAMETERS_NAMES, STREAM_NAMES, UNSTABLE_CONFIG_WITH_CO2, STABLE_CONFIG_WITH_CO2
+    LEARNER_CONFIG_TO_NAMES, HYPERPARAMETERS_NAMES, STREAM_NAMES, UNSTABLE_CONFIG_WITH_CO2, STABLE_CONFIG_WITH_CO2, \
+    STANDARD_RUN_ID
 from Evaluation.config_handling import config_to_learner
 
 
@@ -42,7 +43,7 @@ def plot_hyperparameter_in_iso() -> None:
         else:
             config[hyperparameter_key] = HYPERPARAMETERS[hyperparameter_key][hyperparameter_idx]
         # find path by config
-        paths.append(_find_path_by_config_with_learner_object(run_id=99, config=config, stream_name=stream_name))
+        paths.append(_find_path_by_config_with_learner_object(run_id=STANDARD_RUN_ID, config=config, stream_name=stream_name))
         indices_of_key_value[(hyperparameter_key, HYPERPARAMETERS[hyperparameter_key][hyperparameter_idx])].add(i)
         indices_of_stream[stream_name].add(i)
 
@@ -169,7 +170,7 @@ def plot_hyperparameter_stable_vs_unstable() -> None:
     all_configs = [STABLE_CONFIG_WITH_CO2.copy(), UNSTABLE_CONFIG_WITH_CO2.copy()]
     all_stream_names = [STREAM_STRINGS[STABLE_STRING_IDX], STREAM_STRINGS[UNSTABLE_STRING_IDX]]
     paths = [
-        _find_path_by_config_with_learner_object(run_id=99, config=config, stream_name=stream_name) 
+        _find_path_by_config_with_learner_object(run_id=STANDARD_RUN_ID, config=config, stream_name=stream_name)
         for config, stream_name in zip(all_configs, all_stream_names)
     ]
     data_frames = _load_paths(paths)
@@ -251,7 +252,7 @@ def plot_feature_comparision() -> None:
             with_co2=True
         )
         stream_name = STREAM_STRINGS[i // AMOUNT_OF_CLASSIFIERS]
-        paths.append(_find_path_by_config_with_learner_object(run_id=99, config=config, stream_name=stream_name))
+        paths.append(_find_path_by_config_with_learner_object(run_id=STANDARD_RUN_ID, config=config, stream_name=stream_name))
         indices_of_classifier.setdefault(current_classifier, set()).add(i)
         indices_of_streams.setdefault(stream_name, set()).add(i)
 
@@ -470,7 +471,7 @@ if __name__ == "__main__":
     pd.set_option("display.max_rows", None)
     pd.set_option('display.max_colwidth', None)
     logging.basicConfig(level=logging.INFO, filename=(PROJECT_FOLDER_PATH / 'ba_plot.log').as_posix())
-    rename_folders(99)
+    rename_folders(STANDARD_RUN_ID)
     plot_feature_comparision()
     plot_hyperparameter_in_iso()
     plot_hyperparameter_stable_vs_unstable()

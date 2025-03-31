@@ -2,11 +2,11 @@ import logging
 import os
 from pathlib import Path
 
-from Evaluation._config import AMOUNT_OF_CLASSIFIERS
+from Evaluation._config import AMOUNT_OF_CLASSIFIERS, STANDARD_RUN_ID
 
 if __name__ == "__main__":
     logging.basicConfig(filename=Path("mogon_run.log").absolute().as_posix(), level=logging.INFO)
-    logger = logging.getLogger(f"logger_runID={99}")
+    logger = logging.getLogger(f"logger_runID={STANDARD_RUN_ID}")
     job_id = int(os.environ['SLURM_ARRAY_TASK_ID'])
     logger.info(f"{job_id} / 10")
     print(f"{job_id} / 10")
