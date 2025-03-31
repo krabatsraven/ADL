@@ -46,11 +46,11 @@ def run_bench():
 
     if not skip_ray_stable_unstable:
         logger.info(f'starting search for unstable: {datetime.datetime.now()}')
-        search_for_unstable_hyperparameters(run_id=999, nr_of_trials=5000)
+        search_for_unstable_hyperparameters(run_id=999, nr_of_trials=2000)
         # todo: update unstable string idx with found stream idx from unstable search
         return 
         logger.info(f'starting search for stable: {datetime.datetime.now()}')
-        search_for_stable_hyperparameters(stream_name=STREAM_STRINGS[UNSTABLE_STRING_IDX], run_id=998, nr_of_trials=5000)
+        search_for_stable_hyperparameters(stream_name=STREAM_STRINGS[UNSTABLE_STRING_IDX], run_id=998, nr_of_trials=2000)
         return
     else:
         logger.info('skipping hyperparameter search for unstable/stable adl')
