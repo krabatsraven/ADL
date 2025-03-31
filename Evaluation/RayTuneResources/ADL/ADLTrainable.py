@@ -121,7 +121,7 @@ def ADLTrainableUnstable(config):
         nr_of_instances_seen += 1
         nr_of_active_layers_current = learner.model.nr_of_active_layers
         nr_of_active_layers_new_mean = nr_of_active_layers_mean + (nr_of_active_layers_current - nr_of_active_layers_mean) /nr_of_instances_seen
-        nr_of_active_layers_variance = nr_of_active_layers_variance + (nr_of_active_layers_current - nr_of_active_layers_new_mean)(nr_of_active_layers_current - nr_of_active_layers_mean)/nr_of_instances_seen
+        nr_of_active_layers_variance = nr_of_active_layers_variance + (nr_of_active_layers_current - nr_of_active_layers_new_mean) * (nr_of_active_layers_current - nr_of_active_layers_mean)/nr_of_instances_seen
         nr_of_active_layers_mean = nr_of_active_layers_new_mean
 
         if nr_of_instances_seen % max(MIN_INSTANCES // 100, 1) == 0:
@@ -196,7 +196,7 @@ def ADLTrainableStable(config):
         nr_of_instances_seen += 1
         nr_of_active_layers_current = learner.model.nr_of_active_layers
         nr_of_active_layers_new_mean = nr_of_active_layers_mean + (nr_of_active_layers_current - nr_of_active_layers_mean) /nr_of_instances_seen
-        nr_of_active_layers_variance = nr_of_active_layers_variance + (nr_of_active_layers_current - nr_of_active_layers_new_mean)(nr_of_active_layers_current - nr_of_active_layers_mean)/nr_of_instances_seen
+        nr_of_active_layers_variance = nr_of_active_layers_variance + (nr_of_active_layers_current - nr_of_active_layers_new_mean) * (nr_of_active_layers_current - nr_of_active_layers_mean)/nr_of_instances_seen
         nr_of_active_layers_mean = nr_of_active_layers_new_mean
 
         if nr_of_instances_seen % max(MIN_INSTANCES // 100, 1) == 0:
