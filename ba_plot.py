@@ -42,6 +42,7 @@ def plot_standard_on_all_streams() -> None:
                 .loc[:, ['accuracy', 'nr_of_active_layers', 'emissions']]
                 .rolling(window_size, center=True ,step=window_size)
                 .mean()
+                .reset_index()
                 .assign(stream_name=STREAM_NAMES[stream_name])
              ) 
             for df, stream_name in zip(data_frames, STREAM_STRINGS)
@@ -65,7 +66,7 @@ def plot_standard_on_all_streams() -> None:
 
     handles, labels = axes[0].get_legend_handles_labels()
     g.legend().remove()
-    fig.legend(handles, labels, loc ='lower center', ncols=4, bbox_to_anchor=(0.5, -0.3), bbox_transform=axes[1].transAxes)
+    fig.legend(handles, labels, loc ='lower center', ncols=4, bbox_to_anchor=(0.5, -0.2), bbox_transform=axes[1].transAxes)
 
     path = PLOT_DIR_BA / 'standard_set_on_all_streams'
     path.mkdir(parents=True, exist_ok=True)
@@ -112,6 +113,7 @@ def plot_hyperparameter_in_iso() -> None:
             .loc[:, ['accuracy', 'nr_of_active_layers', 'emissions']]
             .rolling(window_size, center=True ,step=window_size)
             .mean()
+            .reset_index()
         )
         for df in data_frames
     ]
@@ -238,6 +240,7 @@ def plot_hyperparameter_stable_vs_unstable() -> None:
             .loc[:, ['accuracy', 'nr_of_active_layers', 'emissions']]
             .rolling(window_size, center=True, step=window_size)
             .mean()
+            .reset_index()
             .assign(run_name='Stable' if i==0 else 'Unstable')
         )
         for i, df in enumerate(data_frames)
@@ -335,7 +338,7 @@ def plot_feature_comparision() -> None:
 def _load_paths(paths: List[Path]) -> List[pd.DataFrame]:
     data_frames = [_get_data_from_path(path) for path in paths]
     least_amount_of_rows = min(map(len, data_frames))
-    return [df.head(least_amount_of_rows) for df in data_frames]
+    return [df.reset_index().head(least_amount_of_rows) for df in data_frames]
 
 
 def _get_data_from_path(path: Path) -> pd.DataFrame:
@@ -360,7 +363,7 @@ def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature
     handles, labels = [], []
 
     for stream_name, df in df_per_stream.items():
-        df = df.rolling(window_size, center=True ,step=window_size).mean()
+        df = df.rolling(window_size, center=True ,step=window_size).mean().reset_index()
         line = sns.lineplot(data=df, x=df.index, y='accuracy', ax=axes[0], label=stream_name, legend=False)
         handles.append(line.lines[0])
         labels.append(stream_name)
@@ -401,7 +404,7 @@ def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], featu
     handles, labels = [], []
 
     for stream_name, df in df_per_stream.items():
-        df = df.rolling(window_size, center=True ,step=window_size).mean()
+        df = df.rolling(window_size, center=True ,step=window_size).mean().reset_index()
         line = sns.lineplot(data=df, x=df.index, y='accuracy', ax=axes[0], label=stream_name, legend=False)
         handles.append(line.lines[0])
         labels.append(stream_name)
@@ -445,7 +448,7 @@ def two_feature_plots(x: pd.DataFrame, feature: str, window_size: int) -> None:
     '''plot the mean of a feature in 3 ways in a single figure'''
     sns.set_color_codes(COLOR_PALATE)
     # data preparation:
-    x.rolling(window_size, center=True ,step=window_size).mean()
+    x.rolling(window_size, center=True ,step=window_size).mean().reset_index()
 
     # figure
     fig, axes = plt.subplots(ncols=2, figsize=(12, 6))
@@ -479,7 +482,7 @@ def three_feature_plots_mean(x: pd.DataFrame, feature: str, window_size: int) ->
     '''plot the mean of a feature in 3 ways in a single figure'''
     sns.set_color_codes(COLOR_PALATE)
     # data preparation:
-    x.rolling(window_size, center=True ,step=window_size).mean()
+    x.rolling(window_size, center=True ,step=window_size).mean().reset_index()
 
     # figure
     fig, axes = plt.subplots(ncols=3, figsize=(12, 6))
@@ -521,7 +524,7 @@ if __name__ == "__main__":
     pd.set_option('display.max_colwidth', None)
     logging.basicConfig(level=logging.INFO, filename=(PROJECT_FOLDER_PATH / 'ba_plot.log').as_posix())
     rename_folders(STANDARD_RUN_ID)
-    # plot_feature_comparision()
-    # plot_hyperparameter_in_iso()
-    # plot_hyperparameter_stable_vs_unstable()
+    plot_feature_comparision()
+    plot_hyperparameter_in_iso()
+    plot_hyperparameter_stable_vs_unstable()
     plot_standard_on_all_streams()

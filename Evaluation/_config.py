@@ -9,7 +9,7 @@ from ADLClassifier import extend_classifier_for_evaluation, grace_period_per_lay
 
 PROJECT_FOLDER_PATH = Path(__file__).parent.parent.resolve().absolute()
 RESULTS_DIR_PATH = PROJECT_FOLDER_PATH / 'results' / 'runs'
-STANDARD_RUN_ID = 99
+STANDARD_RUN_ID = 9999
 
 LEARNER_PART_NAMES = {
     NETWORK_GRAPH_NAME: 'Graph',
