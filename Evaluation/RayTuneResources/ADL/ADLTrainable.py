@@ -1,6 +1,7 @@
 import os
 import tempfile
 
+import numpy as np
 import torch
 from capymoa.drift.detectors import ADWIN
 from capymoa.misc import save_model, load_model
@@ -106,13 +107,16 @@ def ADLTrainableUnstable(config):
 
     nr_of_instances_seen = 0
 
+
     stream.restart()
     while stream.has_more_instances and nr_of_instances_seen < start and nr_of_instances_seen < MAX_INSTANCES:
         # fast-forward to start
         _ = stream.next_instance()
         nr_of_instances_seen += 1
+
     nr_of_active_layers_mean = 1
     nr_of_active_layers_variance = 0
+    max_of_nr_of_active_layers_variance = 0
     metrics = {"score": 0, 'instances_seen': nr_of_instances_seen}
     while stream.has_more_instances() and nr_of_instances_seen < MAX_INSTANCES:
         instance = stream.next_instance()
@@ -123,9 +127,10 @@ def ADLTrainableUnstable(config):
         nr_of_active_layers_new_mean = nr_of_active_layers_mean + (nr_of_active_layers_current - nr_of_active_layers_mean) /nr_of_instances_seen
         nr_of_active_layers_variance = nr_of_active_layers_variance + (nr_of_active_layers_current - nr_of_active_layers_new_mean) * (nr_of_active_layers_current - nr_of_active_layers_mean)/nr_of_instances_seen
         nr_of_active_layers_mean = nr_of_active_layers_new_mean
+        max_of_nr_of_active_layers_variance = max(max_of_nr_of_active_layers_variance, nr_of_active_layers_variance)
 
         if nr_of_instances_seen % max(MIN_INSTANCES // 100, 1) == 0:
-            metrics = {"score": (learner.evaluator.accuracy() / 100.0) + (nr_of_active_layers_variance / nr_of_active_layers_mean ** 2), 'instances_seen': nr_of_instances_seen}
+            metrics = {"score": (learner.evaluator.accuracy() / 100.0) + (nr_of_active_layers_variance - 1)/(max_of_nr_of_active_layers_variance - 1), 'instances_seen': nr_of_instances_seen}
             if nr_of_instances_seen % max(MIN_INSTANCES, 1) == 0:
                 with tempfile.TemporaryDirectory() as tmpdir:
                     torch.save(
