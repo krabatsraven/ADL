@@ -22,6 +22,59 @@ SHOW_PLOTS = False
 MARKER_SIZE = 10
 
 
+def plot_standard_on_all_streams() -> None:
+    'plot comparision of a set of hyperparameters on nine different problems'
+    sns.set_color_codes(COLOR_PALATE)
+
+    # get dfs:
+    paths = [_find_path_by_config_with_learner_object(run_id=STANDARD_RUN_ID, config=STABLE_CONFIG_WITH_CO2, stream_name=stream_name) 
+             for stream_name in STREAM_STRINGS]
+    data_frames = _load_paths(paths)
+    logger = logging.getLogger('standart_set_on_all_streams')
+    logger.info(f'comparison of standard set on all streams done on {len(data_frames[0])} instances')
+    window_size = max(1, len(data_frames[0]) // 1000)
+    logger.info(f'window size chosen: {window_size} instances')
+    data = pd.concat(
+        [
+            (
+                df
+                .assign(nr_of_active_layers=df['active_layers'].apply(len))
+                .loc[:, ['accuracy', 'nr_of_active_layers', 'emissions']]
+                .rolling(window_size, center=True ,step=window_size)
+                .mean()
+                .assign(stream_name=STREAM_NAMES[stream_name])
+             ) 
+            for df, stream_name in zip(data_frames, STREAM_STRINGS)
+        ]
+    )
+    fig, axes = plt.subplots(ncols=3, figsize=(12, 6), layout="constrained")
+    g = sns.lineplot(data=data, x=data.index, y='accuracy', hue='stream_name', ax=axes[0], errorbar=None)
+    axes[0].set_title('Accuracy')
+    axes[0].set_xlabel('Number of Instances')
+    axes[0].set_ylabel('Accuracy [%]')
+
+    sns.scatterplot(data=data, x=data.index, y='nr_of_active_layers', markers='o', hue='stream_name', ax=axes[1], s=MARKER_SIZE, legend=False)
+    axes[1].set_title('Amount of Active Layers')
+    axes[1].set_xlabel('Number of Instances')
+    axes[1].set_ylabel('Amount of Active Layers')
+
+    sns.lineplot(data=data, x=data.index, y='emissions', hue='stream_name', ax=axes[2], errorbar=None, legend=False)
+    axes[2].set_title('Emissions')
+    axes[2].set_xlabel('Number of Instances')
+    axes[2].set_ylabel('Emissions [$kg\\ CO_2 \\text{equiv}$]')
+
+    handles, labels = axes[0].get_legend_handles_labels()
+    g.legend().remove()
+    fig.legend(handles, labels, loc ='lower center', ncols=4, bbox_to_anchor=(0.5, -0.3), bbox_transform=axes[1].transAxes)
+
+    path = PLOT_DIR_BA / 'standard_set_on_all_streams'
+    path.mkdir(parents=True, exist_ok=True)
+    plt.savefig(path / 'plot', bbox_inches='tight')
+    if SHOW_PLOTS:
+        plt.show()
+    else:
+        plt.close()
+
 def plot_hyperparameter_in_iso() -> None:
     'plot comparision of hyperparameters'
     sns.set_color_codes(COLOR_PALATE)
@@ -82,7 +135,7 @@ def plot_hyperparameter_in_iso() -> None:
                               .reset_index()
                               )
 
-        fig, axes = plt.subplots(ncols=3)
+        fig, axes = plt.subplots(ncols=3, figsize=(12, 6))
         g = sns.lineplot(data=data, x='level_0', y='accuracy', hue='hyperparameter_value', ax=axes[0], errorbar=None)
         axes[0].set_title('Accuracy')
         axes[0].set_xlabel('Number of Instances')
@@ -122,7 +175,7 @@ def plot_hyperparameter_in_iso() -> None:
             stream_data = df[df['stream_name'] == stream_name]
 
             # Create subplots: one for each of accuracy, nr_of_active_layers, emissions
-            fig, axes = plt.subplots(ncols=3)
+            fig, axes = plt.subplots(ncols=3, figsize=(12, 6))
 
             # Plot Accuracy
             g = sns.lineplot(data=stream_data, x=stream_data.index, y='accuracy', hue='hyperparameter_value', ax=axes[0])
@@ -190,7 +243,7 @@ def plot_hyperparameter_stable_vs_unstable() -> None:
         for i, df in enumerate(data_frames)
     ])
 
-    fig, axes = plt.subplots(ncols=3)
+    fig, axes = plt.subplots(ncols=3, figsize=(12, 6), layout="constrained")
     g = sns.lineplot(data=data, x=data.index, y='accuracy', hue='run_name', ax=axes[0], errorbar=None)
     axes[0].set_title('Accuracy')
     axes[0].set_xlabel('Number of Instances')
@@ -208,12 +261,12 @@ def plot_hyperparameter_stable_vs_unstable() -> None:
 
     handles, labels = axes[0].get_legend_handles_labels()
     g.legend().remove()
-    fig.legend(handles, labels, loc ='lower center', ncols=2, bbox_to_anchor=(0.55, 0))
+    fig.legend(handles, labels, loc ='lower center', ncols=2, bbox_to_anchor=(0.5, -0.2), bbox_transform=axes[1].transAxes)
 
     title = f"Compare Stable vs Unstable Hyperparameter Configuration"
-    fig.suptitle(title, fontsize=16)
-    plt.subplots_adjust(top=0.85)
-    plt.tight_layout()
+    # fig.suptitle(title, fontsize=16)
+    # plt.subplots_adjust(top=0.85)
+    # plt.tight_layout()
 
     path = PLOT_DIR_BA / 'stable_vs_unstable'
     path.mkdir(parents=True, exist_ok=True)
@@ -299,15 +352,11 @@ def _get_data_from_path(path: Path) -> pd.DataFrame:
     return results_csv
 
 
-def plot_data_for_hyperparametercomparision(dataframes: List[pd.DataFrame]):
-    pass
-
-
 def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature: str, window_size: int) -> None:
     """Plot 2 metrics per stream for given feature and window_size"""
     sns.set_color_codes(COLOR_PALATE)
     # figure
-    fig, axes = plt.subplots(ncols=2)
+    fig, axes = plt.subplots(ncols=2, figsize=(12, 6), layout="constrained")
     handles, labels = [], []
 
     for stream_name, df in df_per_stream.items():
@@ -328,13 +377,13 @@ def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature
 
     # layout options
     title = LEARNER_CONFIG_TO_NAMES[feature]
-    plt.suptitle(title)
+    # plt.suptitle(title)
     # plt.figlegend(handles, labels, loc = 'lower center', ncol=3, labelspacing=0.)
     lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
     lines, labels = [list(set(sum(lol, []))) for lol in zip(*lines_labels)]
-    fig.legend(lines, labels, loc ='lower center', ncols=9, bbox_to_anchor=(0.55, 0))
-
-    plt.tight_layout()
+    lgd = fig.legend(lines, labels, loc ='lower center', ncols=4, bbox_to_anchor=(0, -0.3), bbox_transform=axes[1].transAxes)
+    # plt.tight_layout()
+    # fig.subplots_adjust(bottom=0.2)
     path = PLOT_DIR_BA / 'feature_comparison' / 'two_plots' / title
     path.mkdir(parents=True, exist_ok=True)
     plt.savefig(path / 'one_line_per_stream', bbox_inches='tight')
@@ -348,7 +397,7 @@ def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], featu
     """Plot 3 metrics per stream for given feature and window_size"""
     sns.set_color_codes(COLOR_PALATE)
     # figure
-    fig, axes = plt.subplots(ncols=3)
+    fig, axes = plt.subplots(ncols=3, figsize=(12, 6), layout="constrained")
     handles, labels = [], []
 
     for stream_name, df in df_per_stream.items():
@@ -375,14 +424,14 @@ def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], featu
     axes[2].set_ylabel('$\\Delta\\left(\\frac{\\text{Accuracy}}{\\text{Emissions}}\\right)$')
 
     # layout options
+    
     title = LEARNER_CONFIG_TO_NAMES[feature]
-    plt.suptitle(title)
+    # plt.suptitle(title)
 
     lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
     lines, labels = [list(set(sum(lol, []))) for lol in zip(*lines_labels)]
-    fig.legend(lines, labels, loc ='lower center', ncols=9, bbox_to_anchor=(0.55, 0))
+    lgd = fig.legend(lines, labels, loc ='lower center', ncols=4, bbox_to_anchor=(0.55, -0.3), bbox_transform=axes[1].transAxes)
 
-    plt.tight_layout()
     path = PLOT_DIR_BA / 'feature_comparison' / 'three_plots' / title
     path.mkdir(parents=True, exist_ok=True)
     plt.savefig(path / 'one_line_per_stream', bbox_inches='tight')
@@ -399,7 +448,7 @@ def two_feature_plots(x: pd.DataFrame, feature: str, window_size: int) -> None:
     x.rolling(window_size, center=True ,step=window_size).mean()
 
     # figure
-    fig, axes = plt.subplots(ncols=2)
+    fig, axes = plt.subplots(ncols=2, figsize=(12, 6))
 
     #  3 subplots
     sns.lineplot(x['accuracy'], ax=axes[0])
@@ -414,7 +463,7 @@ def two_feature_plots(x: pd.DataFrame, feature: str, window_size: int) -> None:
 
     # layout options
     title = LEARNER_CONFIG_TO_NAMES[feature]
-    plt.suptitle(title)
+    # plt.suptitle(title)
     plt.tight_layout()
 
     path = PLOT_DIR_BA / 'feature_comparison' / 'two_plots' / title
@@ -433,7 +482,7 @@ def three_feature_plots_mean(x: pd.DataFrame, feature: str, window_size: int) ->
     x.rolling(window_size, center=True ,step=window_size).mean()
 
     # figure
-    fig, axes = plt.subplots(ncols=3)
+    fig, axes = plt.subplots(ncols=3, figsize=(12, 6))
 
     #  3 subplots
     sns.lineplot(x['accuracy'], ax=axes[0])
@@ -454,7 +503,7 @@ def three_feature_plots_mean(x: pd.DataFrame, feature: str, window_size: int) ->
 
     # layout options
     title = LEARNER_CONFIG_TO_NAMES[feature]
-    plt.suptitle(title)
+    # plt.suptitle(title)
     plt.tight_layout()
 
     path = PLOT_DIR_BA / 'feature_comparison' / 'three_plots' / title 
@@ -472,6 +521,7 @@ if __name__ == "__main__":
     pd.set_option('display.max_colwidth', None)
     logging.basicConfig(level=logging.INFO, filename=(PROJECT_FOLDER_PATH / 'ba_plot.log').as_posix())
     rename_folders(STANDARD_RUN_ID)
-    plot_feature_comparision()
-    plot_hyperparameter_in_iso()
-    plot_hyperparameter_stable_vs_unstable()
+    # plot_feature_comparision()
+    # plot_hyperparameter_in_iso()
+    # plot_hyperparameter_stable_vs_unstable()
+    plot_standard_on_all_streams()
