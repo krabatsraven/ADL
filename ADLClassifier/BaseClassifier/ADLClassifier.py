@@ -149,10 +149,11 @@ class ADLClassifier(Classifier):
 
         # Compute prediction error
         pred = self.model(X)
-        # Backpropagation
-        self._backpropagation(prediction=pred, true_label=y)
 
         self._adjust_weights(true_label=y, step_size=self.learning_rate)
+
+        # Backpropagation
+        self._backpropagation(prediction=pred, true_label=y)
 
         self.drift_detector.add_element(self._drift_criterion(y, pred))
 
