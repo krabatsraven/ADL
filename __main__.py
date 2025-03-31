@@ -13,5 +13,5 @@ if __name__ == "__main__":
     find_incomplete_directories(run_id)
     rename_folders(run_id)
     clean_incomplete_directories(run_id)
-    # asyncio.run(bench_async())
+    asyncio.run(bench_async())
     run_bench()
