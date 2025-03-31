@@ -119,9 +119,9 @@ def rename_folders(run_id: int):
 def _find_path_by_config_with_learner_object(run_id: int, config: Dict[str, Any], stream_name: str) -> Path:
 
     adl_parameter, rename_values, added_names = adl_run_data_from_config(
-        config=config, 
-        with_weight_lr=(ADD_WEIGHT_CORRECTION_PARAMETER_NAME in config['learner'].name()), 
-        with_co2=(EMISSION_RECORDER_NAME in config['learner'].name()), 
+        config=config,
+        with_weight_lr=(ADD_WEIGHT_CORRECTION_PARAMETER_NAME in config['learner'].name()),
+        with_co2=(EMISSION_RECORDER_NAME in config['learner'].name()),
         learner_name=config['learner'].name()
     )
     hyperparameter_part_of_name_string = standardize_hyperparamter_folder_name("_".join((f"{str(key).replace('_', ' ')}={f'{value:.3g}' if type(value) == float else str(value).replace('_', ' ')}" for key, value in rename_values.items())))
@@ -266,12 +266,14 @@ def _evaluate_parameters(
         grace_periods_global: Optional[List[int]] = None,
         stream_names: Optional[List[str]] = None,
 ):
+    run_id = __get_run_id()
+    logging.basicConfig(filename=Path(f"best_combination_runID={run_id}.log").absolute().as_posix(), level=logging.INFO)
+    logger = logging.getLogger(f"logger_runID={run_id}")
     if stream_names is not None:
         assert len(stream_names) == len(streams), "give me as many names as streams or give me none"
         streams = list(zip(streams, stream_names))
     else:
         streams = list(zip(streams, [None] * len(streams)))
-    run_id = __get_run_id()
     added_hyperparameters = {"classifier", "stream"}
     start_time = time.time_ns()
     start = datetime.now()
@@ -330,9 +332,9 @@ def _evaluate_parameters(
                                     classifier_to_give = classifier_wo_grace
                                     values_of_renames.pop('globalGracePeriod', None)
 
-                                print(f"---------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
-                                print(f"------running since: {start}, for {(time.time_ns() - start_time) / (1e9 * 60) :.2f}min = {(time.time_ns() - start_time) / (1e9 * 60**2) :.2f}h------")
-                                print(f"---------------expected finish: {start + ((datetime.now() - start) * total_nr_of_runs/current_run_index)} ---------------")
+                                logger.info(f"---------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
+                                logger.info(f"------running since: {start}, for {(time.time_ns() - start_time) / (1e9 * 60) :.2f}min = {(time.time_ns() - start_time) / (1e9 * 60**2) :.2f}h------")
+                                logger.info(f"---------------expected finish: {start + ((datetime.now() - start) * total_nr_of_runs/current_run_index)} ---------------")
                                 __evaluate_on_stream(
                                     stream_data=stream_data,
                                     run_id=run_id,
@@ -353,9 +355,9 @@ def _evaluate_parameters(
                                 else:
                                     classifier_to_give = classifier_wo_grace
                                     values_of_renames.pop('gracePeriodPerLayer', None)
-                                print(f"--------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
-                                print(f"------running since: {start}, for {(time.time_ns() - start_time) / (1e9 * 60) :.2f}min = {(time.time_ns() - start_time) / (1e9 * 60**2) :.2f}h------")
-                                print(f"---------------expected finish: {start + ((datetime.now() - start) * total_nr_of_runs/current_run_index)} ---------------")
+                                logger.info(f"--------------------------test: {current_run_index}/{total_nr_of_runs} = {current_run_index/total_nr_of_runs * 100 :.2f}%-----------------------------")
+                                logger.info(f"------running since: {start}, for {(time.time_ns() - start_time) / (1e9 * 60) :.2f}min = {(time.time_ns() - start_time) / (1e9 * 60**2) :.2f}h------")
+                                logger.info(f"---------------expected finish: {start + ((datetime.now() - start) * total_nr_of_runs/current_run_index)} ---------------")
                                 __evaluate_on_stream(
                                     stream_data=stream_data,
                                     run_id=run_id,
@@ -475,6 +477,8 @@ def _test_best_combination(name: Optional[str] = None, with_co_2: bool = False):
 
 def _test_one_feature(stream_idx: int, classifier_idx: int, with_co_2: bool, run_name: str, force: bool = False) -> None:
     run_id = 99
+    logging.basicConfig(filename=Path(f"best_combination_runID={run_id}.log").absolute().as_posix(), level=logging.INFO)
+    logger = logging.getLogger(f"logger_runID={run_id}")
     current_config = STANDARD_CONFIG.copy()
     current_classifier = config_to_learner(*CLASSIFIERS[classifier_idx], grace_period=(current_config['grace_period'], current_config['grace_type']), with_co2=with_co_2)
     current_config['learner'] = current_classifier

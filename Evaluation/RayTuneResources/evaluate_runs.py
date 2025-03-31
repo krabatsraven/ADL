@@ -1,3 +1,4 @@
+import logging
 import time
 from datetime import datetime
 from pathlib import Path
@@ -82,6 +83,9 @@ def evaluate_adl_run_config(config, run_id, force: bool=False):
         added_params['layer_weight_learning_rate'] = config['layer_weight_learning_rate']
         renames['layerWeightLR'] = config['layer_weight_learning_rate']
         added_names.add('layerWeightLR')
+
+    logging.basicConfig(filename=Path(f"best_combination_runID={run_id}.log").absolute().as_posix(), level=logging.INFO)
+    logger = logging.getLogger(f"logger_runID={run_id}")
 
     __evaluate_on_stream(
         stream_data=config_to_stream(config['stream']),
