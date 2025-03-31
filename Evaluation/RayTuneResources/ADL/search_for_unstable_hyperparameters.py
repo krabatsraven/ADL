@@ -74,7 +74,7 @@ def search_for_stable_hyperparameters(run_id: int, stream_name: str, nr_of_trial
     if append_existing_run is not None:
         assert Path(f'results/runs/runID={append_existing_run}/config.json').exists(), "missing run config of run to append"
         predecessor_run_temp_files = (storage_path / experiment_name.removesuffix(f'_appending{append_existing_run}')).absolute()
-        assert predecessor_run_temp_files.exists(), 'missing config of run to aapend'
+        assert predecessor_run_temp_files.exists(), 'missing config of run to append'
         search_alg = HyperOptSearch(metric='score', mode='max').restore_from_dir(predecessor_run_temp_files.as_posix())
     else:
         search_alg = HyperOptSearch(metric='score', mode='max')
