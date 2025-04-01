@@ -5,10 +5,10 @@
 #SBATCH --partition=parallel      # very slow: smp
 #SBATCH -o outputfile.%j.out         # Specify stdout output file (%j expands to jobId)
 #SBATCH --account=m2_datamining
-#SBATCH -t 00:01:00                  # Run time (hh:mm:ss)
+#SBATCH -t 02:00:00                  # Run time (hh:mm:ss)
 #SBATCH --mem=3000
 #------------------------------- Parallelize -------------------------------
-#SBATCH --array=0-0:1
+#SBATCH --array=375-380:1
 #------------------------------- Modules -------------------------------
 module load lang/Java
 #------------------------------- Virtual Environment -------------------------------
