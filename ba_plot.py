@@ -1,21 +1,22 @@
 import logging
 from datetime import datetime
+from functools import reduce
 from pathlib import Path
 from typing import List, Dict, Optional
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from Evaluation.EvaluationFunctions import _find_path_by_config_with_learner_object, rename_folders
+from Evaluation.EvaluationFunctions import _find_path_by_config_with_learner_object, rename_folders, __write_summary
 from Evaluation._config import STANDARD_CONFIG_WITH_CO2, AMOUNT_OF_STRINGS, AMOUNT_OF_CLASSIFIERS, CLASSIFIERS, \
     STREAM_STRINGS, STABLE_STRING_IDX, UNSTABLE_STRING_IDX, RENAME_VALUE, \
     AMOUNT_HYPERPARAMETER_TESTS, TOTAL_AMOUNT_HYPERPARAMETERS, AMOUNT_HYPERPARAMETERS_BEFORE, HYPERPARAMETER_KEYS, \
     HYPERPARAMETERS, PROJECT_FOLDER_PATH, SINGLE_CLASSIFIER_FEATURES_TO_TEST, PAIRWISE_CLASSIFIER_FEATURES_TO_TEST, \
     LEARNER_CONFIG_TO_NAMES, HYPERPARAMETERS_NAMES, STREAM_NAMES, UNSTABLE_CONFIG_WITH_CO2, STABLE_CONFIG_WITH_CO2, \
     STANDARD_RUN_ID, RESULTS_DIR_PATH, HYPERPARAMETER_FILE_NAMES
-from Evaluation.config_handling import config_to_learner
-
+from Evaluation.config_handling import config_to_learner, adl_run_data_from_config
 
 PLOT_DIR_BA = Path('/home/david/bachlorthesis/overleaf/images/plots')
 # PLOT_DIR_BA = PROJECT_FOLDER_PATH / 'plots'
@@ -44,31 +45,33 @@ def plot_standard_on_all_streams() -> None:
                 .loc[:, ['accuracy', 'nr_of_active_layers', 'emissions']]
                 .rolling(window_size, center=True ,step=window_size)
                 .mean()
-                .reset_index()
+                .assign(instance=lambda x: x.index * window_size)
                 .assign(stream_name=STREAM_NAMES[stream_name])
-             ) 
+                .set_index(['instance', 'stream_name'])
+             )
             for df, stream_name in zip(data_frames, STREAM_STRINGS)
         ]
-    )
+    ).dropna().sort_index()
+    logger.info(f'collecting dfs done')
     fig, axes = plt.subplots(ncols=3, figsize=(12, 6), layout="constrained")
-    g = sns.lineplot(data=data, x=data.index, y='accuracy', hue='stream_name', ax=axes[0], errorbar=None)
+    g = sns.lineplot(data=data, x='instance', y='accuracy', hue='stream_name', ax=axes[0], errorbar=None)
     axes[0].set_title('Accuracy')
     axes[0].set_xlabel('Number of Instances')
     axes[0].set_ylabel('Accuracy [%]')
 
-    sns.scatterplot(data=data, x=data.index, y='nr_of_active_layers', markers='o', hue='stream_name', ax=axes[1], s=MARKER_SIZE, legend=False)
+    sns.scatterplot(data=data, x='instance', y='nr_of_active_layers', markers='o', hue='stream_name', ax=axes[1], s=MARKER_SIZE, legend=False)
     axes[1].set_title('Amount of Active Layers')
     axes[1].set_xlabel('Number of Instances')
     axes[1].set_ylabel('Amount of Active Layers')
 
-    sns.lineplot(data=data, x=data.index, y='emissions', hue='stream_name', ax=axes[2], errorbar=None, legend=False)
+    sns.lineplot(data=data, x='instance', y='emissions', hue='stream_name', ax=axes[2], errorbar=None, legend=False)
     axes[2].set_title('Emissions')
     axes[2].set_xlabel('Number of Instances')
     axes[2].set_ylabel('Emissions [$kg\\ CO_2 \\text{equiv}$]')
 
     handles, labels = axes[0].get_legend_handles_labels()
     g.legend().remove()
-    fig.legend(handles, labels, loc ='lower center', ncols=4, bbox_to_anchor=(0.5, -0.2), bbox_transform=axes[1].transAxes)
+    fig.legend(handles, labels, loc ='lower center', ncols=4, bbox_to_anchor=(0.5, -0.3), bbox_transform=axes[1].transAxes)
 
     path = PLOT_DIR_BA / 'standard_set_on_all_streams'
     path.mkdir(parents=True, exist_ok=True)
@@ -77,6 +80,7 @@ def plot_standard_on_all_streams() -> None:
         plt.show()
     else:
         plt.close()
+    logger.info(f'plotting standard vs all done')
 
 def plot_hyperparameter_in_iso() -> None:
     'plot comparision of hyperparameters'
@@ -124,7 +128,7 @@ def plot_hyperparameter_in_iso() -> None:
         logger.info(f"loading data done for {hyperparameter_key}")
 
         # compare hyperparameter mean over all stream
-        data: pd.DataFrame = (df.drop(columns=['level_0', 'index_x', 'index_y'])
+        data: pd.DataFrame = (df
                               .drop(columns=['stream_name'])
                               .groupby([df.index, 'hyperparameter_value'])
                               .mean()
@@ -134,17 +138,17 @@ def plot_hyperparameter_in_iso() -> None:
         logger.info(f"calculating mean over streams done for {hyperparameter_key}")
 
         fig, axes = plt.subplots(ncols=3, figsize=(12, 6))
-        g = sns.lineplot(data=data, x='level_0', y='accuracy', hue='hyperparameter_value', ax=axes[0], errorbar=None)
+        g = sns.lineplot(data=data, x='instance', y='accuracy', hue='hyperparameter_value', ax=axes[0], errorbar=None)
         axes[0].set_title('Accuracy')
         axes[0].set_xlabel('Number of Instances')
         axes[0].set_ylabel('Accuracy [%]')
 
-        sns.scatterplot(data=data, x='level_0', y='nr_of_active_layers', markers='o', hue='hyperparameter_value', ax=axes[1], s=MARKER_SIZE, legend=False)
+        sns.scatterplot(data=data, x='instance', y='nr_of_active_layers', markers='o', hue='hyperparameter_value', ax=axes[1], s=MARKER_SIZE, legend=False)
         axes[1].set_title('Amount of Active Layers')
         axes[1].set_xlabel('Number of Instances')
         axes[1].set_ylabel('Amount of Active Layers')
 
-        sns.lineplot(data=data, x='level_0', y='emissions', hue='hyperparameter_value', ax=axes[2], errorbar=None, legend=False)
+        sns.lineplot(data=data, x='instance', y='emissions', hue='hyperparameter_value', ax=axes[2], errorbar=None, legend=False)
         axes[2].set_title('Emissions')
         axes[2].set_xlabel('Number of Instances')
         axes[2].set_ylabel('Emissions [$kg\\ CO_2 \\text{equiv}$]')
@@ -232,7 +236,6 @@ def plot_hyperparameter_stable_vs_unstable() -> None:
     logger = logging.getLogger('stable_vs_unstable')
     logger.info(f'comparison done on {len(data_frames[0])} instances')
     window_size = max(1, len(data_frames[0]) // 1000)
-    logger.info(f'window size chosen: {window_size} instances')
     data = pd.concat([
         (
             df
@@ -240,25 +243,28 @@ def plot_hyperparameter_stable_vs_unstable() -> None:
             .loc[:, ['accuracy', 'nr_of_active_layers', 'emissions']]
             .rolling(window_size, center=True, step=window_size)
             .mean()
-            .reset_index()
+            .assign(instance=lambda x: np.arange(len(x)) * window_size)
             .assign(run_name='Stable' if i==0 else 'Unstable')
+            .set_index(['instance', 'run_name'])
         )
         for i, df in enumerate(data_frames)
-    ])
+    ]).dropna()
+
+    logger.info(f'window size chosen: {window_size} instances')
     logger.info('data collecting done')
 
     fig, axes = plt.subplots(ncols=3, figsize=(12, 6), layout="constrained")
-    g = sns.lineplot(data=data, x=data.index, y='accuracy', hue='run_name', ax=axes[0], errorbar=None)
+    g = sns.lineplot(data=data, x='instance', y='accuracy', hue='run_name', ax=axes[0], errorbar=None)
     axes[0].set_title('Accuracy')
     axes[0].set_xlabel('Number of Instances')
     axes[0].set_ylabel('Accuracy [%]')
 
-    sns.scatterplot(data=data, x=data.index, y='nr_of_active_layers', markers='o', hue='run_name', ax=axes[1], s=MARKER_SIZE, legend=False)
+    sns.scatterplot(data=data, x='instance', y='nr_of_active_layers', markers='o', hue='run_name', ax=axes[1], s=MARKER_SIZE, legend=False)
     axes[1].set_title('Amount of Active Layers')
     axes[1].set_xlabel('Number of Instances')
     axes[1].set_ylabel('Amount of Active Layers')
 
-    sns.lineplot(data=data, x=data.index, y='emissions', hue='run_name', ax=axes[2], errorbar=None, legend=False)
+    sns.lineplot(data=data, x='instance', y='emissions', hue='run_name', ax=axes[2], errorbar=None, legend=False)
     axes[2].set_title('Emissions')
     axes[2].set_xlabel('Number of Instances')
     axes[2].set_ylabel('Emissions [$kg\\ CO_2 \\text{equiv}$]')
@@ -320,7 +326,7 @@ def plot_feature_comparision() -> None:
     get_data = lambda path: _get_data_from_path(path, window_size=window_size, with_active_layers=False, minimum_length=minimum_length)
 
     for feature in features_to_plot:
-        differences_per_stream = {}
+        differences_per_stream: Dict[str, pd.DataFrame] = {}
         for stream_name in STREAM_STRINGS:
             differences_per_stream_and_feature = []
             for lhs, rhs in pairs_per_feature[feature].items():
@@ -328,30 +334,30 @@ def plot_feature_comparision() -> None:
                 idx_of_rhs_on_stream = indices_of_classifier[rhs].intersection(indices_of_streams[stream_name]).pop()
                 lhs_data = get_data(paths[idx_of_lhs_on_stream])
                 rhs_data = get_data(paths[idx_of_rhs_on_stream])
-                diff_on_stream = lhs_data - rhs_data
+                diff_on_stream: pd.DataFrame = lhs_data - rhs_data
                 differences_per_stream_and_feature.append(diff_on_stream)
             logger.info(f"collecting all delta dataframes done for {stream_name}")
-            differences_per_stream[stream_name] = pd.concat(differences_per_stream_and_feature).groupby(level=0).mean()
+            differences_per_stream[stream_name] = reduce(lambda a, b: a + b, differences_per_stream_and_feature) / len(differences_per_stream_and_feature)
             logger.info(f"calculating mean of differences for stream {stream_name} done")
 
         logger.info("start plotting")
         logger.info('collecting all dataframes done for streams')
-        three_feature_plots_per_stream(differences_per_stream, feature, window_size)
-        two_feature_plots_per_stream(differences_per_stream, feature, window_size)
+        three_feature_plots_per_stream(differences_per_stream, feature)
+        two_feature_plots_per_stream(differences_per_stream, feature)
         logger.info('plotting per stream done')
-        mean_difference: pd.DataFrame = pd.concat(differences_per_stream.values()).groupby(level=0).mean()
+        mean_difference: pd.DataFrame = reduce(lambda a, b: a + b, differences_per_stream.values()) / len(differences_per_stream)
         logger.info('calculating mean done')
-        three_feature_plots_mean(mean_difference, feature, window_size)
-        two_feature_plots(mean_difference, feature, window_size)
+        three_feature_plots_mean(mean_difference, feature)
+        two_feature_plots(mean_difference, feature)
         logger.info(f'plotting feature comparision done {datetime.now()}')
 
 def get_minimum_length(paths):
     path_to_summary = (RESULTS_DIR_PATH / f"runID={STANDARD_RUN_ID}" / 'summary.csv').absolute().as_posix()
-    mogon_project_folder_path = Path('/gpfs/fs1/home/djacoby/ADL/results/runs/runID=58')
+    # mogon_project_folder_path = Path('/gpfs/fs1/home/djacoby/ADL/results/runs/runID=58')
     path_string_set = list(path.relative_to(RESULTS_DIR_PATH / f"runID={STANDARD_RUN_ID}").as_posix() for path in paths)
     summary = (pd
                .read_csv(filepath_or_buffer=path_to_summary, sep='\t', usecols=['path', 'amount of instances'])
-               .assign(is_in_paths=lambda df: df['path'].apply(lambda x: Path(x).relative_to(mogon_project_folder_path).as_posix()).isin(path_string_set))
+               .assign(is_in_paths=lambda df: df['path'].apply(lambda x: Path(x).relative_to(RESULTS_DIR_PATH / f"runID={STANDARD_RUN_ID}").as_posix()).isin(path_string_set))
                )
     return int(summary.loc[summary['is_in_paths'], 'amount of instances'].min())
 
@@ -373,7 +379,6 @@ def _get_data_from_path(path: Path, with_active_layers: bool, window_size: int, 
         results_csv = (pd
                        .read_pickle(all_metrics_path)
                        .filter(['accuracy', 'active_layers'])
-                       .reset_index()
                        .head(minimum_length)
                        .assign(nr_of_active_layers=lambda df: df['active_layers'].apply(len))
                        .drop(columns=['active_layers'])
@@ -381,7 +386,6 @@ def _get_data_from_path(path: Path, with_active_layers: bool, window_size: int, 
     else:
         results_csv = (pd
                        .read_pickle(all_metrics_path)
-                       .reset_index()
                        .head(minimum_length)
                        .filter(['accuracy'])
                        )
@@ -389,7 +393,8 @@ def _get_data_from_path(path: Path, with_active_layers: bool, window_size: int, 
     results_csv = (results_csv
                    .rolling(window_size, min_periods=1, step=window_size, center=True)
                    .mean()
-                   .reset_index()
+                   .assign(instance=lambda x: x.index * window_size)
+                   .set_index('instance')
                    )
     if not (path / "emissions.csv").exists():
         logger.error(f"No emissions per window under {path}")
@@ -399,10 +404,11 @@ def _get_data_from_path(path: Path, with_active_layers: bool, window_size: int, 
                  .head(minimum_length)
                  .rolling(window_size, min_periods=1, step=window_size, center=True)
                  .mean()
-                 .reset_index()
+                 .assign(instance=lambda x: x.index * window_size)
+                 .set_index('instance')
                  )
 
-    return pd.merge(results_csv, emissions, right_index=True, left_index=True)
+    return pd.merge(results_csv, emissions, right_index=True, left_index=True).sort_index()
 
 def _get_data_from_path_naive(path: Path) -> pd.DataFrame:
     all_metrics_path = path / "metrics_per_window.pickle"
@@ -410,8 +416,7 @@ def _get_data_from_path_naive(path: Path) -> pd.DataFrame:
     if not all_metrics_path.exists():
         logger.error(f"No metrics per window under {path}")
         raise ValueError(f'No metrics file exists under this path: {path}')
-    results_csv = (pd
-                   .read_pickle(all_metrics_path, usecols=['accuracy', 'active_layers']).assign())
+    results_csv = (pd.read_pickle(all_metrics_path))
     if not (path / "emissions.csv").exists():
         logger.error(f"No emissions per window under {path}")
         raise ValueError(f'No emissions file exists under this path: {path}')
@@ -419,7 +424,7 @@ def _get_data_from_path_naive(path: Path) -> pd.DataFrame:
     return results_csv
 
 
-def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature: str, window_size: int) -> None:
+def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature: str) -> None:
     """Plot 2 metrics per stream for given feature and window_size"""
     sns.set_color_codes(COLOR_PALATE)
     # figure
@@ -427,7 +432,6 @@ def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature
     handles, labels = [], []
 
     for stream_name, df in df_per_stream.items():
-        df = df.rolling(window_size, center=True ,step=window_size).mean().reset_index()
         line = sns.lineplot(data=df, x=df.index, y='accuracy', ax=axes[0], label=stream_name, legend=False)
         handles.append(line.lines[0])
         labels.append(stream_name)
@@ -460,7 +464,7 @@ def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature
         plt.close()
 
 
-def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature: str, window_size: int) -> None:
+def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature: str) -> None:
     """Plot 3 metrics per stream for given feature and window_size"""
     sns.set_color_codes(COLOR_PALATE)
     # figure
@@ -468,7 +472,6 @@ def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], featu
     handles, labels = [], []
 
     for stream_name, df in df_per_stream.items():
-        df = df.rolling(window_size, center=True ,step=window_size).mean().reset_index()
         line = sns.lineplot(data=df, x=df.index, y='accuracy', ax=axes[0], label=stream_name, legend=False)
         handles.append(line.lines[0])
         labels.append(stream_name)
@@ -508,11 +511,9 @@ def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], featu
         plt.close()
 
 
-def two_feature_plots(x: pd.DataFrame, feature: str, window_size: int) -> None:
+def two_feature_plots(x: pd.DataFrame, feature: str) -> None:
     '''plot the mean of a feature in 3 ways in a single figure'''
     sns.set_color_codes(COLOR_PALATE)
-    # data preparation:
-    x.rolling(window_size, center=True ,step=window_size).mean().reset_index()
 
     # figure
     fig, axes = plt.subplots(ncols=2, figsize=(12, 6))
@@ -542,11 +543,10 @@ def two_feature_plots(x: pd.DataFrame, feature: str, window_size: int) -> None:
         plt.close()
 
 
-def three_feature_plots_mean(x: pd.DataFrame, feature: str, window_size: int) -> None:
+def three_feature_plots_mean(x: pd.DataFrame, feature: str) -> None:
     '''plot the mean of a feature in 3 ways in a single figure'''
     sns.set_color_codes(COLOR_PALATE)
     # data preparation:
-    x.rolling(window_size, center=True ,step=window_size).mean().reset_index()
 
     # figure
     fig, axes = plt.subplots(ncols=3, figsize=(12, 6))
@@ -587,13 +587,13 @@ if __name__ == "__main__":
     logger = logging.getLogger("plotting ba")
     logger.info("------------------------------------------")
     logger.info(f"getting started: {datetime.now()}")
-    # rename_folders(STANDARD_RUN_ID)
+    rename_folders(STANDARD_RUN_ID)
     # logger.info(f"starting feature comparison: {datetime.now()}")
     # plot_feature_comparision()
     # logger.info(f"starting hyperparameter comparison: {datetime.now()}")
     # plot_hyperparameter_in_iso()
     logger.info(f"starting stable vs unstable comparison: {datetime.now()}")
-    # plot_hyperparameter_stable_vs_unstable()
+    plot_hyperparameter_stable_vs_unstable()
     logger.info(f"starting standard vs all comparison: {datetime.now()}")
     plot_standard_on_all_streams()
     logger.info(f"plotting ba ended: {datetime.now()}")

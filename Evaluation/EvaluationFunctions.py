@@ -576,6 +576,7 @@ def _test_unstable(with_co_2: bool, run_name: str, force: bool = False) -> None:
 def find_incomplete_directories(run_id: int) -> List[Path]:
     """finds the dirs of all incomplete directories in given run id result folder and raises if it found any"""
     run_folder_path = RESULTS_DIR_PATH / f"runID={run_id}"
+    __write_summary(STANDARD_RUN_ID, )
     allowed_names = {'emissions.csv', 'metrics.pickle', 'metrics_per_window.pickle'}
     found = []
     for temp in run_folder_path.rglob('*'):
