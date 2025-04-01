@@ -89,9 +89,9 @@ def load_config(run_id: int, run_name: str= ''):
 def config_to_stream(stream_name: str) -> type(Stream):
     match stream_name:
         case 'electricity':
-            return ARFFStream('/home/david/PycharmProjects/ADL/data/electricity.arff')
+            return ARFFStream(Path('data/electricity.arff').absolute().as_posix())
         case 'electricity_tiny':
-            return ARFFStream('/home/david/PycharmProjects/ADL/data/electricity_tiny.arff')
+            return ARFFStream(Path('data/electricity_tiny.arff').absolute().as_posix())
         case 'agraval_no_drift':
             return agrawal_no_drift
         case 'agraval_single_drift':

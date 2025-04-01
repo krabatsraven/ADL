@@ -3,12 +3,13 @@ import logging
 from pathlib import Path
 
 from Evaluation.EvaluationFunctions import clean_incomplete_directories, find_incomplete_directories, rename_folders
-from Evaluation._config import STANDARD_RUN_ID
+from Evaluation._config import STANDARD_RUN_ID, RESULTS_DIR_PATH
 from Evaluation.benchmark_protokoll import bench_async, run_bench
 
 
 if __name__ == "__main__":
     logging.basicConfig(filename=Path('bench.log').absolute().as_posix(), level=logging.INFO)
+    (RESULTS_DIR_PATH/ f"runID={STANDARD_RUN_ID}").mkdir(exist_ok=True, parents=True)
     run_id = STANDARD_RUN_ID
     find_incomplete_directories(run_id)
     rename_folders(run_id)
