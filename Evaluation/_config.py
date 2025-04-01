@@ -2,7 +2,7 @@ from itertools import combinations
 from pathlib import Path
 
 from ADLClassifier import extend_classifier_for_evaluation, grace_period_per_layer, input_preprocessing, \
-    vectorized_for_loop, winning_layer_training, add_weight_correction_parameter_to_user_choices, NETWORK_GRAPH_NAME, \
+    vectorized_for_loop, winning_layer_training, add_weight_correction_parameter_to_user_choices, global_grace_period, NETWORK_GRAPH_NAME, \
     EMISSION_RECORDER_NAME, DELETE_DELETED_LAYERS_NAME, DISABLED_DELETED_LAYERS_NAME, WINNING_LAYER_TRAINING_NAME, \
     VECTORIZED_FOR_LOOP_NAME, INPUT_PREPROCESSING_NAME, ADD_WEIGHT_CORRECTION_PARAMETER_NAME, \
     GRACE_PERIOD_PER_LAYER_NAME, GLOBAL_GRACE_PERIOD_NAME
@@ -79,17 +79,18 @@ STANDARD_CONFIG = {
 
 STANDARD_CONFIG_WITH_CO2 = STANDARD_CONFIG.copy()
 STANDARD_CONFIG_WITH_CO2['learner'] = extend_classifier_for_evaluation(*STANDARD_LEARNER, with_emissions=True)
-stable_learner = [global_grace(495), add_weight_correction_parameter_to_user_choices, winning_layer_training, vectorized_for_loop, input_preprocessing]
+stable_learner = [global_grace_period(495), add_weight_correction_parameter_to_user_choices, winning_layer_training, vectorized_for_loop, input_preprocessing]
 STABLE_CONFIG = {
-    {'learner': extend_classifier_for_evaluation(*stable_learner),
-     'lr': 0.22970622156817536,
-     'layer_weight_learning_rate': 0.24126254519960913,
-     'adwin-delta': 1.6083049259877988e-07,
-     'mci': 1.2538978365240957e-06,
-     'grace_type': 'global_grace',
-     'grace_period': 495,
-     'loss_fn': 'NLLLoss'}
+    'learner': extend_classifier_for_evaluation(*stable_learner),
+    'lr': 0.22970622156817536,
+    'layer_weight_learning_rate': 0.24126254519960913,
+    'adwin-delta': 1.6083049259877988e-07,
+    'mci': 1.2538978365240957e-06,
+    'grace_type': 'global_grace',
+    'grace_period': 495,
+    'loss_fn': 'NLLLoss'
 }
+
 STABLE_CONFIG_WITH_CO2 = STABLE_CONFIG.copy()
 STABLE_CONFIG_WITH_CO2['learner'] = extend_classifier_for_evaluation(*stable_learner, with_emissions=True)
 
