@@ -17,6 +17,6 @@ def extend_classifier_for_evaluation(
     """
 
     if with_emissions:
-        return record_emissions(record_network_graph(extended_classifier(*decorators)))
+        return record_network_graph(record_emissions(extended_classifier(*decorators)))
     else:
         return record_network_graph(extended_classifier(*decorators))

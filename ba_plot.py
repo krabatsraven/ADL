@@ -125,7 +125,7 @@ def plot_hyperparameter_in_iso() -> None:
         df: pd.DataFrame = pd.concat((
             (
                 get_data(paths[indices_of_stream[stream_name].intersection(indices_of_key_value[(hyperparameter_key, val)]).pop()])
-                .assign(stream_name=stream_name)
+                .assign(stream_name=STREAM_NAMES[stream_name])
                 .assign(hyperparameter_value=lambda x: [RENAME_VALUE(val)]*len(x))
             )
             for val in HYPERPARAMETERS[hyperparameter_key]
@@ -178,7 +178,7 @@ def plot_hyperparameter_in_iso() -> None:
         # compare hyperparameter per stream
         for stream_name in STREAM_STRINGS:
             # Filter the data for the current stream
-            stream_data = df[df['stream_name'] == stream_name]
+            stream_data = df[df['stream_name'] == LEARNER_CONFIG_TO_NAMES[stream_name]]
 
             # Create subplots: one for each of accuracy, nr_of_active_layers, emissions
             sns.set_color_codes(COLOR_PALATE)
@@ -339,8 +339,8 @@ def plot_feature_comparision_different() -> None:
             for classifier_with, classifier_without in pairs_per_feature[feature].items():
                 idx_classifier_with = indices_of_classifier[classifier_with].intersection(indices_of_streams[stream_name]).pop()
                 idx_classifier_without = indices_of_classifier[classifier_without].intersection(indices_of_streams[stream_name]).pop()
-                df_classifier_with = get_data(paths[idx_classifier_with]).assign(feature=f'with {feature}').reset_index().set_index(['instance', 'feature'])
-                df_classifier_without = get_data(paths[idx_classifier_without]).assign(feature=f'without {feature}').reset_index().set_index(['instance', 'feature'])
+                df_classifier_with = get_data(paths[idx_classifier_with]).assign(feature=f'With {LEARNER_CONFIG_TO_NAMES[feature]}').reset_index().set_index(['instance', 'feature'])
+                df_classifier_without = get_data(paths[idx_classifier_without]).assign(feature=f'Without {LEARNER_CONFIG_TO_NAMES[feature]}').reset_index().set_index(['instance', 'feature'])
                 combined = pd.concat([df_classifier_with, df_classifier_without]).assign(accuracy_per_emission=lambda df: df['accuracy'] / df['emissions'])
                 combined_per_stream_and_feature.append(combined)
             logger.info(f"collecting all combined dataframes done for {stream_name}")
@@ -538,11 +538,11 @@ def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature
     handles, labels = [], []
 
     for stream_name, df in df_per_stream.items():
-        line = sns.lineplot(data=df, x=df.index, y='accuracy', ax=axes[0], label=stream_name, legend=False)
+        line = sns.lineplot(data=df, x=df.index, y='accuracy', ax=axes[0], label=STREAM_NAMES[stream_name], legend=False)
         handles.append(line.lines[0])
         labels.append(stream_name)
 
-        sns.lineplot(data=df, x=df.index, y='emissions', ax=axes[1], label=stream_name, legend=False)
+        sns.lineplot(data=df, x=df.index, y='emissions', ax=axes[1], label=STREAM_NAMES[stream_name], legend=False)
 
     axes[0].set_title('$\\Delta$ Accuracy vs Instances')
     axes[0].set_xlabel('Number of Instances')
@@ -578,14 +578,14 @@ def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], featu
     handles, labels = [], []
 
     for stream_name, df in df_per_stream.items():
-        line = sns.lineplot(data=df, x=df.index, y='accuracy', ax=axes[0], label=stream_name, legend=False)
+        line = sns.lineplot(data=df, x=df.index, y='accuracy', ax=axes[0], label=STREAM_NAMES[stream_name], legend=False)
         handles.append(line.lines[0])
-        labels.append(stream_name)
+        labels.append(STREAM_NAMES[stream_name])
 
-        sns.lineplot(data=df, x=df.index, y='emissions', ax=axes[1], label=stream_name, legend=False)
+        sns.lineplot(data=df, x=df.index, y='emissions', ax=axes[1], label=STREAM_NAMES[stream_name], legend=False)
 
         df['accuracy_per_emission'] = df['accuracy'] / df['emissions']
-        sns.lineplot(data=df, x=df.index, y='accuracy_per_emission', ax=axes[2], label=stream_name, legend=False)
+        sns.lineplot(data=df, x=df.index, y='accuracy_per_emission', ax=axes[2], label=STREAM_NAMES[stream_name], legend=False)
 
     axes[0].set_title('$\\Delta$ Accuracy vs Instances')
     axes[0].set_xlabel('Number of Instances')
