@@ -116,7 +116,7 @@ def plot_hyperparameter_in_iso() -> None:
             (
                 get_data(paths[indices_of_stream[stream_name].intersection(indices_of_key_value[(hyperparameter_key, val)]).pop()])
                 .assign(stream_name=stream_name)
-                .assign(hyperparameter_value=[RENAME_VALUE(val)]*minimum_size)
+                .assign(hyperparameter_value=lambda x: [RENAME_VALUE(val)]*len(x))
             )
             for val in HYPERPARAMETERS[hyperparameter_key]
             for stream_name in STREAM_STRINGS)
@@ -124,7 +124,7 @@ def plot_hyperparameter_in_iso() -> None:
         logger.info(f"loading data done for {hyperparameter_key}")
 
         # compare hyperparameter mean over all stream
-        data: pd.DataFrame = (df
+        data: pd.DataFrame = (df.drop(columns=['level_0', 'index_x', 'index_y'])
                               .drop(columns=['stream_name'])
                               .groupby([df.index, 'hyperparameter_value'])
                               .mean()
@@ -587,11 +587,11 @@ if __name__ == "__main__":
     logger = logging.getLogger("plotting ba")
     logger.info("------------------------------------------")
     logger.info(f"getting started: {datetime.now()}")
-    rename_folders(STANDARD_RUN_ID)
-    logger.info(f"starting feature comparison: {datetime.now()}")
-    plot_feature_comparision()
-    logger.info(f"starting hyperparameter comparison: {datetime.now()}")
-    plot_hyperparameter_in_iso()
+    # rename_folders(STANDARD_RUN_ID)
+    # logger.info(f"starting feature comparison: {datetime.now()}")
+    # plot_feature_comparision()
+    # logger.info(f"starting hyperparameter comparison: {datetime.now()}")
+    # plot_hyperparameter_in_iso()
     logger.info(f"starting stable vs unstable comparison: {datetime.now()}")
     plot_hyperparameter_stable_vs_unstable()
     logger.info(f"starting standard vs all comparison: {datetime.now()}")
