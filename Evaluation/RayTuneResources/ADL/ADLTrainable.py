@@ -155,23 +155,15 @@ def ADLTrainableStable(config):
     stream = config_to_stream(config['stream'])
     learner = config_to_learner(*config['learner'], grace_period=(config['grace_period'], config['grace_type']))
 
-    if 'WithUserChosenWeightLR' in learner.name():
-        learner = learner(
-            schema=stream.get_schema(),
-            lr=config['lr'],
-            drift_detector=ADWIN(delta=config['adwin-delta']),
-            mci_threshold_for_layer_pruning=config['mci'],
-            loss_fn=config_to_loss_fn(config['loss_fn']),
-            layer_weight_learning_rate=config['layer_weight_learning_rate']
-        )
-    else:
-        learner = learner(
-            schema=stream.get_schema(),
-            lr=config['lr'],
-            drift_detector=ADWIN(delta=config['adwin-delta']),
-            mci_threshold_for_layer_pruning=config['mci'],
-            loss_fn=config_to_loss_fn(config['loss_fn'])
-        )
+
+    learner = learner(
+        schema=stream.get_schema(),
+        lr=config['lr'],
+        drift_detector=ADWIN(delta=config['adwin-delta']),
+        mci_threshold_for_layer_pruning=config['mci'],
+        loss_fn=config_to_loss_fn(config['loss_fn']),
+        layer_weight_learning_rate=config['layer_weight_learning_rate']
+    )
     checkpoint = train.get_checkpoint()
     start = 0
     if checkpoint is not None:

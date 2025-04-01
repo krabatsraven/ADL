@@ -9,7 +9,7 @@ from ADLClassifier import extend_classifier_for_evaluation, grace_period_per_lay
 
 PROJECT_FOLDER_PATH = Path(__file__).parent.parent.resolve().absolute()
 RESULTS_DIR_PATH = PROJECT_FOLDER_PATH / 'results' / 'runs'
-STANDARD_RUN_ID = 58
+STANDARD_RUN_ID = 999
 
 LEARNER_PART_NAMES = {
     NETWORK_GRAPH_NAME: 'Graph',
@@ -37,7 +37,7 @@ LEARNER_CONFIG_TO_NAMES = {
 }
 
 NR_OF_TRIALS = 500
-MAX_INSTANCES = 50000
+MAX_INSTANCES = 100000
 MAX_INSTANCES_TEST = MAX_INSTANCES
 MIN_INSTANCES = MAX_INSTANCES // 20
 WINDOW_SIZE = 100
@@ -79,14 +79,36 @@ STANDARD_CONFIG = {
 
 STANDARD_CONFIG_WITH_CO2 = STANDARD_CONFIG.copy()
 STANDARD_CONFIG_WITH_CO2['learner'] = extend_classifier_for_evaluation(*STANDARD_LEARNER, with_emissions=True)
+stable_learner = [global_grace(495), add_weight_correction_parameter_to_user_choices, winning_layer_training, vectorized_for_loop, input_preprocessing]
+STABLE_CONFIG = {
+    {'learner': extend_classifier_for_evaluation(*stable_learner),
+     'lr': 0.22970622156817536,
+     'layer_weight_learning_rate': 0.24126254519960913,
+     'adwin-delta': 1.6083049259877988e-07,
+     'mci': 1.2538978365240957e-06,
+     'grace_type': 'global_grace',
+     'grace_period': 495,
+     'loss_fn': 'NLLLoss'}
+}
+STABLE_CONFIG_WITH_CO2 = STABLE_CONFIG.copy()
+STABLE_CONFIG_WITH_CO2['learner'] = extend_classifier_for_evaluation(*stable_learner, with_emissions=True)
 
-STABLE_CONFIG = STANDARD_CONFIG.copy()
-STABLE_CONFIG_WITH_CO2 = STANDARD_CONFIG_WITH_CO2.copy()
-STABLE_STRING_IDX = 0
-# todo: find unstable config
-UNSTABLE_CONFIG = STANDARD_CONFIG.copy()
-UNSTABLE_CONFIG_WITH_CO2 = STANDARD_CONFIG_WITH_CO2.copy()
-UNSTABLE_STRING_IDX = STABLE_STRING_IDX
+STABLE_STRING_IDX = UNSTABLE_STRING_IDX = 6
+
+unstable_learner = [grace_period_per_layer(250), add_weight_correction_parameter_to_user_choices, winning_layer_training, vectorized_for_loop, input_preprocessing]
+UNSTABLE_CONFIG = {
+    'lr': 0.21367378865929126,
+    'learner': extend_classifier_for_evaluation(*unstable_learner),
+    'layer_weight_learning_rate': 0.002833479724872662,
+    'adwin-delta': 0.00044094987538464796,
+    'mci': 5.696278201740134e-07,
+    'grace_period': 250,
+    'grace_type': 'layer_grace',
+    'loss_fn': 'NLLLoss',
+}
+
+UNSTABLE_CONFIG_WITH_CO2 = UNSTABLE_CONFIG.copy()
+UNSTABLE_CONFIG_WITH_CO2['learner'] = extend_classifier_for_evaluation(*unstable_learner, with_emissions=True)
 
 SINGLE_CLASSIFIER_FEATURES_TO_TEST = ['input_preprocessing', 'vectorized', 'winning_layer']
 PAIRWISE_CLASSIFIER_FEATURES_TO_TEST = [('delete_deleted_layer', 'disable_deleted_layer')]
