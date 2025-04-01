@@ -5,7 +5,8 @@ from pathlib import Path
 
 from Evaluation._config import AMOUNT_OF_CLASSIFIERS, AMOUNT_HYPERPARAMETER_TESTS, AMOUNT_OF_STRINGS, RESULTS_DIR_PATH, \
     STANDARD_RUN_ID
-from Evaluation.benchmark_protokoll import bench_one_feature, bench_one_hyperparameter_isolated, bench_stable
+from Evaluation.benchmark_protokoll import bench_one_feature, bench_one_hyperparameter_isolated, bench_stable, \
+    bench_unstable
 
 if __name__ == "__main__":
     logging.basicConfig(filename=Path("mogon_run.log").absolute().as_posix(), level=logging.INFO)
@@ -26,6 +27,6 @@ if __name__ == "__main__":
         bench_stable(job_id, run_name)
     elif job_id - (AMOUNT_OF_STRINGS * AMOUNT_OF_CLASSIFIERS + AMOUNT_HYPERPARAMETER_TESTS) == 1:
         logger.info(f'bench unstable: {run_name}')
-        bench_stable(job_id, run_name)
+        bench_unstable(job_id, run_name)
     else:
         logger.info(f"unexpected job id: {job_id}, run name: {run_name}")
