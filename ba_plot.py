@@ -29,7 +29,7 @@ def plot_standard_on_all_streams() -> None:
     sns.set_color_codes(COLOR_PALATE)
 
     # get dfs:
-    paths = [_find_path_by_config_with_learner_object(run_id=STANDARD_RUN_ID, config=STABLE_CONFIG_WITH_CO2, stream_name=stream_name) 
+    paths = [_find_path_by_config_with_learner_object(run_id=STANDARD_RUN_ID, config=STANDARD_CONFIG_WITH_CO2, stream_name=stream_name)
              for stream_name in STREAM_STRINGS]
     data_frames = _load_paths(paths)
     logger = logging.getLogger('standart_set_on_all_streams')
@@ -593,7 +593,7 @@ if __name__ == "__main__":
     # logger.info(f"starting hyperparameter comparison: {datetime.now()}")
     # plot_hyperparameter_in_iso()
     logger.info(f"starting stable vs unstable comparison: {datetime.now()}")
-    plot_hyperparameter_stable_vs_unstable()
+    # plot_hyperparameter_stable_vs_unstable()
     logger.info(f"starting standard vs all comparison: {datetime.now()}")
     plot_standard_on_all_streams()
     logger.info(f"plotting ba ended: {datetime.now()}")
