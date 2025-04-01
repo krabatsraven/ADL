@@ -13,12 +13,12 @@ from Evaluation._config import STANDARD_CONFIG_WITH_CO2, AMOUNT_OF_STRINGS, AMOU
     AMOUNT_HYPERPARAMETER_TESTS, TOTAL_AMOUNT_HYPERPARAMETERS, AMOUNT_HYPERPARAMETERS_BEFORE, HYPERPARAMETER_KEYS, \
     HYPERPARAMETERS, PROJECT_FOLDER_PATH, SINGLE_CLASSIFIER_FEATURES_TO_TEST, PAIRWISE_CLASSIFIER_FEATURES_TO_TEST, \
     LEARNER_CONFIG_TO_NAMES, HYPERPARAMETERS_NAMES, STREAM_NAMES, UNSTABLE_CONFIG_WITH_CO2, STABLE_CONFIG_WITH_CO2, \
-    STANDARD_RUN_ID, RESULTS_DIR_PATH
+    STANDARD_RUN_ID, RESULTS_DIR_PATH, HYPERPARAMETER_FILE_NAMES
 from Evaluation.config_handling import config_to_learner
 
 
-# PLOT_DIR_BA = Path('/home/david/bachlorthesis/overleaf/images/plots')
-PLOT_DIR_BA = PROJECT_FOLDER_PATH / 'plots'
+PLOT_DIR_BA = Path('/home/david/bachlorthesis/overleaf/images/plots')
+# PLOT_DIR_BA = PROJECT_FOLDER_PATH / 'plots'
 COLOR_PALATE = 'colorblind'
 SHOW_PLOTS = False
 MARKER_SIZE = 10
@@ -204,7 +204,7 @@ def plot_hyperparameter_in_iso() -> None:
             plt.subplots_adjust(top=0.85)
             plt.tight_layout()
 
-            path = PLOT_DIR_BA / 'hyperparameter_comparision' / HYPERPARAMETERS_NAMES[hyperparameter_key]
+            path = PLOT_DIR_BA / 'hyperparameter_comparision' / HYPERPARAMETER_FILE_NAMES[hyperparameter_key]
             path.mkdir(parents=True, exist_ok=True)
             plt.savefig(path / stream_name, bbox_inches='tight')
 

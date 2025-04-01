@@ -142,6 +142,18 @@ HYPERPARAMETERS_NAMES = {
     'global_grace': 'Global'
 }
 
+
+HYPERPARAMETER_FILE_NAMES = {
+    'lr': 'learning_rate',
+    'layer_weight_learning_rate': 'voting_weight_learning_rate',
+    'adwin-delta': 'adwin_delta',
+    'mci': 'mci_cutoff',
+    'grace': 'grace_period',
+    'layer_grace': 'per_layer',
+    'global_grace': 'global_grace'
+
+}
+
 RENAME_VALUE = lambda x: (x[1], HYPERPARAMETERS_NAMES[x[0]]) if isinstance(x, tuple) else x
 
 AMOUNT_HYPERPARAMETERS = list(map(len, HYPERPARAMETERS.values()))
