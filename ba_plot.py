@@ -32,27 +32,21 @@ def plot_standard_on_all_streams() -> None:
     # get dfs:
     paths = [_find_path_by_config_with_learner_object(run_id=STANDARD_RUN_ID, config=STANDARD_CONFIG_WITH_CO2, stream_name=stream_name)
              for stream_name in STREAM_STRINGS]
-    data_frames = _load_paths(paths)
     logger = logging.getLogger('standart_set_on_all_streams')
-    minimum_size = min(map(len, data_frames))
+    minimum_size = get_minimum_length(paths)
     logger.info(f'comparison of standard set on all streams done on {minimum_size} instances')
     window_size = max(1, minimum_size // 1000)
     logger.info(f'window size chosen: {window_size} instances')
+    get_data = lambda path: _get_data_from_path(path, with_active_layers=True, window_size=window_size, minimum_length=minimum_size)
     data = pd.concat(
         [
             (
-                df
-                .assign(nr_of_active_layers=df['active_layers'].apply(len))
-                .loc[:, ['accuracy', 'nr_of_active_layers', 'emissions']]
-                .rolling(window_size, center=True ,step=window_size)
-                .mean()
-                .head(minimum_size // window_size + 1)
-                .reset_index(drop=True)
-                .assign(instance=lambda x: x.index * window_size)
+                get_data(path)
                 .assign(stream_name=STREAM_NAMES[stream_name])
+                .reset_index()
                 .set_index(['instance', 'stream_name'])
              )
-            for df, stream_name in zip(data_frames, STREAM_STRINGS)
+            for path, stream_name in zip(paths, STREAM_STRINGS)
         ]
     ).dropna().sort_index()
     logger.info(f'collecting dfs done')
