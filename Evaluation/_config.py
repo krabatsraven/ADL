@@ -48,19 +48,20 @@ MAX_RECURRENCES_PER_STREAM = MAX_INSTANCES_TEST // CONCEPT_LENGTH
 STREAM_STRINGS = [
     'electricity',
     'agraval_no_drift', 'agraval_single_drift', 'agraval_three_drifts', 'agraval_four_drifts',
-    'sea_no_drift', 'sea_single_drift', 'sea_three_drifts', 'sea_four_drifts'
+    'sea_no_drift', 'sea_single_drift', 'sea_three_drifts',
+    # 'sea_four_drifts'
 ]
 
 STREAM_NAMES = {
     'electricity': 'Electricity',
     'agraval_no_drift': 'Agrawal Without Drift',
     'agraval_single_drift': 'Agrawal With One Drift',
-    'agraval_three_drifts': 'Agrawal With Three Drifts',
-    'agraval_four_drifts': 'Agrawal With Four Drifts',
+    'agraval_three_drifts': 'Agrawal With Two Drifts',
+    'agraval_four_drifts': 'Agrawal With Three Drifts',
     'sea_no_drift': 'SEA Without Drift',
     'sea_single_drift': 'SEA With One Drift',
-    'sea_three_drifts': 'SEA With Three Drifts', 
-    'sea_four_drifts': 'SEA With Four Drifts'
+    'sea_three_drifts': 'SEA With Two Drifts',
+    'sea_four_drifts': 'SEA With Three Drifts'
 }
 
 STANDARD_LEARNER = [grace_period_per_layer(369), add_weight_correction_parameter_to_user_choices, winning_layer_training, vectorized_for_loop, input_preprocessing]
@@ -120,8 +121,8 @@ combs = [ext + s_combi for s_combi in singular_combinations for pair in PAIRWISE
 combs.sort(key=lambda x: len(x), reverse=True)
 CLASSIFIERS = [combi + (ext,) for combi in combs for ext in classifier_features_to_always_include]
 
-AMOUNT_OF_CLASSIFIERS = 24
-AMOUNT_OF_STRINGS = 9
+AMOUNT_OF_CLASSIFIERS = len(CLASSIFIERS)
+AMOUNT_OF_STRINGS = len(STREAM_STRINGS)
 
 HYPERPARAMETER_KEYS = ['lr', 'layer_weight_learning_rate', 'adwin-delta', 'mci', 'grace']
 HYPERPARAMETERS = {

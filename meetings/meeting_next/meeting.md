@@ -7,3 +7,7 @@ in fact ist die weighted sum die die leute benutzen nicht einfach ein  linear la
 
 # idee 2:
 die verwenden im paper einen anderen drift detector
+
+\item adl requires a high learning rate to quickly reach a local minimum in loss, is then hindered in that high learning rate to converge on said minimum
+\item any concept change restarts that chain, which means that high learning rates perform better on streams with regular concept drifts,
+\item if that holds when more subtle drifts are present is not certain.
