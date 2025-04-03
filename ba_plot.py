@@ -18,12 +18,15 @@ from Evaluation._config import STANDARD_CONFIG_WITH_CO2, AMOUNT_OF_STRINGS, AMOU
     STANDARD_RUN_ID, RESULTS_DIR_PATH, HYPERPARAMETER_FILE_NAMES
 from Evaluation.config_handling import config_to_learner, adl_run_data_from_config
 
-PLOT_DIR_BA = Path('/home/david/bachlorthesis/overleaf/images/plots')
+PLOT_DIR_BA = Path('/home/david/bachlorthesis/overleaf/images/plots2')
 # PLOT_DIR_BA = PROJECT_FOLDER_PATH / 'plots'
 COLOR_PALATE = sns.color_palette('colorblind')
 COLOR_PALATE2 = sns.color_palette('colorblind')
 SHOW_PLOTS = False
 MARKER_SIZE = 10
+STREAM_STRINGS = STREAM_STRINGS[1:]
+AMOUNT_OF_STRINGS = len(STREAM_STRINGS)
+AMOUNT_HYPERPARAMETER_TESTS = AMOUNT_OF_STRINGS * TOTAL_AMOUNT_HYPERPARAMETERS
 
 
 def plot_standard_on_all_streams() -> None:
@@ -85,6 +88,7 @@ def plot_standard_on_all_streams() -> None:
 
 def plot_hyperparameter_in_iso() -> None:
     'plot comparision of hyperparameters'
+
     sns.set_palette(COLOR_PALATE2)
     logger = logging.getLogger('hyperparameter_comparison')
     paths = []
@@ -218,6 +222,7 @@ def plot_hyperparameter_in_iso() -> None:
 
 def plot_hyperparameter_stable_vs_unstable() -> None:
     '''compares stable hyperparameter run vs unstable hyperparameter run'''
+
     sns.set_palette(COLOR_PALATE)
     all_configs = [STABLE_CONFIG_WITH_CO2.copy(), UNSTABLE_CONFIG_WITH_CO2.copy()]
     all_stream_names = [STREAM_STRINGS[STABLE_STRING_IDX], STREAM_STRINGS[UNSTABLE_STRING_IDX]]
@@ -283,6 +288,7 @@ def plot_hyperparameter_stable_vs_unstable() -> None:
 
 def plot_feature_comparision_different() -> None:
     """plots the comparison of the adl model features"""
+
     logger = logging.getLogger('plot_feature_comparision_different')
     features_to_plot = set(SINGLE_CLASSIFIER_FEATURES_TO_TEST + [feature for pair in PAIRWISE_CLASSIFIER_FEATURES_TO_TEST for feature in pair])
     pairs_per_feature = {feature: {} for feature in features_to_plot}
@@ -408,6 +414,7 @@ def plot_feature_comparision_different() -> None:
 
 def plot_feature_comparision() -> None:
     """plots the comparison of the adl model features"""
+
     logger = logging.getLogger('feature_comparison')
     features_to_plot = set(SINGLE_CLASSIFIER_FEATURES_TO_TEST + [feature for pair in PAIRWISE_CLASSIFIER_FEATURES_TO_TEST for feature in pair])
     pairs_per_feature = {feature: {} for feature in features_to_plot}
@@ -552,15 +559,22 @@ def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature
     """Plot 2 metrics per stream for given feature and window_size"""
     sns.set_palette(COLOR_PALATE)
     # figure
+    data = pd.concat(
+        df
+        .assign(stream_name=STREAM_NAMES[stream_name])
+        .reset_index()
+        .set_index(['instance', 'stream_name'])
+
+        for stream_name, df in df_per_stream.items()
+    )
     fig, axes = plt.subplots(ncols=2, figsize=(12, 6), layout="constrained")
-    handles, labels = [], []
 
-    for stream_name, df in df_per_stream.items():
-        line = sns.lineplot(data=df, x=df.index, y='accuracy', ax=axes[0], label=STREAM_NAMES[stream_name], legend=False, palette=COLOR_PALATE)
-        handles.append(line.lines[0])
-        labels.append(stream_name)
 
-        sns.lineplot(data=df, x=df.index, y='emissions', ax=axes[1], label=STREAM_NAMES[stream_name], legend=False, palette=COLOR_PALATE)
+    sns.lineplot(data=data, x='instance', y='accuracy', ax=axes[0], hue='stream_name', legend=False, palette=COLOR_PALATE)
+
+
+    g = sns.lineplot(data=data, x='instance', y='emissions', ax=axes[1], hue='stream_name', palette=COLOR_PALATE)
+
 
     axes[0].set_title('$\\Delta$ Accuracy vs Instances')
     axes[0].set_xlabel('Number of Instances')
@@ -571,11 +585,15 @@ def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature
     axes[1].set_ylabel('$\\Delta$ Emissions [$kg\\ CO_2 \\text{equiv}$]')
 
     # layout options
-    lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
-    lines, labels = [list(set(sum(lol, []))) for lol in zip(*lines_labels)]
-    lgd = fig.legend(lines, labels, loc ='lower center', ncols=4, bbox_to_anchor=(0, -0.3), bbox_transform=axes[1].transAxes)
 
-    path = PLOT_DIR_BA / 'feature_comparison' / 'two_plots' / LEARNER_CONFIG_TO_NAMES[feature]
+    title = LEARNER_CONFIG_TO_NAMES[feature]
+    # plt.suptitle(title)
+
+    handles, labels = axes[1].get_legend_handles_labels()
+    g.legend().remove()
+    fig.legend(handles, labels, loc ='lower center', ncols=4, bbox_to_anchor=(0.5, -0.3), bbox_transform=axes[1].transAxes)
+
+    path = PLOT_DIR_BA / 'feature_comparison' / 'three_plots' / title
     path.mkdir(parents=True, exist_ok=True)
     plt.savefig(path / 'one_line_per_stream', bbox_inches='tight')
     if SHOW_PLOTS:
@@ -588,18 +606,24 @@ def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], featu
     """Plot 3 metrics per stream for given feature and window_size"""
     sns.set_palette(COLOR_PALATE)
     # figure
+    data = pd.concat(
+        df
+        .assign(stream_name=STREAM_NAMES[stream_name], accuracy_per_emission= lambda df: df['accuracy'] / df['emissions'])
+        .reset_index()
+        .set_index(['instance', 'stream_name'])
+
+        for stream_name, df in df_per_stream.items()
+    )
     fig, axes = plt.subplots(ncols=3, figsize=(12, 6), layout="constrained")
-    handles, labels = [], []
 
-    for stream_name, df in df_per_stream.items():
-        line = sns.lineplot(data=df, x=df.index, y='accuracy', ax=axes[0], label=STREAM_NAMES[stream_name], legend=False, palette=COLOR_PALATE)
-        handles.append(line.lines[0])
-        labels.append(STREAM_NAMES[stream_name])
 
-        sns.lineplot(data=df, x=df.index, y='emissions', ax=axes[1], label=STREAM_NAMES[stream_name], legend=False)
+    sns.lineplot(data=data, x='instance', y='accuracy', ax=axes[0], hue='stream_name', legend=False, palette=COLOR_PALATE)
 
-        df['accuracy_per_emission'] = df['accuracy'] / df['emissions']
-        sns.lineplot(data=df, x=df.index, y='accuracy_per_emission', ax=axes[2], label=STREAM_NAMES[stream_name], legend=False, palette=COLOR_PALATE)
+
+    g = sns.lineplot(data=data, x='instance', y='emissions', ax=axes[1], hue='stream_name', palette=COLOR_PALATE)
+
+
+    sns.lineplot(data=data, x='instance', y='accuracy_per_emission', ax=axes[2], hue='stream_name', legend=False, palette=COLOR_PALATE)
 
     axes[0].set_title('$\\Delta$ Accuracy vs Instances')
     axes[0].set_xlabel('Number of Instances')
@@ -618,9 +642,9 @@ def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], featu
     title = LEARNER_CONFIG_TO_NAMES[feature]
     # plt.suptitle(title)
 
-    lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
-    lines, labels = [list(set(sum(lol, []))) for lol in zip(*lines_labels)]
-    lgd = fig.legend(lines, labels, loc ='lower center', ncols=4, bbox_to_anchor=(0.55, -0.3), bbox_transform=axes[1].transAxes)
+    handles, labels = axes[1].get_legend_handles_labels()
+    g.legend().remove()
+    fig.legend(handles, labels, loc ='lower center', ncols=4, bbox_to_anchor=(0.5, -0.3), bbox_transform=axes[1].transAxes)
 
     path = PLOT_DIR_BA / 'feature_comparison' / 'three_plots' / title
     path.mkdir(parents=True, exist_ok=True)
@@ -639,12 +663,12 @@ def two_feature_plots(x: pd.DataFrame, feature: str) -> None:
     fig, axes = plt.subplots(ncols=2, figsize=(12, 6))
 
     #  3 subplots
-    sns.lineplot(x['accuracy'], ax=axes[0], palette=COLOR_PALATE)
+    sns.lineplot(x['accuracy'], ax=axes[0])
     axes[0].set_title('$\\Delta$ Accuracy vs Instances')
     axes[0].set_xlabel('Number of Instances')
     axes[0].set_ylabel('$\\Delta$ Accuracy [%]')
 
-    sns.lineplot(x['emissions'], ax=axes[1], palette=COLOR_PALATE)
+    sns.lineplot(x['emissions'], ax=axes[1])
     axes[1].set_title('$\\Delta$ Emissions vs Instances')
     axes[1].set_xlabel('Number of Instances')
     axes[1].set_ylabel('$\\Delta$ Emissions [$kg\\ CO_2 \\text{equiv}$]')
@@ -672,18 +696,18 @@ def three_feature_plots_mean(x: pd.DataFrame, feature: str) -> None:
     fig, axes = plt.subplots(ncols=3, figsize=(12, 6))
 
     #  3 subplots
-    sns.lineplot(x['accuracy'], ax=axes[0], palette=COLOR_PALATE)
+    sns.lineplot(x['accuracy'], ax=axes[0])
     axes[0].set_title('$\\Delta$ Accuracy vs Instances')
     axes[0].set_xlabel('Number of Instances')
     axes[0].set_ylabel('$\\Delta$ Accuracy [%]')
 
-    sns.lineplot(x['emissions'], ax=axes[1], palette=COLOR_PALATE)
+    sns.lineplot(x['emissions'], ax=axes[1])
     axes[1].set_title('$\\Delta$ Emissions vs Instances')
     axes[1].set_xlabel('Number of Instances')
     axes[1].set_ylabel('$\\Delta$ Emissions [$kg\\ CO_2 \\text{equiv}$]')
 
     x['accuracy_per_emission'] = x['accuracy'] / (x['emissions'])
-    sns.lineplot(data=x, x=x.index, y='accuracy_per_emission', ax=axes[2], palette=COLOR_PALATE)
+    sns.lineplot(data=x, x=x.index, y='accuracy_per_emission', ax=axes[2])
     axes[2].set_title('$\\frac{\\Delta\\text{Accuracy}}{\\Delta\\text{Emissions}}$ vs Instances')
     axes[2].set_xlabel('Number of Instances')
     axes[2].set_ylabel('$\\Delta\\left(\\frac{\\text{Accuracy}}{\\text{Emissions}}\\right)$')
@@ -710,13 +734,13 @@ if __name__ == "__main__":
     rename_folders(STANDARD_RUN_ID)
     logger.info(f"starting feature comparison: {datetime.now()}")
     plot_feature_comparision()
-    logger.info(f"starting different feature comparison: {datetime.now()}")
-    plot_feature_comparision_different()
-    logger.info(f"starting hyperparameter comparison: {datetime.now()}")
-    plot_hyperparameter_in_iso()
-    logger.info(f"starting stable vs unstable comparison: {datetime.now()}")
-    plot_hyperparameter_stable_vs_unstable()
-    logger.info(f"starting standard vs all comparison: {datetime.now()}")
-    plot_standard_on_all_streams()
-    logger.info(f"plotting ba ended: {datetime.now()}")
-    logger.info("------------------------------------------")
+    # logger.info(f"starting different feature comparison: {datetime.now()}")
+    # plot_feature_comparision_different()
+    # logger.info(f"starting hyperparameter comparison: {datetime.now()}")
+    # plot_hyperparameter_in_iso()
+    # logger.info(f"starting stable vs unstable comparison: {datetime.now()}")
+    # plot_hyperparameter_stable_vs_unstable()
+    # logger.info(f"starting standard vs all comparison: {datetime.now()}")
+    # plot_standard_on_all_streams()
+    # logger.info(f"plotting ba ended: {datetime.now()}")
+    # logger.info("------------------------------------------")
