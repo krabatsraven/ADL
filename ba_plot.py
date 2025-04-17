@@ -2,24 +2,23 @@ import logging
 from datetime import datetime
 from functools import reduce
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from Evaluation.EvaluationFunctions import _find_path_by_config_with_learner_object, rename_folders, __write_summary
-from Evaluation._config import STANDARD_CONFIG_WITH_CO2, AMOUNT_OF_STRINGS, AMOUNT_OF_CLASSIFIERS, CLASSIFIERS, \
-    STREAM_STRINGS, STABLE_STRING_IDX, UNSTABLE_STRING_IDX, RENAME_VALUE, \
-    AMOUNT_HYPERPARAMETER_TESTS, TOTAL_AMOUNT_HYPERPARAMETERS, AMOUNT_HYPERPARAMETERS_BEFORE, HYPERPARAMETER_KEYS, \
-    HYPERPARAMETERS, PROJECT_FOLDER_PATH, SINGLE_CLASSIFIER_FEATURES_TO_TEST, PAIRWISE_CLASSIFIER_FEATURES_TO_TEST, \
-    LEARNER_CONFIG_TO_NAMES, HYPERPARAMETERS_NAMES, STREAM_NAMES, UNSTABLE_CONFIG_WITH_CO2, STABLE_CONFIG_WITH_CO2, \
-    STANDARD_RUN_ID, RESULTS_DIR_PATH, HYPERPARAMETER_FILE_NAMES
-from Evaluation.config_handling import config_to_learner, adl_run_data_from_config
+from Evaluation.EvaluationFunctions import _find_path_by_config_with_learner_object, rename_folders
+from Evaluation._config import (STANDARD_CONFIG_WITH_CO2, AMOUNT_OF_CLASSIFIERS, CLASSIFIERS, \
+    STREAM_STRINGS, STABLE_STRING_IDX, UNSTABLE_STRING_IDX, RENAME_VALUE, TOTAL_AMOUNT_HYPERPARAMETERS, \
+    AMOUNT_HYPERPARAMETERS_BEFORE, HYPERPARAMETER_KEYS, HYPERPARAMETERS, PROJECT_FOLDER_PATH, \
+    SINGLE_CLASSIFIER_FEATURES_TO_TEST, PAIRWISE_CLASSIFIER_FEATURES_TO_TEST, LEARNER_CONFIG_TO_NAMES, STREAM_NAMES, \
+    UNSTABLE_CONFIG_WITH_CO2, STABLE_CONFIG_WITH_CO2, STANDARD_RUN_ID, RESULTS_DIR_PATH, HYPERPARAMETER_FILE_NAMES)
+from Evaluation.config_handling import config_to_learner
 
-PLOT_DIR_BA = Path('/home/david/bachlorthesis/overleaf/images/plots2')
-# PLOT_DIR_BA = PROJECT_FOLDER_PATH / 'plots'
+# PLOT_DIR_BA = Path('/home/david/bachlorthesis/overleaf/images/plots2')
+PLOT_DIR_BA = PROJECT_FOLDER_PATH / 'plots' / 'with_ci'
 COLOR_PALATE = sns.color_palette('colorblind')
 COLOR_PALATE2 = sns.color_palette('colorblind')
 SHOW_PLOTS = False
@@ -27,9 +26,11 @@ MARKER_SIZE = 10
 STREAM_STRINGS = STREAM_STRINGS[1:]
 AMOUNT_OF_STRINGS = len(STREAM_STRINGS)
 AMOUNT_HYPERPARAMETER_TESTS = AMOUNT_OF_STRINGS * TOTAL_AMOUNT_HYPERPARAMETERS
+STABLE_STRING_IDX -= 1
+UNSTABLE_STRING_IDX -= 1
 
 
-def plot_standard_on_all_streams() -> None:
+def plot_standard_on_all_streams(cumulative: bool) -> None:
     'plot comparision of a set of hyperparameters on nine different problems'
     sns.set_palette(COLOR_PALATE)
 
@@ -41,7 +42,7 @@ def plot_standard_on_all_streams() -> None:
     logger.info(f'comparison of standard set on all streams done on {minimum_size} instances')
     window_size = max(1, minimum_size // 1000)
     logger.info(f'window size chosen: {window_size} instances')
-    get_data = lambda path: _get_data_from_path(path, with_active_layers=True, window_size=window_size, minimum_length=minimum_size)
+    get_data = lambda path: _get_data_from_path(path, with_active_layers=True, window_size=window_size, minimum_length=minimum_size, cumulative=cumulative)
     data = pd.concat(
         [
             (
@@ -56,7 +57,7 @@ def plot_standard_on_all_streams() -> None:
     logger.info(f'collecting dfs done')
     sns.set_palette(COLOR_PALATE)
     fig, axes = plt.subplots(ncols=3, figsize=(12, 6), layout="constrained")
-    g = sns.lineplot(data=data, x='instance', y='accuracy', hue='stream_name', ax=axes[0], errorbar=None, palette=COLOR_PALATE)
+    g = sns.lineplot(data=data, x='instance', y='accuracy', hue='stream_name', ax=axes[0], errorbar=('ci', 95), palette=COLOR_PALATE)
     axes[0].set_title('Accuracy')
     axes[0].set_xlabel('Number of Instances')
     axes[0].set_ylabel('Accuracy [%]')
@@ -68,7 +69,7 @@ def plot_standard_on_all_streams() -> None:
     axes[1].set_ylabel('Amount of Active Layers')
 
     sns.set_palette(COLOR_PALATE)
-    sns.lineplot(data=data, x='instance', y='emissions', hue='stream_name', ax=axes[2], errorbar=None, legend=False, palette=COLOR_PALATE)
+    sns.lineplot(data=data, x='instance', y='emissions', hue='stream_name', ax=axes[2], errorbar=('ci', 95), legend=False, palette=COLOR_PALATE)
     axes[2].set_title('Emissions')
     axes[2].set_xlabel('Number of Instances')
     axes[2].set_ylabel('Emissions [$kg\\ CO_2 \\text{equiv}$]')
@@ -77,7 +78,10 @@ def plot_standard_on_all_streams() -> None:
     g.legend().remove()
     fig.legend(handles, labels, loc ='lower center', ncols=4, bbox_to_anchor=(0.5, -0.3), bbox_transform=axes[1].transAxes)
 
-    path = PLOT_DIR_BA / 'standard_set_on_all_streams'
+    if cumulative:
+        path = PLOT_DIR_BA / 'cumulative' / 'standard_set_on_all_streams'
+    else:
+        path = PLOT_DIR_BA / 'non_cumulative' / 'standard_set_on_all_streams'
     path.mkdir(parents=True, exist_ok=True)
     plt.savefig(path / 'plot', bbox_inches='tight')
     if SHOW_PLOTS:
@@ -86,7 +90,7 @@ def plot_standard_on_all_streams() -> None:
         plt.close()
     logger.info(f'plotting standard vs all done')
 
-def plot_hyperparameter_in_iso() -> None:
+def plot_hyperparameter_in_iso(cumulative: bool) -> None:
     'plot comparision of hyperparameters'
 
     sns.set_palette(COLOR_PALATE2)
@@ -118,7 +122,7 @@ def plot_hyperparameter_in_iso() -> None:
     window_size = max(1, minimum_size // 1000)
     logger.info(f'window size chosen: {window_size} instances')
 
-    get_data = lambda path: _get_data_from_path(path, with_active_layers=True, minimum_length=minimum_size, window_size=window_size)
+    get_data = lambda path: _get_data_from_path(path, with_active_layers=True, minimum_length=minimum_size, window_size=window_size, cumulative=cumulative)
 
     for hyperparameter_key in HYPERPARAMETER_KEYS:
         df: pd.DataFrame = pd.concat((
@@ -144,7 +148,7 @@ def plot_hyperparameter_in_iso() -> None:
 
         sns.set_palette(COLOR_PALATE2)
         fig, axes = plt.subplots(ncols=3, figsize=(12, 6), layout="constrained")
-        g = sns.lineplot(data=data, x='instance', y='accuracy', hue='hyperparameter_value', ax=axes[0], errorbar=None, palette=COLOR_PALATE2)
+        g = sns.lineplot(data=data, x='instance', y='accuracy', hue='hyperparameter_value', ax=axes[0], errorbar=('ci', 95), palette=COLOR_PALATE2)
         axes[0].set_title('Accuracy')
         axes[0].set_xlabel('Number of Instances')
         axes[0].set_ylabel('Accuracy [%]')
@@ -154,7 +158,7 @@ def plot_hyperparameter_in_iso() -> None:
         axes[1].set_xlabel('Number of Instances')
         axes[1].set_ylabel('Amount of Active Layers')
         sns.set_palette(COLOR_PALATE2)
-        sns.lineplot(data=data, x='instance', y='emissions', hue='hyperparameter_value', ax=axes[2], errorbar=None, legend=False, palette=COLOR_PALATE2)
+        sns.lineplot(data=data, x='instance', y='emissions', hue='hyperparameter_value', ax=axes[2], errorbar=('ci', 95), legend=False, palette=COLOR_PALATE2)
         axes[2].set_title('Emissions')
         axes[2].set_xlabel('Number of Instances')
         axes[2].set_ylabel('Emissions [$kg\\ CO_2 \\text{equiv}$]')
@@ -163,7 +167,11 @@ def plot_hyperparameter_in_iso() -> None:
         g.legend().remove()
         fig.legend(handles, labels, loc ='lower center', ncols=3, bbox_to_anchor=(0.55, -0.3), bbox_transform=axes[1].transAxes)
 
-        path = PLOT_DIR_BA / 'hyperparameter_comparision' / HYPERPARAMETER_FILE_NAMES[hyperparameter_key]
+        if cumulative:
+            path = PLOT_DIR_BA / 'cumulative' / 'hyperparameter_comparision' / HYPERPARAMETER_FILE_NAMES[hyperparameter_key]
+        else:
+            path = PLOT_DIR_BA / 'non_cumulative' / 'hyperparameter_comparision' / HYPERPARAMETER_FILE_NAMES[hyperparameter_key]
+
         path.mkdir(parents=True, exist_ok=True)
         plt.savefig(path / 'mean_of_all_streams', bbox_inches='tight')
 
@@ -185,7 +193,7 @@ def plot_hyperparameter_in_iso() -> None:
 
             # Plot Accuracy
             sns.set_palette(COLOR_PALATE2)
-            sns.lineplot(data=stream_data, x=stream_data.index, y='accuracy', hue='hyperparameter_value', ax=axes[0], legend=False, palette=COLOR_PALATE2)
+            sns.lineplot(data=stream_data, x=stream_data.index, y='accuracy', hue='hyperparameter_value', ax=axes[0], legend=False, palette=COLOR_PALATE2, errorbar=('ci', 95),)
             axes[0].set_title('Accuracy')
             axes[0].set_xlabel('Number of Instances')
             axes[0].set_ylabel('Accuracy [%]')
@@ -199,7 +207,7 @@ def plot_hyperparameter_in_iso() -> None:
 
             # Plot Emissions
             sns.set_palette(COLOR_PALATE2)
-            sns.lineplot(data=stream_data, x=stream_data.index, y='emissions', hue='hyperparameter_value', ax=axes[2], legend=False, palette=COLOR_PALATE2)
+            sns.lineplot(data=stream_data, x=stream_data.index, y='emissions', hue='hyperparameter_value', ax=axes[2], legend=False, palette=COLOR_PALATE2, errorbar=('ci', 95),)
             axes[2].set_title('Emissions')
             axes[2].set_xlabel('Number of Instances')
             axes[2].set_ylabel('Emissions [$kg\\ CO_2 \\text{equiv}$]')
@@ -208,7 +216,11 @@ def plot_hyperparameter_in_iso() -> None:
             g.legend().remove()
             fig.legend(handles, labels, loc ='lower center', ncols=3, bbox_to_anchor=(0.55, -0.3), bbox_transform=axes[1].transAxes)
 
-            path = PLOT_DIR_BA / 'hyperparameter_comparision' / HYPERPARAMETER_FILE_NAMES[hyperparameter_key]
+            if cumulative:
+                path = PLOT_DIR_BA / 'cumulative' / 'hyperparameter_comparision' / HYPERPARAMETER_FILE_NAMES[hyperparameter_key]
+            else:
+                path = PLOT_DIR_BA / 'non_cumulative' / 'hyperparameter_comparision' / HYPERPARAMETER_FILE_NAMES[hyperparameter_key]
+
             path.mkdir(parents=True, exist_ok=True)
             plt.savefig(path / stream_name, bbox_inches='tight')
 
@@ -220,7 +232,7 @@ def plot_hyperparameter_in_iso() -> None:
             logger.info(f'plotting {stream_name} done for {hyperparameter_key}')
 
 
-def plot_hyperparameter_stable_vs_unstable() -> None:
+def plot_hyperparameter_stable_vs_unstable(cumulative: bool) -> None:
     '''compares stable hyperparameter run vs unstable hyperparameter run'''
 
     sns.set_palette(COLOR_PALATE)
@@ -230,8 +242,8 @@ def plot_hyperparameter_stable_vs_unstable() -> None:
         _find_path_by_config_with_learner_object(run_id=STANDARD_RUN_ID, config=config, stream_name=stream_name)
         for config, stream_name in zip(all_configs, all_stream_names)
     ]
-    data_frames = _load_paths(paths)
     logger = logging.getLogger('stable_vs_unstable')
+    data_frames = _load_paths(paths, cumulative=cumulative)
     logger.info(f'comparison done on {len(data_frames[0])} instances')
     minimum_size = min(map(len, data_frames))
     window_size = max(1, minimum_size // 1000)
@@ -255,7 +267,7 @@ def plot_hyperparameter_stable_vs_unstable() -> None:
     logger.info('data collecting done')
     sns.set_palette(COLOR_PALATE)
     fig, axes = plt.subplots(ncols=3, figsize=(12, 6), layout="constrained")
-    g = sns.lineplot(data=data, x='instance', y='accuracy', hue='run_name', ax=axes[0], errorbar=None, palette=COLOR_PALATE)
+    g = sns.lineplot(data=data, x='instance', y='accuracy', hue='run_name', ax=axes[0], errorbar=('ci', 95), palette=COLOR_PALATE)
     axes[0].set_title('Accuracy')
     axes[0].set_xlabel('Number of Instances')
     axes[0].set_ylabel('Accuracy [%]')
@@ -266,7 +278,7 @@ def plot_hyperparameter_stable_vs_unstable() -> None:
     axes[1].set_ylabel('Amount of Active Layers')
 
     sns.set_palette(COLOR_PALATE)
-    sns.lineplot(data=data, x='instance', y='emissions', hue='run_name', ax=axes[2], errorbar=None, legend=False, palette=COLOR_PALATE)
+    sns.lineplot(data=data, x='instance', y='emissions', hue='run_name', ax=axes[2], errorbar=('ci', 95), legend=False, palette=COLOR_PALATE)
     axes[2].set_title('Emissions')
     axes[2].set_xlabel('Number of Instances')
     axes[2].set_ylabel('Emissions [$kg\\ CO_2 \\text{equiv}$]')
@@ -275,7 +287,10 @@ def plot_hyperparameter_stable_vs_unstable() -> None:
     g.legend().remove()
     fig.legend(handles, labels, loc ='lower center', ncols=2, bbox_to_anchor=(0.5, -0.2), bbox_transform=axes[1].transAxes)
 
-    path = PLOT_DIR_BA / 'stable_vs_unstable'
+    if cumulative:
+        path = PLOT_DIR_BA / 'cumulative' / 'stable_vs_unstable'
+    else:
+        path = PLOT_DIR_BA / 'non_cumulative' / 'stable_vs_unstable'
     path.mkdir(parents=True, exist_ok=True)
     plt.savefig(path / 'stable_vs_unstable', bbox_inches='tight')
     if SHOW_PLOTS:
@@ -286,7 +301,7 @@ def plot_hyperparameter_stable_vs_unstable() -> None:
     logger.info("plotting stable vs unstable done")
 
 
-def plot_feature_comparision_different() -> None:
+def plot_feature_comparision_different(cumulative: bool) -> None:
     """plots the comparison of the adl model features"""
 
     logger = logging.getLogger('plot_feature_comparision_different')
@@ -326,7 +341,7 @@ def plot_feature_comparision_different() -> None:
     logging.getLogger('feature_comparison').info(f'feature comparison done on {minimum_length} instances')
     window_size = max(1, minimum_length // 1000)
     logging.getLogger('feature_comparison').info(f'window size chosen: {window_size} instances')
-    get_data = lambda path: _get_data_from_path(path, window_size=window_size, with_active_layers=False, minimum_length=minimum_length)
+    get_data = lambda path: _get_data_from_path(path, window_size=window_size, with_active_layers=False, minimum_length=minimum_length, cumulative=cumulative)
 
     for feature in features_to_plot:
         mean_of_feature_on_stream_by_combined: Dict[str, pd.DataFrame] = {}
@@ -348,7 +363,7 @@ def plot_feature_comparision_different() -> None:
 
         sns.set_palette(COLOR_PALATE)
         fig, axes = plt.subplots(ncols=3, figsize=(12, 6), layout="constrained")
-        sns.lineplot(data=mean_of_feature, x='instance', y='accuracy', hue='feature', ax=axes[0], errorbar=None, legend=False, palette=COLOR_PALATE)
+        sns.lineplot(data=mean_of_feature, x='instance', y='accuracy', hue='feature', ax=axes[0], errorbar=('ci', 95), legend=False, palette=COLOR_PALATE)
 
         axes[0].set_title('Accuracy')
         axes[0].set_xlabel('Number of Instances')
@@ -356,13 +371,13 @@ def plot_feature_comparision_different() -> None:
 
         # Plot Emissions
         sns.set_palette(COLOR_PALATE)
-        g = sns.lineplot(data=mean_of_feature, x='instance', y='emissions', hue='feature', ax=axes[1], errorbar=None, palette=COLOR_PALATE)
+        g = sns.lineplot(data=mean_of_feature, x='instance', y='emissions', hue='feature', ax=axes[1], errorbar=('ci', 95), palette=COLOR_PALATE)
         axes[1].set_title('Emissions')
         axes[1].set_xlabel('Number of Instances')
         axes[1].set_ylabel('Emissions [$kg\\ CO_2 \\text{equiv}$]')
 
         sns.set_palette(COLOR_PALATE)
-        sns.lineplot(data=mean_of_feature, x='instance', y='accuracy_per_emission', ax=axes[2], hue='feature', errorbar=None, legend=False, palette=COLOR_PALATE)
+        sns.lineplot(data=mean_of_feature, x='instance', y='accuracy_per_emission', ax=axes[2], hue='feature', errorbar=('ci', 95), legend=False, palette=COLOR_PALATE)
         axes[2].set_title('$\\frac{\\text{Accuracy}}{\\text{Emissions}}$ vs Instances')
         axes[2].set_xlabel('Number of Instances')
         axes[2].set_ylabel('$\\left(\\frac{\\text{Accuracy}}{\\text{Emissions}}\\right)$')
@@ -371,7 +386,11 @@ def plot_feature_comparision_different() -> None:
         g.legend().remove()
         fig.legend(handles, labels, loc ='lower center', ncols=2, bbox_to_anchor=(0.5, -0.2), bbox_transform=axes[1].transAxes)
 
-        path = PLOT_DIR_BA / 'feature_comparison' / 'three_plots' / LEARNER_CONFIG_TO_NAMES[feature]
+        if cumulative:
+            path = PLOT_DIR_BA / 'cumulative' / 'feature_comparison' / 'three_plots' / LEARNER_CONFIG_TO_NAMES[feature]
+        else:
+            path = PLOT_DIR_BA / 'non_cumulative' / 'feature_comparison' / 'three_plots' / LEARNER_CONFIG_TO_NAMES[feature]
+
         path.mkdir(parents=True, exist_ok=True)
         plt.savefig(path / 'with_vs_without', bbox_inches='tight')
 
@@ -382,7 +401,7 @@ def plot_feature_comparision_different() -> None:
 
         sns.set_palette(COLOR_PALATE)
         fig, axes = plt.subplots(ncols=2, figsize=(12, 6), layout="constrained")
-        sns.lineplot(data=mean_of_feature, x='instance', y='accuracy', hue='feature', ax=axes[0], errorbar=None, legend=False, palette=COLOR_PALATE)
+        sns.lineplot(data=mean_of_feature, x='instance', y='accuracy', hue='feature', ax=axes[0], errorbar=('ci', 95), legend=False, palette=COLOR_PALATE)
 
         axes[0].set_title('Accuracy')
         axes[0].set_xlabel('Number of Instances')
@@ -390,7 +409,7 @@ def plot_feature_comparision_different() -> None:
 
         # Plot Emissions
         sns.set_palette(COLOR_PALATE)
-        g = sns.lineplot(data=mean_of_feature, x='instance', y='emissions', hue='feature', ax=axes[1], errorbar=None, palette=COLOR_PALATE)
+        g = sns.lineplot(data=mean_of_feature, x='instance', y='emissions', hue='feature', ax=axes[1], errorbar=('ci', 95), palette=COLOR_PALATE)
         axes[1].set_title('Emissions')
         axes[1].set_xlabel('Number of Instances')
         axes[1].set_ylabel('Emissions [$kg\\ CO_2 \\text{equiv}$]')
@@ -399,7 +418,11 @@ def plot_feature_comparision_different() -> None:
         g.legend().remove()
         fig.legend(handles, labels, loc ='lower center', ncols=2, bbox_to_anchor=(0.5, -0.2), bbox_transform=axes[1].transAxes)
 
-        path = PLOT_DIR_BA / 'feature_comparison' / 'two_plots' / LEARNER_CONFIG_TO_NAMES[feature]
+        if cumulative:
+            path = PLOT_DIR_BA / 'cumulative' / 'feature_comparison' / 'two_plots' / LEARNER_CONFIG_TO_NAMES[feature]
+        else:
+            path = PLOT_DIR_BA / 'non_cumulative' / 'feature_comparison' / 'two_plots' / LEARNER_CONFIG_TO_NAMES[feature]
+
         path.mkdir(parents=True, exist_ok=True)
         plt.savefig(path / 'with_vs_without', bbox_inches='tight')
 
@@ -412,7 +435,7 @@ def plot_feature_comparision_different() -> None:
 
 
 
-def plot_feature_comparision() -> None:
+def plot_feature_comparision(cumulative: bool) -> None:
     """plots the comparison of the adl model features"""
 
     logger = logging.getLogger('feature_comparison')
@@ -452,7 +475,7 @@ def plot_feature_comparision() -> None:
     logging.getLogger('feature_comparison').info(f'feature comparison done on {minimum_length} instances')
     window_size = max(1, minimum_length // 1000)
     logging.getLogger('feature_comparison').info(f'window size chosen: {window_size} instances')
-    get_data = lambda path: _get_data_from_path(path, window_size=window_size, with_active_layers=False, minimum_length=minimum_length)
+    get_data = lambda path: _get_data_from_path(path, window_size=window_size, with_active_layers=False, minimum_length=minimum_length, cumulative=cumulative)
 
     for feature in features_to_plot:
         differences_per_stream: Dict[str, pd.DataFrame] = {}
@@ -468,16 +491,15 @@ def plot_feature_comparision() -> None:
             logger.info(f"collecting all delta dataframes done for {stream_name}")
             differences_per_stream[stream_name] = reduce(lambda a, b: a + b, differences_per_stream_and_feature) / len(differences_per_stream_and_feature)
             logger.info(f"calculating mean of differences for stream {stream_name} done")
-
+        logger.info(f'collecting all dataframes done for feature: {features_to_plot}')
         logger.info("start plotting")
-        logger.info('collecting all dataframes done for streams')
-        three_feature_plots_per_stream(differences_per_stream, feature)
-        two_feature_plots_per_stream(differences_per_stream, feature)
+        three_feature_plots_per_stream(differences_per_stream, feature, cumulative)
+        two_feature_plots_per_stream(differences_per_stream, feature, cumulative)
         logger.info('plotting per stream done')
         mean_difference: pd.DataFrame = reduce(lambda a, b: a + b, differences_per_stream.values()) / len(differences_per_stream)
         logger.info('calculating mean done')
-        three_feature_plots_mean(mean_difference, feature)
-        two_feature_plots(mean_difference, feature)
+        three_feature_plots_mean(mean_difference, feature, cumulative)
+        two_feature_plots(mean_difference, feature, cumulative)
         logger.info(f'plotting feature comparision done {datetime.now()}')
 
 def get_minimum_length(paths):
@@ -491,13 +513,18 @@ def get_minimum_length(paths):
     return int(summary.loc[summary['is_in_paths'], 'amount of instances'].min())
 
 
-def _load_paths(paths: List[Path]) -> List[pd.DataFrame]:
-    data_frames = [_get_data_from_path_naive(path) for path in paths]
+def _load_paths(paths: List[Path], cumulative) -> List[pd.DataFrame]:
+    data_frames = [_get_data_from_path_naive(path, cumulative) for path in paths]
     # least_amount_of_rows = min(map(len, data_frames))
     return [df.reset_index() for df in data_frames]
 
+def _clean_emissions_data(df: pd.DataFrame, cumulative: bool) -> pd.DataFrame:
+    if cumulative:
+        return df.assign(emissions=lambda df: df.emissions.cumsum())
+    return df
 
-def _get_data_from_path(path: Path, with_active_layers: bool, window_size: int, minimum_length: int) -> pd.DataFrame:
+
+def _get_data_from_path(path: Path, with_active_layers: bool, window_size: int, minimum_length: int, cumulative) -> pd.DataFrame:
     all_metrics_path = path / "metrics_per_window.pickle"
     logger = logging.getLogger("get_data_from_path")
     if not all_metrics_path.exists():
@@ -528,20 +555,20 @@ def _get_data_from_path(path: Path, with_active_layers: bool, window_size: int, 
     if not (path / "emissions.csv").exists():
         logger.error(f"No emissions per window under {path}")
         raise ValueError(f'No emissions file exists under this path: {path}')
-    emissions = (pd
-                 .read_csv((path / "emissions.csv"), usecols=['emissions'])
-                 .head(minimum_length)
-                 .rolling(window_size, min_periods=1, step=window_size, center=True)
-                 .mean()
-                 .head(minimum_length // window_size + 1)
-                 .reset_index(drop=True)
-                 .assign(instance=lambda x: x.index * window_size)
-                 .set_index('instance')
-                 )
+    emissions = _clean_emissions_data((pd
+                                       .read_csv((path / "emissions.csv"), usecols=['emissions'])
+                                       .head(minimum_length)
+                                       .rolling(window_size, min_periods=1, step=window_size, center=True)
+                                       .mean()
+                                       .head(minimum_length // window_size + 1)
+                                       .reset_index(drop=True)
+                                       .assign(instance=lambda x: x.index * window_size)
+                                       .set_index('instance')
+                                       ), cumulative)
 
     return pd.merge(results_csv, emissions, right_index=True, left_index=True).sort_index()
 
-def _get_data_from_path_naive(path: Path) -> pd.DataFrame:
+def _get_data_from_path_naive(path: Path,  cumulative) -> pd.DataFrame:
     all_metrics_path = path / "metrics_per_window.pickle"
     logger = logging.getLogger("get_data_from_path")
     if not all_metrics_path.exists():
@@ -551,11 +578,11 @@ def _get_data_from_path_naive(path: Path) -> pd.DataFrame:
     if not (path / "emissions.csv").exists():
         logger.error(f"No emissions per window under {path}")
         raise ValueError(f'No emissions file exists under this path: {path}')
-    results_csv = results_csv.merge(pd.read_csv((path / "emissions.csv"), usecols=['emissions']), right_index=True, left_index=True)
+    results_csv = results_csv.merge(_clean_emissions_data(pd.read_csv((path / "emissions.csv"), usecols=['emissions']), cumulative), right_index=True, left_index=True)
     return results_csv
 
 
-def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature: str) -> None:
+def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature: str, cumulative: bool) -> None:
     """Plot 2 metrics per stream for given feature and window_size"""
     sns.set_palette(COLOR_PALATE)
     # figure
@@ -570,10 +597,10 @@ def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature
     fig, axes = plt.subplots(ncols=2, figsize=(12, 6), layout="constrained")
 
 
-    sns.lineplot(data=data, x='instance', y='accuracy', ax=axes[0], hue='stream_name', legend=False, palette=COLOR_PALATE)
+    sns.lineplot(data=data, x='instance', y='accuracy', ax=axes[0], hue='stream_name', legend=False, palette=COLOR_PALATE, errorbar=('ci', 95),)
 
 
-    g = sns.lineplot(data=data, x='instance', y='emissions', ax=axes[1], hue='stream_name', palette=COLOR_PALATE)
+    g = sns.lineplot(data=data, x='instance', y='emissions', ax=axes[1], hue='stream_name', palette=COLOR_PALATE, errorbar=('ci', 95),)
 
 
     axes[0].set_title('$\\Delta$ Accuracy vs Instances')
@@ -593,7 +620,10 @@ def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature
     g.legend().remove()
     fig.legend(handles, labels, loc ='lower center', ncols=4, bbox_to_anchor=(0.5, -0.3), bbox_transform=axes[1].transAxes)
 
-    path = PLOT_DIR_BA / 'feature_comparison' / 'three_plots' / title
+    if cumulative:
+        path = PLOT_DIR_BA / 'cumulative' / 'feature_comparison' / 'two_plots' / title
+    else:
+        path = PLOT_DIR_BA / 'non_cumulative' / 'feature_comparison' / 'two_plots' / title
     path.mkdir(parents=True, exist_ok=True)
     plt.savefig(path / 'one_line_per_stream', bbox_inches='tight')
     if SHOW_PLOTS:
@@ -602,7 +632,7 @@ def two_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature
         plt.close()
 
 
-def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature: str) -> None:
+def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], feature: str, cumulative: bool) -> None:
     """Plot 3 metrics per stream for given feature and window_size"""
     sns.set_palette(COLOR_PALATE)
     # figure
@@ -617,13 +647,13 @@ def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], featu
     fig, axes = plt.subplots(ncols=3, figsize=(12, 6), layout="constrained")
 
 
-    sns.lineplot(data=data, x='instance', y='accuracy', ax=axes[0], hue='stream_name', legend=False, palette=COLOR_PALATE)
+    sns.lineplot(data=data, x='instance', y='accuracy', ax=axes[0], hue='stream_name', legend=False, palette=COLOR_PALATE, errorbar=('ci', 95),)
 
 
-    g = sns.lineplot(data=data, x='instance', y='emissions', ax=axes[1], hue='stream_name', palette=COLOR_PALATE)
+    g = sns.lineplot(data=data, x='instance', y='emissions', ax=axes[1], hue='stream_name', palette=COLOR_PALATE, errorbar=('ci', 95),)
 
 
-    sns.lineplot(data=data, x='instance', y='accuracy_per_emission', ax=axes[2], hue='stream_name', legend=False, palette=COLOR_PALATE)
+    sns.lineplot(data=data, x='instance', y='accuracy_per_emission', ax=axes[2], hue='stream_name', legend=False, palette=COLOR_PALATE, errorbar=('ci', 95),)
 
     axes[0].set_title('$\\Delta$ Accuracy vs Instances')
     axes[0].set_xlabel('Number of Instances')
@@ -646,7 +676,10 @@ def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], featu
     g.legend().remove()
     fig.legend(handles, labels, loc ='lower center', ncols=4, bbox_to_anchor=(0.5, -0.3), bbox_transform=axes[1].transAxes)
 
-    path = PLOT_DIR_BA / 'feature_comparison' / 'three_plots' / title
+    if cumulative:
+        path = PLOT_DIR_BA / 'cumulative' / 'feature_comparison' / 'three_plots' / title
+    else:
+        path = PLOT_DIR_BA / 'non_cumulative' / 'feature_comparison' / 'three_plots' / title
     path.mkdir(parents=True, exist_ok=True)
     plt.savefig(path / 'one_line_per_stream', bbox_inches='tight')
     if SHOW_PLOTS:
@@ -655,7 +688,7 @@ def three_feature_plots_per_stream(df_per_stream: Dict[str, pd.DataFrame], featu
         plt.close()
 
 
-def two_feature_plots(x: pd.DataFrame, feature: str) -> None:
+def two_feature_plots(x: pd.DataFrame, feature: str, cumulative: bool) -> None:
     '''plot the mean of a feature in 3 ways in a single figure'''
     sns.set_palette(COLOR_PALATE)
 
@@ -663,12 +696,12 @@ def two_feature_plots(x: pd.DataFrame, feature: str) -> None:
     fig, axes = plt.subplots(ncols=2, figsize=(12, 6))
 
     #  3 subplots
-    sns.lineplot(x['accuracy'], ax=axes[0])
+    sns.lineplot(x['accuracy'], ax=axes[0], errorbar=('ci', 95),)
     axes[0].set_title('$\\Delta$ Accuracy vs Instances')
     axes[0].set_xlabel('Number of Instances')
     axes[0].set_ylabel('$\\Delta$ Accuracy [%]')
 
-    sns.lineplot(x['emissions'], ax=axes[1])
+    sns.lineplot(x['emissions'], ax=axes[1], errorbar=('ci', 95),)
     axes[1].set_title('$\\Delta$ Emissions vs Instances')
     axes[1].set_xlabel('Number of Instances')
     axes[1].set_ylabel('$\\Delta$ Emissions [$kg\\ CO_2 \\text{equiv}$]')
@@ -677,8 +710,11 @@ def two_feature_plots(x: pd.DataFrame, feature: str) -> None:
     title = LEARNER_CONFIG_TO_NAMES[feature]
     # plt.suptitle(title)
     plt.tight_layout()
+    if cumulative:
+        path = PLOT_DIR_BA / 'cumulative' / 'feature_comparison' / 'two_plots' / title
+    else:
+        path = PLOT_DIR_BA / 'non_cumulative' / 'feature_comparison' / 'two_plots' / title
 
-    path = PLOT_DIR_BA / 'feature_comparison' / 'two_plots' / title
     path.mkdir(parents=True, exist_ok=True)
     plt.savefig(path / 'mean_of_all_streams', bbox_inches='tight')
     if SHOW_PLOTS:
@@ -687,7 +723,7 @@ def two_feature_plots(x: pd.DataFrame, feature: str) -> None:
         plt.close()
 
 
-def three_feature_plots_mean(x: pd.DataFrame, feature: str) -> None:
+def three_feature_plots_mean(x: pd.DataFrame, feature: str, cumulative: bool) -> None:
     '''plot the mean of a feature in 3 ways in a single figure'''
     sns.set_palette(COLOR_PALATE)
     # data preparation:
@@ -696,18 +732,18 @@ def three_feature_plots_mean(x: pd.DataFrame, feature: str) -> None:
     fig, axes = plt.subplots(ncols=3, figsize=(12, 6))
 
     #  3 subplots
-    sns.lineplot(x['accuracy'], ax=axes[0])
+    sns.lineplot(x['accuracy'], ax=axes[0], errorbar=('ci', 95),)
     axes[0].set_title('$\\Delta$ Accuracy vs Instances')
     axes[0].set_xlabel('Number of Instances')
     axes[0].set_ylabel('$\\Delta$ Accuracy [%]')
 
-    sns.lineplot(x['emissions'], ax=axes[1])
+    sns.lineplot(x['emissions'], ax=axes[1], errorbar=('ci', 95),)
     axes[1].set_title('$\\Delta$ Emissions vs Instances')
     axes[1].set_xlabel('Number of Instances')
     axes[1].set_ylabel('$\\Delta$ Emissions [$kg\\ CO_2 \\text{equiv}$]')
 
     x['accuracy_per_emission'] = x['accuracy'] / (x['emissions'])
-    sns.lineplot(data=x, x=x.index, y='accuracy_per_emission', ax=axes[2])
+    sns.lineplot(data=x, x=x.index, y='accuracy_per_emission', ax=axes[2], errorbar=('ci', 95),)
     axes[2].set_title('$\\frac{\\Delta\\text{Accuracy}}{\\Delta\\text{Emissions}}$ vs Instances')
     axes[2].set_xlabel('Number of Instances')
     axes[2].set_ylabel('$\\Delta\\left(\\frac{\\text{Accuracy}}{\\text{Emissions}}\\right)$')
@@ -717,7 +753,11 @@ def three_feature_plots_mean(x: pd.DataFrame, feature: str) -> None:
     # plt.suptitle(title)
     plt.tight_layout()
 
-    path = PLOT_DIR_BA / 'feature_comparison' / 'three_plots' / title 
+    if cumulative:
+        path = PLOT_DIR_BA / 'cumulative' / 'feature_comparison' / 'three_plots' / title
+    else:
+        path = PLOT_DIR_BA / 'non_cumulative' / 'feature_comparison' / 'three_plots' / title
+
     path.mkdir(parents=True, exist_ok=True)
     plt.savefig(path / 'mean_of_all_streams', bbox_inches='tight')
     if SHOW_PLOTS:
@@ -732,15 +772,19 @@ if __name__ == "__main__":
     logger.info("------------------------------------------")
     logger.info(f"getting started: {datetime.now()}")
     rename_folders(STANDARD_RUN_ID)
-    logger.info(f"starting feature comparison: {datetime.now()}")
-    plot_feature_comparision()
-    # logger.info(f"starting different feature comparison: {datetime.now()}")
-    # plot_feature_comparision_different()
-    # logger.info(f"starting hyperparameter comparison: {datetime.now()}")
-    # plot_hyperparameter_in_iso()
-    # logger.info(f"starting stable vs unstable comparison: {datetime.now()}")
-    # plot_hyperparameter_stable_vs_unstable()
-    # logger.info(f"starting standard vs all comparison: {datetime.now()}")
-    # plot_standard_on_all_streams()
-    # logger.info(f"plotting ba ended: {datetime.now()}")
-    # logger.info("------------------------------------------")
+    for cumulative in [
+        # True,
+        False
+    ]:
+        logger.info(f"starting feature comparison: {datetime.now()}")
+        plot_feature_comparision(cumulative)
+        logger.info(f"starting different feature comparison: {datetime.now()}")
+        plot_feature_comparision_different(cumulative)
+        logger.info(f"starting hyperparameter comparison: {datetime.now()}")
+        plot_hyperparameter_in_iso(cumulative)
+        logger.info(f"starting stable vs unstable comparison: {datetime.now()}")
+        plot_hyperparameter_stable_vs_unstable(cumulative)
+        logger.info(f"starting standard vs all comparison: {datetime.now()}")
+        plot_standard_on_all_streams(cumulative)
+    logger.info(f"plotting ba ended: {datetime.now()}")
+    logger.info("------------------------------------------")
