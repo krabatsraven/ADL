@@ -32,8 +32,6 @@ adl_classifier = extended_classifier(
 )
 
 results_ht = prequential_evaluation(stream=stream_data, learner=adl_classifier)
-
-# add evaluate part
 ```
 
 ## Structure
