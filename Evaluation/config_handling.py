@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional, Tuple, Dict, Any, Set
 
 import pandas as pd
+import torch
 from capymoa.drift.detectors import ADWIN
 from capymoa.stream import Stream, ARFFStream
 from torch.nn import CrossEntropyLoss
@@ -14,10 +15,9 @@ from ADLClassifier import grace_period_per_layer, extend_classifier_for_evaluati
 from ADLClassifier import NETWORK_GRAPH_NAME, EMISSION_RECORDER_NAME, DELETE_DELETED_LAYERS_NAME, \
     DISABLED_DELETED_LAYERS_NAME, WINNING_LAYER_TRAINING_NAME, VECTORIZED_FOR_LOOP_NAME, INPUT_PREPROCESSING_NAME, \
     ADD_WEIGHT_CORRECTION_PARAMETER_NAME, GRACE_PERIOD_PER_LAYER_NAME, GLOBAL_GRACE_PERIOD_NAME
-from ADLClassifier.Resources.NLLLoss import NLLLoss
 
-from Evaluation.SynteticStreams.SynteticAgrawalStreams import agrawal_no_drift, agrawal_single_drift, agrawal_three_drifts, agrawal_four_drifts
-from Evaluation.SynteticStreams.SyntheticSEAStreams import sea_no_drift, sea_single_drift, sea_three_drifts, sea_four_drifts
+from data.SynteticStreams.SynteticAgrawalStreams import agrawal_no_drift, agrawal_single_drift, agrawal_three_drifts, agrawal_four_drifts
+from data.SynteticStreams.SyntheticSEAStreams import sea_no_drift, sea_single_drift, sea_three_drifts, sea_four_drifts
 from Evaluation._config import ADWIN_DELTA_STANDIN, LEARNER_PART_NAMES
 
 
@@ -147,7 +147,7 @@ def config_to_loss_fn(loss_fn_name: str):
         case 'CrossEntropyLoss':
             return CrossEntropyLoss()
         case 'NLLLoss':
-            return NLLLoss
+            return lambda pred, label: torch.nn.NLLLoss()(torch.log(pred), label)
 
 
 def standardize_learner_name(learner_name: str) -> str:

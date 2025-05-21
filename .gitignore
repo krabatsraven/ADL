@@ -3,3 +3,6 @@ venv/
 *.pdf
 *.png
 *.log
+results/
+tmp/
+plots/

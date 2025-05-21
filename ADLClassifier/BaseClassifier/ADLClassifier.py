@@ -12,7 +12,6 @@ from capymoa.stream import Schema
 from torch import nn
 from torch.optim import Optimizer
 
-from ADLClassifier.Resources import BaseLearningRateProgression
 from Model import AutoDeepLearner
 
 
@@ -23,9 +22,9 @@ class ADLClassifier(Classifier):
             random_seed: int = 1,
             nn_model: Optional[AutoDeepLearner] = None,
             optimizer: Optional[Optimizer] = None,
-            loss_fn=nn.CrossEntropyLoss(),
+            loss_fn=lambda pred, label: torch.nn.NLLLoss()(torch.log(pred), label),
             device: str = "cpu",
-            lr: Union[float | BaseLearningRateProgression] = 1e-3,
+            lr: float = 1e-3,
             drift_detector: BaseDriftDetector = ADWIN(delta=1e-5),
             drift_criterion: str = "accuracy",
             mci_threshold_for_layer_pruning: float = 10**-7
@@ -36,7 +35,7 @@ class ADLClassifier(Classifier):
         self.model: Optional[AutoDeepLearner] = None
         self.optimizer: Optional[Optimizer] = None
         self.loss_function = loss_fn
-        self.__learning_rate: Optional[Union[float | BaseLearningRateProgression]] = None
+        self.__learning_rate: Optional[float] = None
         self.learning_rate_progression: Optional[bool] = None
         self.device: str = device
         self._nr_of_instances_seen = 0
@@ -679,15 +678,10 @@ class ADLClassifier(Classifier):
             return self.__learning_rate
 
     @learning_rate.setter
-    def learning_rate(self, value: Union[float | BaseLearningRateProgression]) -> None:
+    def learning_rate(self, value: float) -> None:
         if isinstance(value, float):
             self.__learning_rate = value
             self.learning_rate_progression = False
-
-        elif isinstance(value, BaseLearningRateProgression):
-            self.__learning_rate = value
-            self.__learning_rate.classifier = self
-            self.learning_rate_progression = True
 
         else:
             raise TypeError(f"the given learning rate {value} is of unsupported type {type(value)}")

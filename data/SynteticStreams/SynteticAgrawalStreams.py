@@ -1,7 +1,7 @@
 from capymoa.stream.drift import DriftStream
 from capymoa.stream.generator import AgrawalGenerator
 
-from Evaluation.SynteticStreams._functionals import recurrent_drift_for_agrawal_concepts
+from data.SynteticStreams._functionals import recurrent_drift_for_agrawal_concepts
 
 
 agrawal_no_drift = DriftStream(

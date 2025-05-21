@@ -1,7 +1,7 @@
 from capymoa.stream.drift import DriftStream
 from capymoa.stream.generator import SEA
 
-from Evaluation.SynteticStreams._functionals import recurrent_drift_for_sea_concepts
+from data.SynteticStreams._functionals import recurrent_drift_for_sea_concepts
 
 sea_no_drift = DriftStream(
     stream=[

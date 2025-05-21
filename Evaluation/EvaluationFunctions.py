@@ -13,7 +13,7 @@ from capymoa.evaluation import prequential_evaluation
 from capymoa.stream import Stream
 
 from ADLClassifier import ADLClassifier, global_grace_period, grace_period_per_layer, extend_classifier_for_evaluation, \
-    winning_layer_training, vectorized_for_loop, BaseLearningRateProgression, disabeling_deleted_layers, \
+    winning_layer_training, vectorized_for_loop, disabeling_deleted_layers, \
     delete_deleted_layers, input_preprocessing, add_weight_correction_parameter_to_user_choices, EMISSION_RECORDER_NAME
 from ADLClassifier.ExtendedClassifier.FunctionalityWrapper.add_weight_correction_parameter_to_user_choices import \
     ADD_WEIGHT_CORRECTION_PARAMETER_NAME

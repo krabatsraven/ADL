@@ -8,6 +8,12 @@ from Evaluation._config import AMOUNT_OF_CLASSIFIERS, AMOUNT_HYPERPARAMETER_TEST
 from Evaluation.benchmark_protokoll import bench_one_feature, bench_one_hyperparameter_isolated, bench_stable, \
     bench_unstable
 
+"""
+This is the benchmark skript for of all planned tests, it assumes it is started in a slurm context, 
+with an job array [0:AMOUNT_OF_STRINGS * AMOUNT_OF_CLASSIFIERS + AMOUNT_HYPERPARAMETER_TESTS + 2]
+it has to be placed in the main folder to work properly
+"""
+
 if __name__ == "__main__":
     logging.basicConfig(filename=Path("mogon_run.log").absolute().as_posix(), level=logging.INFO)
     (RESULTS_DIR_PATH/ f"runID={STANDARD_RUN_ID}").mkdir(parents=True, exist_ok=True)

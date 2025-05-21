@@ -46,10 +46,10 @@ CONCEPT_LENGTH = (MIN_INSTANCES // 5) * 4
 MAX_RECURRENCES_PER_STREAM = MAX_INSTANCES_TEST // CONCEPT_LENGTH
 
 STREAM_STRINGS = [
-    'electricity',
+    # 'electricity',
     'agraval_no_drift', 'agraval_single_drift', 'agraval_three_drifts', 'agraval_four_drifts',
     'sea_no_drift', 'sea_single_drift', 'sea_three_drifts',
-    # 'sea_four_drifts'
+    'sea_four_drifts',
 ]
 
 STREAM_NAMES = {
@@ -161,5 +161,3 @@ AMOUNT_HYPERPARAMETERS = list(map(len, HYPERPARAMETERS.values()))
 AMOUNT_HYPERPARAMETERS_BEFORE = [sum(AMOUNT_HYPERPARAMETERS[:i]) for i in range(len(AMOUNT_HYPERPARAMETERS))]
 TOTAL_AMOUNT_HYPERPARAMETERS = sum(AMOUNT_HYPERPARAMETERS) 
 AMOUNT_HYPERPARAMETER_TESTS = AMOUNT_OF_STRINGS * TOTAL_AMOUNT_HYPERPARAMETERS
-
-CUMULATIVE = False
