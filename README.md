@@ -1,5 +1,3 @@
-from prompt_toolkit.key_binding.bindings.emacs import load_emacs_shift_selection_bindingsfrom tests.resources import optimizer_choicesfrom tests.resources import optimizer_choices
-
 # Autonomous Deep Learner
 Implementation of the Autonomous Deep Learning: Continual Learning Approach for Dynamic Environments Paper by Andri Ashfahani and Mahardhika Pratama
 using torch to define the model and capymoa to define the classifier.
