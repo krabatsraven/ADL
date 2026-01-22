@@ -60,7 +60,7 @@ while Electricity.has_more_instances():
 ```
 Note that this example does not change the architecture of the model.
 
-The base classifier $\texttt{ADLClassifier(Classifier)}$ implemented in capymoa provides $\texttt{train(x: instance) -> None}$ $\texttt{predict(x: instance) -> index of class}$ $\texttt{predict_proba(x: instance) -> class probabilities}$
+The base classifier $\texttt{ADLClassifier(Classifier)}$ implemented in capymoa provides $\texttt{train(x: instance) -> None}$ $\texttt{predict(x: instance) -> index of class}$ $\texttt{predict\_proba(x: instance) -> class probabilities}$
 which are the same as the [capymoa functionalities](https://capymoa.org/api/modules/capymoa.base.Classifier.html#capymoa.base.Classifier), and allows the user utilization of capymoas training functionalities to implement the adl training loop.
 ```python
 from data import Electricity
@@ -75,7 +75,7 @@ while stream_data.has_more_instances():
 
 The base classifiers functions is attempted to be as close as possible on the design of the [paper](https://arxiv.org/pdf/1810.07348) and the [mathlab implementation](https://github.com/andriash001/ADL/), 
 the only exception is the winning layer training of the weight matrix and bias vector of the hidden linear layer with the highest voting weight, which is implemented as a feature.
-$\texttt{extended_classifier(winning_layer_training, add_weight_correction_parameter_to_user_choices)}$ provides a (close to) canonical classifier.
+$\texttt{extended\_classifier(winning\_layer\_training, add\_weight\_correction\_parameter\_to\_user\_choices)}$ provides a (close to) canonical classifier.
 
 ## Features Available
 We differentiated between features only for [evaluation](#evaluation) and features extending the functionality of the [classifier](#classifier-features).
@@ -85,49 +85,49 @@ A fabricator function for a classifier with the described functionalities is pro
 The arguments are simply the wrapper functionalities mentioned below, which add the described alterations to the base classifier.
 
 #### Grace Period
-$\texttt{global_grace_period(duration: int = 1000)}$ and $\texttt{grace_period_per_layer(duration: int = 1000)}$ both implement a grace period.
+$\texttt{global\_grace\_period(duration: int = 1000)}$ and $\texttt{grace\_period\_per_layer(duration: int = 1000)}$ both implement a grace period.
 Both forbid any changes either to the model in case of the global version, or the specific layer in case of the per layer version 
 for the duration of the grace period measured in instances seen.
 A new grace period is started when either a node or a layer is added or deleted.
 To add the grace period to the classifier either add as a decorator or provide to the factory function as argument with the intented grace period:
-$\texttt{extended_classifier(global_grace_period(256))}$ to add a global grace period of 256 instances.
+$\texttt{extended\_classifier(global\_grace\_period(256))}$ to add a global grace period of 256 instances.
 The behaviour of both functionalities together is untested.
 
 #### Layer Deletion Handling
 In addition to the default of only deleting the output layer  
-$\texttt{disabeling_deleted_layers}$ sets $\texttt{requires_grad}$ of the corresponding hidden layer to False,  
-and $\texttt{delete_deleted_layers}$ omits the hidden layers activation function and deletes the hidden layer by merging the weightmatrix with the one of the layer behind it.  
+$\texttt{disabeling\_deleted\_layers}$ sets $\texttt{requires\_grad}$ of the corresponding hidden layer to False,  
+and $\texttt{delete\_deleted\_layers}$ omits the hidden layers activation function and deletes the hidden layer by merging the weightmatrix with the one of the layer behind it.  
 The behaviour of both functionalities together is untested.
 
 #### Adding a Voting Weight Learning Rate
-Adds $\texttt{layer_weight_learning_rate}$ as an additional hyperparameter to the kwargs of the adl classifier.
+Adds $\texttt{layer\_weight\_learning_rate}$ as an additional hyperparameter to the kwargs of the adl classifier.
 If not used the learning rate doubles as step size to increase/decrease the voting weight correction factor inside the voting weight training.
-To use this simply add $\texttt{add_weight_correction_parameter_to_user_choices()}$ to the args of the fabricator function.
+To use this simply add $\texttt{add\_weight\_correction\_parameter\_to\_user\_choices()}$ to the args of the fabricator function.
 
 #### Input Preprocessing
 Adds input normalization as well as one-hot-encoding of the input instance before processing it.
-To use this simply add $\texttt{input_preprocessing}$ to the args of the fabricator function.
+To use this simply add $\texttt{input\_preprocessing}$ to the args of the fabricator function.
 
 #### Vectorizing the MCI Calculation
 The calculation of the mci calculation for each class probability for each pair of active layers was redone using torch tensors to speed up the calculation.
-To use the vectorized version simply add $\texttt{vectorized_for_loop}$ to the args of the fabricator function.
+To use the vectorized version simply add $\texttt{vectorized\_for\_loop}$ to the args of the fabricator function.
 
 #### Winning Layer
 Implements the Winning Layer Training described by the [paper](https://arxiv.org/pdf/1810.07348) to be able to research its effects on the classifier.
-To employ winning layer training simply add $\texttt{winning_layer_training}$ to the args of the fabricator function 
+To employ winning layer training simply add $\texttt{winning\_layer\_training}$ to the args of the fabricator function 
 otherwise all active output layers and all hidden layers are trained using the optimizer.
 
 ### Evaluation
-A fabricator function for a classifier with the described evaluation functionalities is provided in $\texttt{extend_classifier_for_evaluation}$.
-The argument $\texttt{with_emissions: bool = False}$ chooses whether the codecarbon framework is to be employed. ([Energy Recorder](#recorder-of-emitted-carbon-dioxide-and-used-energy))  
+A fabricator function for a classifier with the described evaluation functionalities is provided in $\texttt{extend\_classifier\_for\_evaluation}$.
+The argument $\texttt{with\_emissions: bool = False}$ chooses whether the codecarbon framework is to be employed. ([Energy Recorder](#recorder-of-emitted-carbon-dioxide-and-used-energy))  
 The rest of the arguments are the [classifier features](#classifier-features), where the order of adding should not matter. 
 
 #### Recorder of the current architecture
-$\texttt{record_network_graph}$ keeps track of the architecture adl possesses before it processes the instance.
+$\texttt{record\_network\_graph}$ keeps track of the architecture adl possesses before it processes the instance.
 Tracked are the number of hidden layers, the shape of these layers, what layers are active, which layer was the winning layer, 
 and what the current learning rate was.
 #### Recorder of emitted Carbon-dioxide and used Energy
-Using Code Carbon $\texttt{record_emissions}$ tracks the resources extended by the training in $\texttt{_train}$.
+Using Code Carbon $\texttt{record\_emissions}$ tracks the resources extended by the training in $\texttt{\_train}$.
 This extends the run time of the classifier considerably.
 
 
@@ -168,7 +168,7 @@ We have left our ideas as [notes](#future-work), as well as issues in the github
 The tests we ran to evaluate the adl-classifier, tune its hyperparameter, 
 and a simple static with a variable architecture (but fixed) deep neuronal network to compare adl against.
 A more thorough test bench with more varied and more volatile drifts could be useful.
-$\texttt{run_bench}$ runs the tests needed for the thesis plots created by $\texttt{ba_plots}$ in sequence, 
-while $asyncio.run(bench_async())$ runs them using async with a higher utilization of processor resources. 
+$\texttt{run\_bench}$ runs the tests needed for the thesis plots created by $\texttt{ba\_plots}$ in sequence, 
+while $\texttt{asyncio.run(bench\_async())}$ runs them using async with a higher utilization of processor resources. 
 The interaction between codecarbon and async io are untested as the final data was created on a slurm cluster 
-using $\texttt{mogon_run.sh}$.
+using $\texttt{mogon\_run.sh}$.
